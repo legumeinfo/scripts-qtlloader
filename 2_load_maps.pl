@@ -177,6 +177,7 @@ sub loadMapCollection {
     my $map_id = setMapSetRec($dbh, $fields);  # featuremap_id
 
     # map_name, publication_map_name, pop_size, pop_type, analysis_method, and comment
+# take this one out for now since it's in a different cv than 'local' and not currently used -12/04/13
     insertFeaturemapprop($dbh, $map_id, 'map_name', 'display map name', $fields);
     insertFeaturemapprop($dbh, $map_id, 'publication_map_name', 'publication map name', $fields);
     insertFeaturemapprop($dbh, $map_id, 'pop_size', 'population size', $fields);
@@ -485,7 +486,7 @@ sub insertFeaturemapprop {
         ($map_id,
          (SELECT cvterm_id FROM chado.cvterm 
           WHERE name='$proptype'
-            AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local')),
+            AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='featuremap_property')),
          ?, 1)";
      logSQL($dataset_name, "$sql\nwith '$fields->{$fieldname}'");
      $sth = $dbh->prepare($sql);
