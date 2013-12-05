@@ -539,8 +539,7 @@ sub makeMapsetDbxref {
 sub makeLgDbxref {
   my ($dbh, $map_id, $fieldname, $fields) = @_;
   # $map_id is a feature_id
-print "makeLgDbxref has [$fields->{$fieldname}] in $fieldname\n" . Dumper($fields);
-print Dumper(%lis_map_sets);
+#print "makeLgDbxref has [$fields->{$fieldname}] in $fieldname\n" . Dumper($fields);
 
   return if (!$fields->{$fieldname}  || $fields->{$fieldname} eq 'NULL');
   
@@ -550,7 +549,6 @@ print Dumper(%lis_map_sets);
 #  $lis_mapname =~ /(.*)_.*/;
   my $lis_mapname = $lis_map_sets{$fields->{'map_name'}};
   my $accession = "?ref_map_set_acc=$lis_mapname;ref_map_accs=" . $fields->{$fieldname};
-print "map set accession: $lis_mapname, lg map accession: $accession\n";
 
   my $sql = "
     INSERT INTO dbxref
