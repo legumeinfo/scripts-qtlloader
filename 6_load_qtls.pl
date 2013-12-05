@@ -185,8 +185,8 @@ print "$line_count: $qtl_name\n";
     
 #print "  attach lg\n";
 # TODO: a linkage group should be a feature!
-    # lg (is this already in via the map and position?)
-    loadFeatureprop($dbh, $qtl_id, 'lg', 'linkage group', $fields);
+#    # lg (is this already in via the map and position?)
+#    loadFeatureprop($dbh, $qtl_id, 'lg', 'linkage group', $fields);
     
 #print "  attach map position\n";
     # set position (featurepos + featureposprop
