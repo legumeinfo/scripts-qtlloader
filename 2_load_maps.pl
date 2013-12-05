@@ -49,6 +49,10 @@ EOS
 
   # Holds linkage maps that are already in db; assume they should be updated
   my %existing_lg_maps;
+  
+#TODO: should be more general
+  # Holds LIS map set links
+  my %lis_map_sets;
 
   # Get connected
   my $dbh = connectToDB;
@@ -527,20 +531,26 @@ sub makeMapsetDbxref {
   logSQL($dataset_name, $sql);
   $sth = $dbh->prepare($sql);
   $sth->execute();
+  
+  $lis_map_sets{$fields->{'map_name'}} = $fields->{$fieldname};
 }#makeMapsetDbxref
 
 
 sub makeLgDbxref {
   my ($dbh, $map_id, $fieldname, $fields) = @_;
   # $map_id is a feature_id
+print "makeLgDbxref has [$fields->{$fieldname}] in $fieldname\n" . Dumper($fields);
+print Dumper(%lis_map_sets);
 
   return if (!$fields->{$fieldname}  || $fields->{$fieldname} eq 'NULL');
   
   # WARNING! THIS IS SPECIFIC TO LIS CMAP URLS!
   # "accession" here is the completion of db URL.
-  my $lis_mapname = $fields->{$fieldname};
-  $lis_mapname =~ /(.*)_.*/;
-  my $accession = "?ref_map_set_acc=$1;ref_map_accs=" . $fields->{$fieldname};
+#  my $lis_mapname = $fields->{$fieldname};
+#  $lis_mapname =~ /(.*)_.*/;
+  my $lis_mapname = $lis_map_sets{$fields->{'map_name'}};
+  my $accession = "?ref_map_set_acc=$lis_mapname;ref_map_accs=" . $fields->{$fieldname};
+print "map set accession: $lis_mapname, lg map accession: $accession\n";
 
   my $sql = "
     INSERT INTO dbxref
