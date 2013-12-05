@@ -577,7 +577,7 @@ sub loadFeatureprop {
     return;
   }
   
-  # hack!
+  # hack! linkage_group is in another cv
   my $cv; 
   if ($propname eq 'linkage_group') {
     $cv = 'sequence';
