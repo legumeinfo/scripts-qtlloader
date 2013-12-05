@@ -186,7 +186,7 @@ print "$line_count: $qtl_name\n";
 #print "  attach lg\n";
 # TODO: a linkage group should be a feature!
 #    # lg (is this already in via the map and position?)
-#    loadFeatureprop($dbh, $qtl_id, 'lg', 'linkage group', $fields);
+    loadFeatureprop($dbh, $qtl_id, 'lg', 'linkage_group', $fields);
     
 #print "  attach map position\n";
     # set position (featurepos + featureposprop
@@ -577,6 +577,15 @@ sub loadFeatureprop {
     return;
   }
   
+  # hack!
+  my $cv; 
+  if ($propname eq 'linkage_group') {
+    $cv = 'sequence';
+  }
+  else {
+    $cv = 'local';
+  }
+  
   $sql = "
     INSERT INTO chado.featureprop
      (feature_id, type_id, value, rank)
@@ -584,7 +593,7 @@ sub loadFeatureprop {
      ($feature_id,
       (SELECT cvterm_id FROM chado.cvterm 
        WHERE name='$propname'
-         AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local')),
+         AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='$cv')),
       '$fields->{$fieldname}',
       0)";
 #print "$line_count: $sql\n";
