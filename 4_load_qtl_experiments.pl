@@ -131,6 +131,9 @@ sub loadQTLexperiments {
     logSQL($dataset_name, $sql);
     doQuery($dbh, $sql);
     
+    # attach description
+    attachDescription($dbh, $experiment_id, $fields);
+    
     # attach geolocation to project record
     my $geolocation_id = getGeoLocation($dbh, $fields);
     my $nd_experiment_id = createExperiment($dbh, $geolocation_id, $fields);
@@ -167,6 +170,25 @@ sub loadQTLexperiments {
 ################################################################################
 ################################################################################
 ################################################################################
+
+sub attachDescription {
+  my ($dbh, $experiment_id, $fields) = @_;
+  
+  my $desc = $fields->{'description'};
+  
+  $sql = "
+    INSERT INTO chado.projectprop
+      (project_id, type_id, value)
+    VALUES
+      ($experiment_id,
+       (SELECT cvterm_id FROM chado.cvterm 
+        WHERE name='experiment description'
+          AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local')),
+       '$desc')";
+  logSQL($dataset_name, $sql);
+  doQuery($dbh, $sql);
+}#attachDescription
+
 
 sub attachExperiment {
   my ($dbh, $experiment_id, $nd_experiment_id, $fields) = @_;
@@ -288,14 +310,8 @@ sub setExperimentRec {
   my ($dbh, $experiment_id, $fields) = @_;
   my ($sql, $sth, $row);
   
-  # Build description from title and description fields
-  my $desc = '';
-  if ($fields->{'title'} && $fields->{'title'} ne 'NULL') {
-    $desc .= $fields->{'title'} . ' ';
-  }
-  if ($fields->{'description'} && $fields->{'description'} ne 'NULL') {
-    $desc .= $fields->{'description'};
-  }
+  # use title for description field
+  my $desc = $fields->{'title'};
   
   if ($experiment_id) {
     $sql = "
