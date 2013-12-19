@@ -379,7 +379,7 @@ my $ui = 'y';
         INSERT INTO chado.feature
           (organism_id, name, uniquename, type_id)
         VALUES
-          ($organism_id, '$unique_marker_name', '$unique_marker_name',
+          ($organism_id, '$fields->{$fieldname}', '$unique_marker_name',
            (SELECT cvterm_id FROM chado.cvterm 
             WHERE name='genetic_marker'
               AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='sequence')))
@@ -389,6 +389,7 @@ my $ui = 'y';
       $sth = doQuery($dbh, $sql);
       $row = $sth->fetchrow_hashref;
       $marker_id = $row->{'feature_id'};
+#print "returned id $marker_id\n\n";
     }
   }
   
@@ -405,6 +406,7 @@ my $ui = 'y';
 #print "$line_count: $sql\n";
     logSQL($dataset_name, "$line_count: $sql");
     $sth = doQuery($dbh, $sql);
+#print "returned $sth\n\n";
   }
 }#attachMarker
 
@@ -570,7 +572,10 @@ sub insertGeneticCoordinates {
 
 sub loadFeatureprop {
   my ($dbh, $feature_id, $fieldname, $propname, $fields) = @_;
-#print "attach property in field '$fieldname' of type '$propname'.\n" . Dumper($fields);
+#print "attach property in field '$fieldname' of type '$propname': [" . $fields->{'fieldname'} . "]\n";
+#if ($fieldname eq 'lg') {
+#  print "attach property in field '$fieldname' of type '$propname'.\n" . Dumper($fields);
+#}
   
   if (!$fields->{$fieldname} || $fields->{$fieldname} eq '' 
         || $fields->{$fieldname} eq 'NULL') {
