@@ -60,7 +60,9 @@ EOS
     loadAuthors($dbh);
     loadURLs($dbh);
     loadKeywords($dbh);
+    
     $dbh->commit;   # commit the changes if we get this far
+print "changes where committed\n\n";
   };
   if ($@) {
     print "\n\nTransaction aborted because $@\n\n";
@@ -92,7 +94,8 @@ sub loadPublications {
   my $skip_all = 0;  # skip all existing trait records
   foreach my $fields (@records) {
     $line_count++;
-    
+
+#print "Look for " . $fields->{'publink_citation'} . "\n"; 
     if (my $pub_id = publicationExists($dbh, $fields->{'publink_citation'})) {
       next if ($skip_all);
       print "$line_count: publication ($fields->{'publink_citation'}) is already loaded.\nUpdate? (y/n/q)\n";
@@ -115,7 +118,7 @@ sub loadPublications {
         next;
       }
     }
-    
+
     # title, volume, issue, year, pages, citation, ref_type
     setPubRec($dbh, $fields);
 
@@ -125,6 +128,9 @@ sub loadPublications {
 # pub table contains ISBNs for the journal, which creates duplicate entries. 
 # ISBNs aren't too useful anyway...
 #    set_dbxref($dbh, 'ISBN', 'isbn', $fields);
+    
+    # citation
+    setCitation($dbh, $fields);
     
     # abstract
     setAbstract($dbh, $fields);
@@ -142,8 +148,32 @@ sub loadAuthors {
   print "Loading $table_file...\n";
   
   @records = readFile($table_file);
+  my @authors;
+  my $publink_citation = '';
   my $line_count = 0;
   foreach my $fields (@records) {
+    if ($publink_citation ne $fields->{'publink_citation'}) {
+      # moved to new (or first) publication
+      if ($publink_citation ne '') {
+        # Also (bleech) save in a comma-separate list as a prop
+        $sql = "
+          INSERT INTO chado.pubprop
+           (pub_id, type_id, value, rank)
+          VALUES
+           ((SELECT pub_id FROM chado.pub WHERE uniquename=?),
+            (SELECT cvterm_id FROM chado.cvterm 
+             WHERE name='Authors'
+               AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub')),
+            ?, 0)";
+        logSQL($dataset_name, 
+               "$sql\nWITH:\n  uniquename: $publink_citation\n  authors: " . (join ',', @authors));
+        doQuery($dbh, $sql, ($publink_citation, (join ', ', @authors)));
+      }
+      @authors = ();
+      $publink_citation = $fields->{'publink_citation'};
+    }
+        
+    $publink_citation = $fields->{'publink_citation'};
     $line_count++;
     
     # split author into last, first
@@ -154,8 +184,11 @@ sub loadAuthors {
       VALUES
         ((SELECT pub_id FROM chado.pub WHERE uniquename=?),
          $fields->{'cite_order'}, ?, ?)";
-    logSQL($dataset_name, $sql);
+    logSQL($dataset_name, 
+           "$sql\nWITH:\n  uniquename: " . $fields->{'publink_citation'} . "\n  surname: $last\n  givennames: $first");
     doQuery($dbh, $sql, ($fields->{'publink_citation'}, $last, $first));
+    
+    push @authors, $fields->{'author'};
   }#each record
   
   print "\n\nLoaded $line_count pub author records\n\n";
@@ -180,10 +213,11 @@ sub loadURLs {
       VALUES
        ((SELECT pub_id FROM chado.pub WHERE uniquename=?),
         (SELECT cvterm_id FROM chado.cvterm 
-         WHERE name='publication URL'
-           AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local')),
+         WHERE name='URL'
+           AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub')),
         ?, 0)";
-    logSQL($dataset_name, $sql);
+    logSQL($dataset_name, 
+           "$sql\nWITH:\n  uniquename: " . $fields->{'publink_citation'} . "\n  url: " . $fields->{'url'});
     doQuery($dbh, $sql, ($fields->{'publink_citation'}, $fields->{'url'}));
   }#each record
   
@@ -213,10 +247,11 @@ sub loadKeywords {
       VALUES
        ((SELECT pub_id FROM chado.pub WHERE uniquename=?),
         (SELECT cvterm_id FROM chado.cvterm 
-         WHERE name='publication keyword'
-           AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local')),
+         WHERE name='Keywords'
+           AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub')),
         ?, $keyword_count{$fields->{'publink_citation'}})";
-    logSQL($dataset_name, $sql);
+    logSQL($dataset_name, 
+           "$sql\nWITH:\n  uniquename: " . $fields->{'publink_citation'} . "\n  value: " . $fields->{'keyword'});
     doQuery($dbh, $sql, ($fields->{'publink_citation'}, $fields->{'keyword'}));
   }#each record
   
@@ -244,14 +279,19 @@ sub clearDependencies {
     doQuery($dbh, $sql);
   }#each dependant dbxref
   
-  # delete publication properties
-  $sql = "DELETE FROM chado.pubprop WHERE pub_id=$pub_id";
-  logSQL($sql);
+  # just for good measure...
+  $sql = "DELETE FROM chado.pub_dbxref WHERE pub_id=$pub_id";
+  logSQL('', $sql);
   doQuery($dbh, $sql);
   
-  # delete dependand pubauthor records
+  # delete publication properties
+  $sql = "DELETE FROM chado.pubprop WHERE pub_id=$pub_id";
+  logSQL('', $sql);
+  doQuery($dbh, $sql);
+  
+  # delete dependant pubauthor records
   $sql = "DELETE FROM chado.pubauthor WHERE pub_id=$pub_id";
-  logSQL($sql);
+  logSQL('', $sql);
   doQuery($dbh, $sql);
 }#clearDependencies
 
@@ -267,14 +307,39 @@ sub setAbstract {
      VALUES
        ((SELECT pub_id FROM chado.pub WHERE uniquename=?),
         (SELECT cvterm_id FROM chado.cvterm 
-         WHERE name='abstract'
+         WHERE name='Abstract'
            AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub')),
         ?, 0)";
     logSQL($dataset_name, $sql);
     doQuery($dbh, $sql, 
-           ($fields->{'publink_citation'}, $fields->{'abstract'}));
+            ($fields->{'publink_citation'}, $fields->{'abstract'}));
   }
 }#setAbstract
+
+
+sub setCitation {
+  my ($dbh, $fields) = @_;
+  
+  if ($fields->{'publink_citation'} && $fields->{'publink_citation'} ne '' 
+        && $fields->{'publink_citation'} ne 'NULL') {
+    my $citation = $fields->{'publink_citation'};
+    $citation =~ s/\w$//; 
+#print "citation will be [$citation]\n";
+    $sql = "
+     INSERT INTO chado.pubprop
+       (pub_id, type_id, value, rank)
+     VALUES
+       ((SELECT pub_id FROM chado.pub WHERE uniquename=?),
+        (SELECT cvterm_id FROM chado.cvterm 
+         WHERE name='Citation'
+           AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub')),
+        ?, 0)";
+    logSQL($dataset_name, 
+           "$sql\nWITH:\n  uniquename: " . $fields->{'publink_citation'} > "\n  citation: $citation");
+    doQuery($dbh, $sql, 
+            ($fields->{'publink_citation'}, $citation));
+  }
+}#setCitation
 
 
 sub set_dbxref {
@@ -312,8 +377,8 @@ sub setPubRec {
         issue='$fields->{'issue'}', pyear='$fields->{'year'}',
         pages='$fields->{'pages'}', uniquename=?,
         type_id=(SELECT cvterm_id FROM chado.cvterm 
-                 WHERE name=LOWER('$fields->{'ref_type'}')
-                   AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local'))
+                 WHERE LOWER(name)=LOWER('$fields->{'ref_type'}')
+                   AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub'))
       WHERE pub_id=$existing_citations{$fields->{'publink_citation'}}";
   }
   else {
@@ -324,13 +389,13 @@ sub setPubRec {
          (?, ?, '$fields->{'volume'}', '$fields->{'issue'}', '$fields->{'year'}', 
           '$fields->{'pages'}', ?,
           (SELECT cvterm_id FROM chado.cvterm 
-           WHERE name=LOWER('$fields->{'ref_type'}')
-             AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local'))
+           WHERE LOWER(name)=LOWER('$fields->{'ref_type'}')
+             AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub'))
          )";
   }
   
   logSQL($dataset_name, 
-         "$sql\nwith $fields->{'title'}, $fields->{'series_book_title'}, $fields->{'publink_citation'}");
+         "$sql\nWITH:\n  title: $fields->{'title'}\n  series: $fields->{'series_book_title'}\n  uniquename: $fields->{'publink_citation'}\n\n");
   doQuery($dbh, $sql, 
           ($fields->{'title'}, 
            $fields->{'series_book_title'}, 
