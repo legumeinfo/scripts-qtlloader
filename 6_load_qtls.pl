@@ -136,7 +136,7 @@ print "$line_count: $qtl_name\n";
     attachExperiment($dbh, $qtl_id, $fields);
          
 #print "  attach experiment trait name\n";
-    # trait_description
+    # trait_name
     loadFeatureprop($dbh, $qtl_id, 'expt_trait_name', 'experiment trait name', $fields);
     
 #print "  attach experiment trait description\n";
