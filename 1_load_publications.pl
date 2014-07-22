@@ -61,7 +61,7 @@ EOS
     loadURLs($dbh);
     loadKeywords($dbh);
     
-    $dbh->commit;   # commit the changes if we get this far
+#    $dbh->commit;   # commit the changes if we get this far
 print "changes where committed\n\n";
   };
   if ($@) {
@@ -345,14 +345,16 @@ sub setCitation {
 sub set_dbxref {
   my ($dbh, $name, $key, $fields) = @_;
   
-  if ($fields->{$key} && $fields->{$key} ne '' && $fields->{$key} ne 'NULL') {
+  if ($fields->{$key} && $fields->{$key} ne '' && $fields->{$key} ne 'NULL'
+        && $fields->{$key} ne 'none' && $fields->{$key} ne 'n/a') {
     my $sql = "
       INSERT INTO chado.dbxref
        (db_id, accession)
       VALUES
        ((SELECT db_id FROM chado.db WHERE name='$name'),
         '$fields->{$key}')";
-    logSQL($dataset_name, $sql);
+    logSQL($dataset_name, 
+           "$sql\nWITH:  accession: " . $fields->{$key});
     doQuery($dbh, $sql);
     
     $sql = "
@@ -361,7 +363,8 @@ sub set_dbxref {
       VALUES
        ((SELECT pub_id FROM chado.pub WHERE uniquename='$fields->{'publink_citation'}'),
         (SELECT dbxref_id FROM chado.dbxref WHERE accession='$fields->{$key}'))";
-    logSQL($dataset_name, $sql);
+    logSQL($dataset_name, 
+           "$sql\nWITH:  uniquename: " . $fields->{'publink_citation'} . "\n  accession: " . $fields->{$key});
     doQuery($dbh, $sql);
   }
 }#set_dbxref
