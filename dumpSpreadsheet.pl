@@ -9,7 +9,7 @@
 
   use strict;
   use Text::Iconv;
-  use Spreadsheet::XLSX;
+  use Spreadsheet::ParseXLSX;
   use Spreadsheet::ParseExcel::FmtUnicode;
   use Data::Dumper;
 
@@ -19,14 +19,22 @@
     Usage:
       
     $0 [opts] spreadsheet output-dir
-      -g dump genetic maps
-      -p dump publication worksheets
-      -m dump map worksheets
-      -q dump QTL worksheets
-      -a dump all worksheets
+      -w worksheet-list or 'all'
+      -r row-range (default: all)
+      -c column-range (default: all)
+      -o html|tsv (default: tsv)
     
-    NOTE: spreadsheet needs to be in the older .xls format
-          (MS Office 2004 or earlier)
+    Where a range can contain ranges (e.g. 1-10) and or lists (e.g. 4,6,9).
+    Ranges and lists can be combined (e.g. 1-10,12,15-20)
+    
+    Examples:
+    
+    Dump worksheets 'QTL' and 'QTL_EXPERIMENT'
+      perl $0 -w QTL,QTL_EXPERIMENT BlairGaleano2012_v15srk.xlsx data/
+    
+    Dump worksheet 'worksheet1', rows 2 through 100, columns 4, 6, and 8
+      perl $0 -w worksheet1 -r 2-100 -c 4,6,8 BlairGaleano2012_v15srk.xlsx data/
+    
           
 EOS
 ;
@@ -34,113 +42,87 @@ EOS
     die $warn;
   }
   
-  # What spreadsheet needs dumping?
-  my ($do_maps, $do_pubs, $do_markers, $do_qtls);
+  # What needs dumping?
+  my ($worksheetlist, $row_range, $col_range, $outtype);
   my %cmd_opts = ();
-  getopts("gpmqa", \%cmd_opts);
-  if (defined($cmd_opts{'g'})) { $do_maps    = 1; }
-  if (defined($cmd_opts{'p'})) { $do_pubs    = 1; }
-  if (defined($cmd_opts{'m'})) { $do_markers = 1; }
-  if (defined($cmd_opts{'q'})) { $do_qtls    = 1; }
-  if (defined($cmd_opts{'a'})) { 
-    $do_pubs    = 1;
-    $do_markers = 1;
-    $do_qtls    = 1;
+  getopts("w:r:c:o:", \%cmd_opts);
+  if (defined($cmd_opts{'w'})) { $worksheetlist = $cmd_opts{'w'}; }
+  if (defined($cmd_opts{'r'})) { $row_range     = $cmd_opts{'r'}; }
+  if (defined($cmd_opts{'c'})) { $col_range     = $cmd_opts{'c'}; }
+  if (defined($cmd_opts{'o'})) { 
+    $outtype = $cmd_opts{'o'}; 
+  }
+  else {
+    $outtype = 'tsv';
   }
   
   my ($spreadsheetfile, $out_dir) = @ARGV;
-  
-print "\nOpen spreadsheet $spreadsheetfile\n\n";
-#  my $converter = Text::Iconv -> new ("utf-8", "windows-1251");
-#  my $workbook   = Spreadsheet::XLSX->new($spreadsheetfile, $converter);
-#  if (!defined $workbook) {
-#    die "\nUnable to create spreadsheet parser\n";
-#  }
+  print "\nDump data from $spreadsheetfile.\n";
+  print "Output file(s) of type $outtype will be written to directory $out_dir/\n\n";
 
   my $formatter = Spreadsheet::ParseExcel::FmtUnicode->new();
-  my $parser   = Spreadsheet::ParseExcel->new();
-  my $workbook = $parser->parse($spreadsheetfile, $formatter);
+  my $parser = Spreadsheet::ParseXLSX->new;
+  my $workbook = $parser->parse($spreadsheetfile);
   if (!defined $workbook) {
     die $parser->error(), ".\n";
   }
 
+  # Parse and check worksheet list
+  my @worksheets = ($worksheetlist && $worksheetlist ne 'all') 
+                 ? getWorksheetsByName($worksheetlist)
+                 : $workbook->worksheets();
+
+  print "Process " . (scalar @worksheets) . " worksheets.\n";
+  if (scalar @worksheets == 0) {
+    $warn = "\nERROR: Unable to find any of the requested worksheets.\n\n" . $warn;
+    die $warn;
+  }
   
-################################################################################
-#                                GENETIC MAPS                                  #
-################################################################################
+  # Parse and check ranges
+  my @rows = getRange($row_range);
+  if (scalar @rows == 0) {
+    $warn = "\nERROR: Unable to find any of the requested rows.\n\n" . $warn;
+    die $warn;
+  }
+  print "Will dump " . (scalar @rows) . " rows\n";
 
-if ($do_maps) {
-  print "dump genetic map worksheets...\n";
-  for my $sheet ($workbook->worksheets()) {
-    my $sheet_name = $sheet->get_name;
-    if ($sheet_name =~ /^CONSENSUS_MAP/) {
-      my $filename = "$out_dir/$sheet_name.txt";
-      exportWorksheet($filename, $sheet);
-    }#found map worksheet
-  }#each worksheet
-}#do maps
-
-
-################################################################################
-#                                PUBLICATIONS                                  #
-################################################################################
-
-if ($do_pubs) {
-  print "dump publication worksheets...\n";
-  for my $sheet ($workbook->worksheets()) {
-    my $sheet_name = $sheet->get_name;
-    if ($sheet_name =~ /^PUB/) {
-      my $filename = "$out_dir/$sheet_name.txt";
-      exportWorksheet($filename, $sheet);
-    }#export this worksheet
-  }#each worksheet
-}#export pubs spreadsheet
-
-################################################################################
-#                                   MARKERS                                    #
-################################################################################
-
-if ($do_markers) {
-  print "dump marker worksheets...\n";
-  for my $sheet ($workbook->worksheets()) {
-    my $sheet_name = $sheet->get_name;
-    if ($sheet_name eq 'MARKERS') {
-      my $filename = "$out_dir/$sheet_name.txt";
-      exportWorksheet($filename, $sheet);
-    }#export this worksheet
-  }#each worksheet
-  
-}#export markers spreadsheet
-
-
-################################################################################
-#                                    QTLS                                      #
-################################################################################
-
-if ($do_qtls) {
-  print "dump QTL worksheets...\n";
-  for my $sheet ($workbook->worksheets()) {
-    my $sheet_name = $sheet->get_name;
-    if ($sheet_name =~ /QTL/ || $sheet_name =~ /TRAIT/ || $sheet_name =~ /MAP/) {
-      my $filename = "$out_dir/$sheet_name.txt";
-      exportWorksheet($filename, $sheet);
-    }#export this worksheet
-  }#each worksheet
-  
-}#export qtl spreadsheet
-
-
-sub exportWorksheet {
-  my ($filename, $sheet) = @_;
-  
-  open OUT, ">$filename" or die "\nUnable to open $filename: $!\n\n";
+  my @cols = getRange($col_range);
+  if (scalar @rows == 0) {
+    $warn = "\nERROR: Unable to find any of the requested columns.\n\n" . $warn;
+    die $warn;
+  }
+  print "Will dump " . (scalar @cols) . " rows\n";
     
-  my ($row_min, $row_max) = $sheet->row_range();
-  my ($col_min, $col_max) = $sheet->col_range();
+  for my $worksheet (@worksheets) {
+    my $sheet_name = $worksheet->get_name;
+    my $filename = "$out_dir/$sheet_name.txt";
+    exportWorksheet($filename, $worksheet, \@rows, \@cols);
+  }#each worksheet
   
-  for my $row ($row_min .. $row_max) {
-    for my $col (0 .. $col_max) {
-      my $cell = $sheet->get_cell($row, $col);
+  
+  
+sub exportWorksheet {
+  my ($filename, $worksheet, $rowref, $colref) = @_;
+  my @rows = @$rowref;
+  my @cols = @$colref;
+#print "rows:\n" . Dumper(@rows);
+#print "cols:\n" . Dumper(@cols);
+
+  open my $fh, ">$filename" or die "\nUnable to open $filename: $!\n\n";
+  
+  startFile($fh);
+  
+  if (!@rows || scalar @rows == 0) {
+    @rows = getAllRows($worksheet);
+  }
+  if (!@cols || scalar @cols == 0) {
+    @cols = getAllCols($worksheet);
+  }
+  
+  for my $row (@rows) {
+    startRow($fh);
+    for my $col (@cols) {
+      my $cell = $worksheet->get_cell($row, $col);
       my $value = 'NULL';
       if ($cell) {
         $value = $cell->value();
@@ -151,10 +133,116 @@ sub exportWorksheet {
         if ($value eq '') {     # if cell is still empty put 'NULL' string
           $value = 'NULL';
         }
+        next if ($value =~ /^#/);
       }
-      print OUT $value, "\t";
+      writeCell($fh, $value);
     }#each worksheet column
     
-    print OUT "\n";
+    endRow($fh);
   }#each worksheet row
+  
+  endFile($fh);
+  print "Data for worksheet " . $worksheet->get_name . " written to $filename\n";
 }#exportWorksheet
+
+
+sub getAllCols {
+  my $worksheet = @_[0];
+  my ($col_min, $col_max) = $worksheet->col_range();
+  
+  return ($col_min..$col_max);
+}#getAllCols
+
+
+sub getAllRows {
+  my $worksheet = @_[0];
+  my ($row_min, $row_max) = $worksheet->row_range();
+  
+  return ($row_min..$row_max);
+}#getAllRows
+
+
+sub getRange {
+  my ($range) = $_[0];
+  
+  my @vals;
+  if ($range) {
+    if (!($range =~ /^[\d-,]+$/)) {
+      $warn = "\nERROR: incorrect range format: [$range]. "
+            . "Must be <start>-<end> with no spaces" . $warn;
+      die $warn;
+    }
+    else {
+      my @ranges = split ',', $range;
+      foreach my $range (@ranges) {
+        if ($range =~ /-/) {
+          my ($start, $end) = split '-', $range;
+          push @vals, ($start..$end);
+        }
+        else {
+          push @vals, $range;
+        }
+      }
+    }
+  }
+#print Dumper(@vals);
+
+  return @vals;
+}#getRange
+
+
+sub getWorksheetsByName {
+  my @worksheet_names = split ',', $_[0];
+  my @worksheets;
+  foreach my $name (@worksheet_names) {
+    my $worksheet = $workbook->worksheet($name);
+    if ($worksheet) {
+      push @worksheets, $workbook->worksheet($name);
+    }
+  }
+  return @worksheets;
+}#getWorksheetsByName
+
+
+sub startFile {
+  my $fh = $_[0];
+  if ($outtype eq 'html') {
+    print $fh "<table>\n";
+  }
+}#startFile
+
+
+sub endFile {
+  my $fh = $_[0];
+  if ($outtype eq 'html') {
+    print $fh "</table>\n";
+  }
+}#endFile
+
+
+sub startRow {
+  my $fh = $_[0];
+  if ($outtype eq 'html') {
+    print $fh "  <tr>\n";
+  }
+}#startRow
+
+sub endRow {
+  my $fh = $_[0];
+  if ($outtype eq 'html') {
+    print $fh "  </tr>\n";
+  }
+  else {
+    print $fh "\n";
+  }
+}#startRow
+
+sub writeCell {
+  my ($fh, $value) = @_;
+  if ($outtype eq 'html') {
+    print $fh "    <td>$value</td>\n";
+  }
+  else {
+    print $fh "$value\t";
+  }
+}#writeCell
