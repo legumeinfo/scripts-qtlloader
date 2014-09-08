@@ -6,6 +6,7 @@
 # history:
 #  06/03/13  eksc  created
 #  09/16/13  sdash empty cell to 'NULL' in markers and QTLs
+#  08/19/14  eksc  modified to be more general
 
   use strict;
   use Text::Iconv;
@@ -19,7 +20,7 @@
     Usage:
       
     $0 [opts] spreadsheet output-dir
-      -w worksheet-list or 'all'
+      -w worksheet-list or 'all' (default: all)
       -r row-range (default: all)
       -c column-range (default: all)
       -o html|tsv (default: tsv)
@@ -38,15 +39,12 @@
           
 EOS
 ;
-  if ($#ARGV < 1) {
-    die $warn;
-  }
-  
   # What needs dumping?
-  my ($worksheetlist, $row_range, $col_range, $outtype);
+  my ($row_range, $col_range, $outtype);
+  my $worksheetlist = 'all';
   my %cmd_opts = ();
   getopts("w:r:c:o:", \%cmd_opts);
-  if (defined($cmd_opts{'w'})) { $worksheetlist = $cmd_opts{'w'}; }
+  if (defined($cmd_opts{'w'})) { $worksheetlist = $cmd_opts{'w'}; } 
   if (defined($cmd_opts{'r'})) { $row_range     = $cmd_opts{'r'}; }
   if (defined($cmd_opts{'c'})) { $col_range     = $cmd_opts{'c'}; }
   if (defined($cmd_opts{'o'})) { 
@@ -57,6 +55,10 @@ EOS
   }
   
   my ($spreadsheetfile, $out_dir) = @ARGV;
+  if (!$out_dir) {
+    die $warn;
+  }
+  
   print "\nDump data from $spreadsheetfile.\n";
   print "Output file(s) of type $outtype will be written to directory $out_dir/\n\n";
 
@@ -80,19 +82,25 @@ EOS
   
   # Parse and check ranges
   my @rows = getRange($row_range);
-  if (scalar @rows == 0) {
-    $warn = "\nERROR: Unable to find any of the requested rows.\n\n" . $warn;
-    die $warn;
-  }
-  print "Will dump " . (scalar @rows) . " rows\n";
+#  if (scalar @rows == 0) {
+#    $warn = "\nERROR: Unable to find any of the requested rows.\n\n" . $warn;
+#    die $warn;
+#  }
+#  print "Will dump " . (scalar @rows) . " rows\n";
 
   my @cols = getRange($col_range);
-  if (scalar @rows == 0) {
-    $warn = "\nERROR: Unable to find any of the requested columns.\n\n" . $warn;
+#  if (scalar @rows == 0) {
+#    $warn = "\nERROR: Unable to find any of the requested columns.\n\n" . $warn;
+#    die $warn;
+#  }
+#  print "Will dump " . (scalar @cols) . " rows\n";
+  
+  # valid output type?
+  if ($outtype ne 'html' && $outtype ne 'tsv') {
+    $warn = "\nERROR: Unknown output type [$outtype].\n\n" . $warn;
     die $warn;
   }
-  print "Will dump " . (scalar @cols) . " rows\n";
-    
+  
   for my $worksheet (@worksheets) {
     my $sheet_name = $worksheet->get_name;
     my $filename = "$out_dir/$sheet_name.txt";
@@ -118,8 +126,15 @@ sub exportWorksheet {
   if (!@cols || scalar @cols == 0) {
     @cols = getAllCols($worksheet);
   }
+print "$filename: Dump " . (scalar @rows) . " rows\n";
+print "$filename: Dump " . (scalar @cols) . " cols\n";
   
+  my $row_count = 0;
   for my $row (@rows) {
+    my $check_cell = $worksheet->get_cell($row, 0);
+    next if (!$check_cell);
+    next if ($check_cell->value() =~ /^##/);  # comments at top of worksheet
+    next if ($check_cell->value =~ /^#/ && $row_count > 0);
     startRow($fh);
     for my $col (@cols) {
       my $cell = $worksheet->get_cell($row, $col);
@@ -133,16 +148,16 @@ sub exportWorksheet {
         if ($value eq '') {     # if cell is still empty put 'NULL' string
           $value = 'NULL';
         }
-        next if ($value =~ /^#/);
       }
       writeCell($fh, $value);
     }#each worksheet column
     
     endRow($fh);
+    $row_count++;
   }#each worksheet row
   
   endFile($fh);
-  print "Data for worksheet " . $worksheet->get_name . " written to $filename\n";
+  print "Data for worksheet " . $worksheet->get_name . " written to $filename\n\n";
 }#exportWorksheet
 
 

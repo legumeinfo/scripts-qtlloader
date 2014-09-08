@@ -12,13 +12,14 @@ our @EXPORT      = (
                     qw(doQuery), 
                     qw(experimentExists),
                     qw(getChromosomeID),
-                    qw(getCvterm), 
+                    qw(getCvtermID), 
                     qw(getMapSetID),
                     qw(getOBOTerm),
                     qw(getOrganismID),
                     qw(getOrganismMnemonic),
                     qw(getQTLid),
                     qw(getScaffoldID),
+                    qw(getSSInfo),
                     qw(getTrait), 
                     qw(logSQL),
                     qw(makeLinkageMapName),
@@ -43,22 +44,124 @@ our @EXPORT      = (
 require 'db.pl';
 
 
+
 sub testsub {
   print "this is a test\n";
 }
 
-=cut defined in db.pl above
-sub connectToDB {
 
-  # $g_connect_str, $g_user, and $g_pass defined in db.pl
-  my $dbh = DBI->connect($g_connect_str, $g_user, $g_pass);
+sub getSSInfo {
+  my $ss = $_[0];
+  
+  # PUB
+  if ($ss eq 'PUBS') {
+    return (
+      'worksheet'    => 'PUB',
+      'pub_fld'      => 'publink_citation',
+      'species_fld'  => 'species',
+      'ref_type_fld' => 'ref_type',
+      'year_fld'     => 'year',
+      'title_fld'    => 'title',
+      'author_fld'   => 'authors',
+      'journal_fld'  => 'journal',
+      'volume_fld'   => 'volume',
+      'issue_fld'    => 'issue',
+      'page_fld'     => 'pages',
+      'doi_fld'      => 'doi',
+      'pmid_fld'     => 'pmid',
+      'abstract_fld' => 'abstract',
+      'keyword_fld'  => 'keywords',
+      'url_fld'      => 'urls',
+    );
+  }
+  
+  elsif ($ss eq 'QTL_EXPERIMENTS') {
+    return(
+      'worksheet'   => 'QTL_EXPERIMENT',
+      'species_fld' => 'specieslink_abv',
+      'desc_fld'    => 'description',
+      'geoloc_fld'  => 'geolocation',
+      'map_fld'     => 'map_name',
+      'name_fld'    => 'name',
+      'pub_fld'     => 'publink_citation',
+      'title_fld'   => 'title',
+      'comment_fld' => 'comment',
+    );
+  }
 
-  $dbh->{AutoCommit} = 0;  # enable transactions, if possible
-  $dbh->{RaiseError} = 1;
+  # MAP_COLLECTIONS
+  elsif ($ss eq 'MAP_COLLECTIONS') {
+    return (
+      'worksheet'        => 'MAP_COLLECTIONS',
+      'species_fld'      => 'specieslink_abv',
+      'pub_map_name_fld' => 'publication_map_name',
+      'map_name_fld'     => 'map_name',
+      'description_fld'  => 'description',
+      'parent1_fld'      => 'parent1',
+      'parent2_fld'      => 'parent2',
+      'pop_size_fld'     => 'pop_size',
+      'pop_type_fld'     => 'pop_type',
+      'a_method_fld'     => 'analysis_method',
+      'pub_fld'          => 'publink_citation',
+      'unit_fld'         => 'unit',
+      'LIS_name_fld'     => 'LIS_mapset_name',
+      'comment_fld'      => 'comment',
+    );
+  }
+  elsif ($ss eq 'MAPS') {
+    return (
+      'worksheet'     => 'MAPS',
+      'species_fld'   => 'specieslink_abv',
+      'map_name_fld'  => 'map_name',
+      'lg_fld'        => 'lg',
+      'map_start_fld' => 'map_start',
+      'map_end_fld'   => 'map_end',
+      'LIS_lg_fld'    => 'LIS_lg_map_name',
+    );
+  }
+  elsif ($ss eq 'TRAITS') {
+    return (
+      'worksheet'       => 'Traits',
+      'qtl_symbol_fld'  => 'QTL_Symbol',
+      'trait_name_fld'  => 'Trait_Name',
+      'trait_class_fld' => 'Trait_Class',
+      'onto_id_fld'     => 'Similar_Controlled_Vocab_Accessions',
+      'description_fld' => 'Description',
+    );
+  }
+}#getSSInfo
 
-  return $dbh;
-}#connectToDB
-=cut
+
+sub checkUpdate {
+  my $prompt = $_[0];
+  
+  my ($skip, $skip_all, $update, $update_all);
+  
+  print "$prompt is already loaded.\nUpdate? (y/n/skipall/all/q)\n";
+  my $userinput =  <STDIN>;
+  chomp ($userinput);
+  if ($userinput eq 'skipall') {
+    $skip_all = 1;
+  }
+  elsif ($userinput eq 'n') {
+    $skip = 1;
+  }
+  elsif ($userinput eq 'q') {
+    exit;
+  }
+  elsif ($userinput eq 'all') {
+    $update_all = 1;
+  }
+  elsif ($userinput eq 'y') {
+    $update = 1;
+  }
+  else {
+    print "unknown option ($userinput); skipping record\n";
+    $skip = 1;
+  }
+ 
+ return ($skip, $skip_all, $update, $update_all);
+}
 
 
 sub dbxrefExists {
@@ -125,7 +228,7 @@ sub experimentExists {
 }#experimentExists
 
 
-sub getCvterm {
+sub getCvtermID {
   my ($dbh, $term, $cv) = @_;
   my ($sql, $sth, $row);
   
@@ -151,8 +254,10 @@ sub getCvterm {
     }
   }
   
+  # search failed
+  reportError("Unable to find term [$term] in controlled vocabulary [$cv]\n");
   return 0;
-}#getCvterm
+}#getCvtermID
 
 
 sub getChromosomeID {
@@ -302,6 +407,22 @@ sub getOrganismID {
 }#getOrganismID
 
 
+sub getPubID {
+  my ($dbh, $citation) = @_;
+  my ($sql, $sth, $row);
+  
+  $sql = "SELECT pub_id FROM chado.pub WHERE uniquename='$citation'";
+  $sth->execute();
+  if ($row=$sth->fetchrow_hashref) {
+    return $row->{'pub_id'};
+  }
+  else {
+    reportError("unknown publication: [$citation]");
+    return 0;
+  }
+}#getPubID
+
+
 sub getOrganismMnemonic {
   my ($dbh, $mnemonic, $line_count) = @_;
   my ($sql, $sth, $row);
@@ -369,21 +490,21 @@ sub getScaffoldID {
 sub getTrait {
   my ($dbh, $trait) = @_;
   
-  my $trait_id = getCvterm($dbh, $trait, 'LegumeInfo:traits');
+  my $trait_id = getCvtermID($dbh, $trait, 'LegumeInfo:traits');
   if (!$trait_id) {
-    $trait_id = getCvterm($dbh, $trait, 'SOY');
+    $trait_id = getCvtermID($dbh, $trait, 'SOY');
   }
   if (!$trait_id) {
-    $trait_id = getCvterm($dbh, $trait, 'soybean_whole_plant_growth_stage');
+    $trait_id = getCvtermID($dbh, $trait, 'soybean_whole_plant_growth_stage');
   }
   if (!$trait_id) {
-    $trait_id = getCvterm($dbh, $trait, 'soybean_development');
+    $trait_id = getCvtermID($dbh, $trait, 'soybean_development');
   }
   if (!$trait_id) {
-    $trait_id = getCvterm($dbh, $trait, 'soybean_structure');
+    $trait_id = getCvtermID($dbh, $trait, 'soybean_structure');
   }
   if (!$trait_id) {
-    $trait_id = getCvterm($dbh, $trait, 'soybean_trait');
+    $trait_id = getCvtermID($dbh, $trait, 'soybean_trait');
   }
   
   return $trait_id;
@@ -402,12 +523,11 @@ sub logSQL {
 
 
 sub makeLinkageMapName {
-  my ($fields) = @_;
+  my ($map_name, $lg) = @_;
   
   my $lg_map_name = 0;
-  if ($fields->{'map_name'} && $fields->{'map_name'} ne 'NULL'
-        && $fields->{'lg'} && $fields->{'lg'} ne 'NULL') {
-    $lg_map_name = "$fields->{'map_name'}-$fields->{'lg'}";
+  if ($map_name && $map_name ne 'NULL' && $lg && $lg ne 'NULL') {
+    $lg_map_name = "$map_name-$lg";
   }
   
   return $lg_map_name;
@@ -530,24 +650,31 @@ sub readFile {
   use Encode;
 
   my $table_file = $_[0];
+#print "read file $table_file\n";
 
   # execute perl one-liner to fix line endings
   my $cmd = "perl -pi -e 's/(?:\\015\\012?|\\012)/\\n/g' $table_file";
   `$cmd`;
+#print "cleaned-up table file\n";
 
   open IN, "<:utf8", $table_file
       or die "\n\nUnable to open $table_file: $!\n\n";
   my @records = <IN>;
   close IN;
+#print "Read all " . (scalar @records) . " records.\n\n";
+#print "\nFirst record:\n" . $records[0] . "\n\n";
 
   my @hash_records;
   my (@cols, @field_names, $field_count);
   
   my $header_rows = 0;
   do {
-    next if ($records[$header_rows] =~ /^##/);
+#print $header_rows . ':' . $records[$header_rows] . "\n\n";
+    next if ($records[$header_rows] =~ /^##/);  # A double-# marks comments at the head of a worksheet
     chomp $records[$header_rows];chomp $records[$header_rows];
     if ($records[$header_rows] =~ /^#/ && (scalar @field_names) == 0) {
+      # First column that starts with #, so must be the header row
+#print "Found header row: " . $records[$header_rows] . "\n";
       $records[$header_rows] =~ s/#//;
       @cols = split "\t", $records[$header_rows];
       foreach my $col (@cols) {
@@ -560,6 +687,7 @@ sub readFile {
     }#heading row
     $header_rows++;
   } while ((scalar @field_names) == 0);
+#print "Got header rows:\n" . Dumper(@field_names);
   
   for (my $i=$header_rows; $i<(scalar @records); $i++) {
     chomp $records[$i];
@@ -571,7 +699,7 @@ sub readFile {
     if ((scalar @fields) < $field_count) {
       my $msg = "Insufficient columns. Expected $field_count, found " . (scalar @fields);
       reportError($i, $msg);
-      next;
+#      next;
     }
     my %hash_record;
     for (my $j=0; $j<(scalar @field_names); $j++) {

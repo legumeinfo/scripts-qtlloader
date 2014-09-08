@@ -8,6 +8,7 @@
 #
 # history:
 #  05/09/13  eksc  created
+#  09/05/14  eksc  modified for latest spreadsheet revisions
 
 
   use strict;
@@ -80,12 +81,14 @@ EOS
   my %citations;
   if ($do_pubs) {
     
+    # Get spreadsheet constants
+    my %pi = getSSInfo('PUBS');
+
     # Make sure we've got all the pub table files
-    if (!$files{'PUBS.txt'} || !$files{'PUB_AUTHORS.txt'} 
-          || !$files{'PUB_KEYWORDS.txt'} || !$files{'PUB_URLS.txt'}) {
-      $msg = "\nOne or more publication tables is missing.\n";
-      $msg .= "PUBS.txt, PUB_AUTHORS.txt, PUB_KEYWORDS.txt and PUB_URLS.txt ";
-      $msg .= "are required.\n\n";
+    my $pubsfile = $pi{'worksheet'} . '.txt';
+    if (!$files{$pubsfile}) {
+      $msg = "\nPublication tables is missing.\n";
+      $msg .= "$pubsfile is required.\n\n";
       reportError('', $msg);
       exit;
     }
@@ -97,61 +100,73 @@ EOS
     # 3. all citations must be unique in spreadsheet
     # 4. PMID, if present, should be a number
     # 5. DOI, if present, should look like a DOI
-    
-    $wsfile = "$input_dir/PUBS.txt";
+    # 6. author list is required
+    $wsfile = "$input_dir/$pubsfile";
     print "\nReading publication records from $wsfile\n";
     @records = readFile($wsfile);
-  
+
     $has_errors = 0;
     $line_count = 0;
     foreach my $fields (@records) {
       $line_count++;
-      if ($fields->{'publink_citation'} && $fields->{'publink_citation'} ne ''
-            && $fields->{'publink_citation'} ne 'NULL') {
+      my $publink_citation = $fields->{$pi{'pub_fld'}};
+      if ($publink_citation && $publink_citation ne '' 
+            && $publink_citation ne 'NULL') {
         # check for required field ref_type
-        if ($fields->{'ref_type'} ne '' && lc($fields->{'ref_type'}) ne 'null' 
-              && !getCvterm($dbh, $fields->{'ref_type'}, 'local')) {
+        my $ref_type = $fields->{$pi{'ref_type_fld'}};
+        if ($ref_type ne '' && lc($ref_type) ne 'null' 
+              && !getCvtermID($dbh, $ref_type, 'local')) {
           $has_errors++;
-          $msg = "ERROR: missing ref_type cvterm: $fields->{'ref_type'}";
+          $msg = "ERROR: missing ref_type cvterm: $ref_type";
           reportError($line_count, $msg);
         }
         
         # make sure citation is unique
-        if ($citations{$fields->{'publink_citation'}}) {
+        if ($citations{publink_citation}) {
           $has_errors++;
-          $msg = "ERROR: citation has already been used in this spreadsheet: $fields->{'citation'}";
+          $msg = "ERROR: citation has already been used in this spreadsheet: $publink_citation";
           reportError($line_count, $msg);
         }
-        elsif (publicationExists($dbh, $fields->{'publink_citation'})) {
+        elsif (publicationExists($dbh, $publink_citation)) {
           $has_warnings++;
-          $msg = "warning: citation already exists: ($fields->{'publink_citation'})";
+          $msg = "warning: citation already exists: ($publink_citation)";
           reportError($line_count, $msg);
         }
         else {
-          $citations{$fields->{'publink_citation'}} = 1;
+          $citations{$publink_citation} = 1;
         }
         
         # make sure PMID is a number
-        if ($fields->{'pmid'} && lc($fields->{'pmid'}) ne 'null') {
-          if ($fields->{'pmid'} == 0) {  # will be true if pmid is not a number
+        my $pmid = $fields->{$pi{'pmid_fld'}};
+        if ($pmid && lc($pmid) ne 'null') {
+          if ($pmid == 0) {  # will be true if pmid is not a number
             $has_errors++;
-            $msg = "ERROR: value given for PMID ($fields->{'pmid'}) is not a number.";
+            $msg = "ERROR: value given for PMID ($pmid) is not a number.";
             reportError($line_count, $msg);
           }
         }
         
         # verify DOI
-        if ($fields->{'doi'} && lc($fields->{'doi'}) ne 'null') {
+        my $doi = $fields->{$pi{'doi_fld'}};
+        if ($doi && lc($doi) ne 'null') {
           # All DOI numbers begin with a 10 and contain a prefix and a suffix 
           #   separated by a slash. The prefix is a unique number of four or more 
           #   digits assigned to organizations; the suffix is assigned by the 
           #   publisher.
-          if (!($fields->{'doi'} =~ /10\..*?\/.*/)) {
+          if (!($doi =~ /10\..*?\/.*/)) {
             $has_errors++;
-            $msg = "ERROR: value given for DOI ($fields->{'doi'}) doesn't ";
+            $msg = "ERROR: value given for DOI ($doi) doesn't ";
             $msg .= "look like a DOI identifier (10.<prefix>/<suffix>).\n";
             reportError($line_count, $msg);
           }
+        }
+        
+        # verify author list
+        my $authors = $fields->{$pi{'author_fld'}};
+        if (!$authors || $authors eq '' || lc($authors) eq 'null') {
+          $has_errors++;
+          $msg = "ERROR: missing author list";
+          reportError($line_count, $msg);
         }
       }
     }#each pub record
@@ -161,125 +176,7 @@ EOS
       reportError('', $msg);
       exit;
     }
-
-    # pub_authors.txt:
-    # 1. citation must match one in pubs.txt
-    # 2. cite order must be given
-    # 3. author name must be given
-  
-    $wsfile = "$input_dir/PUB_AUTHORS.txt";
-    print "\nReading publication author records from $wsfile\n";
-    @records = readFile($wsfile);
-    
-    $has_errors = 0;
-    $line_count = 0;
-    foreach my $fields (@records) {
-      $line_count++;
-      if (!($fields->{'cite_order'} =~/\d+/)) {
-        $has_errors++;
-        $msg = "ERROR: missing citation order";
-        reportError($line_count, $msg);
-      }
-      if ($fields->{'author'} eq '' || $fields->{'author'} eq 'NULL') {
-        $has_errors++;
-        $msg = "ERROR: no author name given";
-        reportError($line_count, $msg);
-      }
-      if (!$fields->{'publink_citation'} || $fields->{'publink_citation'} eq ''
-            || $fields->{'publink_citation'} eq 'NULL') {
-        $has_errors++;
-        $msg = "ERROR: citation is missing";
-        reportError($line_count, $msg);
-      }
-      if (!$citations{$fields->{'publink_citation'}}
-            && !publicationExists($dbh, $fields->{'publink_citation'})) {
-        $has_errors++;
-        $msg = "ERROR: citation ($fields->{'publink_citation'}) doesn't match any ";
-        $msg .= "citations is spreadsheet or database";
-        reportError($line_count, $msg);
-      }
-    }#each record
-    
-    if ($has_errors) {
-      print "\n\nThe publication author table has $has_errors errors.\n\n";
-    }
-  
-  
-    # pub_url.txt:
-    # 1. citation must match one in pubs.txt
-    # 2. URL must be given
-  
-    $wsfile = "$input_dir/PUB_URLS.txt";
-    print "\nReading publication URL records from $wsfile\n";
-    @records = readFile($wsfile);
-    
-    $has_errors = 0;
-    $line_count = 0;
-    foreach my $fields (@records) {
-      $line_count++;
-      if ($fields->{'url'} eq '' || $fields->{'url'} eq 'NULL') {
-#not an error
-#        $has_errors++;
-#        $msg = "missing URL";
-#        reportError($line_count, $msg);
-      }
-      if (!$fields->{'publink_citation'} || $fields->{'publink_citation'} eq ''
-            || $fields->{'publink_citation'} eq 'NULL') {
-        $has_errors++;
-        $msg = "ERROR: citation is missing";
-        reportError($line_count, $msg);
-      }
-      if (!$citations{$fields->{'publink_citation'}} 
-            && !publicationExists($dbh, $fields->{'publink_citation'})) {
-        $has_errors++;
-        $msg = "ERROR: citation ($fields->{'publink_citation'}) doesn't match any ";
-        $msg .= "citations in spreadsheet or database.";
-        reportError($line_count, $msg);
-      }
-    }#each record
-    
-    if ($has_errors) {
-      print "\n\nThe publication URL table has $has_errors errors.\n\n";
-    }
-  
-  
-    # pub_keyword.txt:
-    # 1. citation must match one in pubs.txt
-    # 2. keywords must be given
-  
-    $wsfile = "$input_dir/PUB_KEYWORDS.txt";
-    print "\nReading publication keyword records from $wsfile\n";
-    @records = readFile($wsfile);
-    
-    $has_errors = 0;
-    $line_count = 0;
-    foreach my $fields (@records) {
-      $line_count++;
-      if ($fields->{'keyword'} eq '' || $fields->{'keyword'} eq 'NULL') {
-        $has_errors++;
-        $msg = "ERROR: missing keywords";
-        reportError($line_count, $msg);
-      }
-      if (!$fields->{'publink_citation'} || $fields->{'publink_citation'} eq ''
-            || $fields->{'publink_citation'} eq 'NULL') {
-        $has_errors++;
-        $msg = "ERROR: citation is missing";
-        reportError($line_count, $msg);
-      }
-      if (!$citations{$fields->{'publink_citation'}}
-            && !publicationExists($dbh, $fields->{'publink_citation'})) {
-        $has_errors++;
-        $msg = "ERROR: citation ($fields->{'publink_citation'}) doesn't match any ";
-        $msg .= "citations in spreadsheet or database";
-        reportError($line_count, $msg);
-      }
-    }#each record
-    
-    if ($has_errors) {
-      print "\n\nThe publication keyword table has $has_errors errors.\n\n";
-    }
-
-  }#do publication tables
+  }#do_pubs
   
   
 ################################################################################
@@ -289,10 +186,14 @@ EOS
   my %experiments;
   if ($do_experiments) {
     
+    # get worksheet contants
+    my %qei = getSSInfo('QTL_EXPERIMENTS');
+
     # Make sure we've got the experiment table file
-    if (!$files{'QTL_EXPERIMENT.txt'}) {
+    my $expfile = $qei{'worksheet'} . '.txt';
+    if (!$files{$expfile}) {
       $msg = "\nthe experiment table is missing.\n";
-      $msg .= "QTL_EXPERIMENT.txt is required.\n\n";
+      $msg .= "$expfile is required.\n\n";
       reportError('', $msg);
       exit;
     }
@@ -302,7 +203,7 @@ EOS
     # 2. experiment name must be unique (in db and spreadsheet)
     # 3. species name must exist
     
-    $wsfile = "$input_dir/QTL_EXPERIMENT.txt";
+    $wsfile = "$input_dir/$expfile";
     print "\nReading Experiment records from $wsfile\n";
     @records = readFile($wsfile);
     
@@ -310,37 +211,61 @@ EOS
     $line_count = 0;
     foreach my $fields (@records) {
       $line_count++;
-      if (!$fields->{'publink_citation'} || $fields->{'publink_citation'} eq ''
-            || $fields->{'publink_citation'} eq 'NULL') {
+      
+      my $publink_citation = $fields->{$qei{'pub_fld'}};
+#print "\ncitation: $publink_citation\n";
+ 
+      if (!$publink_citation || $publink_citation eq ''
+            || $publink_citation eq 'NULL') {
         $has_errors++;
         $msg = "ERROR: citation is missing";
         reportError($line_count, $msg);
       }
-      if ($citations{$fields->{'publink_citation'}}
-            && !publicationExists($dbh, $fields->{'publink_citation'})) {
+      if ($citations{$publink_citation}
+            && !publicationExists($dbh, $publink_citation)) {
         $has_errors++;
-        $msg = "ERROR: citation ($fields->{'publink_citation'}) doesn't match ";
-        $msg .= "any citations is spreadsheet or database.";
+        $msg = "ERROR: citation ($publink_citation) doesn't match ";
+        $msg .= "any citations in spreadsheet or database.";
         reportError($line_count, $msg);
       }
       
-      if ($experiments{$fields->{'name'}}) {
+      my $name = $fields->{$qei{'name_fld'}};
+#print "experiment name: $name\n";
+      if ($experiments{$name}) {
         $has_errors++;
-        $msg = "ERROR: experiment name ($fields->{'name'}) is not unique ";
+        $msg = "ERROR: experiment name ($name) is not unique ";
         $msg .= "within spreadsheet";
         reportError($line_count, $msg);
       }
-      elsif (experimentExists($dbh, $fields->{'name'})) {
+      elsif (experimentExists($dbh, $name)) {
         $has_warnings++;
-        $msg = "warning: experiment name ($fields->{'name'}) already used in ";
+        $msg = "warning: experiment name ($name) already used in ";
         $msg .= "database";
         reportError($line_count, $msg);
       }
-      $experiments{$fields->{'name'}} = 1;
+      $experiments{$name} = 1;
       
-      if (!getOrganismID($dbh, $fields->{'specieslink_abv'})) {
+      my $species = $fields->{$qei{'species_fld'}};
+#print "species: $species\n";
+      if (!getOrganismID($dbh, $species)) {
         $has_errors++;
-        $msg = "ERROR: species name ($fields->{'specieslink_abv'}) doesn't exist";
+        $msg = "ERROR: species name ($species) doesn't exist";
+        reportError($line_count, $msg);
+      }
+
+      my $map_name = $fields->{$qei{'map_fld'}};
+#print "map name: $map_name\n";
+      if ($map_name eq '') {
+        $has_errors++;
+        $msg = "ERROR: map collection name not specified.";
+        reportError($line_count, $msg);
+      }
+
+      my $geoloc = $fields->{$qei{'geoloc_field'}};
+#print "geolocation: $geoloc\n";
+      if (length($fields->{'geolocation'}) > 255) {
+        $has_errors++;
+        $msg = "Geolocation description is too long: [$geoloc]";
         reportError($line_count, $msg);
       }
     }#each record
@@ -362,11 +287,16 @@ EOS
   my %linkagemaps;
   if ($do_genetic_maps) {
     
+    # Get spreadsheet constants
+    my %mci = getSSInfo('MAP_COLLECTIONS');
+    my %mi  = getSSInfo('MAPS');
+    
     # Make sure we've got all the map table files
-    if (!$files{'MAP_COLLECTIONS.txt'}) {
+    my $mcfile = $mci{'worksheet'} . '.txt';
+    my $mfile  = $mi{'worksheet'} . '.txt';
+    if (!$files{$mcfile} || !$files{$mfile}) {
       $msg = "\nOne or more required map tables is missing.\n";
-      $msg .= "MAP_COLLECTION.txt is required and CONSENSUS_MAP.txt ";
-      $msg .= "and/or EXPERIMENTAL_MAP are optional.\n\n";
+      $msg .= "$mcfile and $mfile are required .\n\n";
       reportError('', $msg);
       exit;
     }
@@ -377,7 +307,7 @@ EOS
     # 3. map unit must be set and exist
     # 4. map name must not be duplicated in this spreadsheet
     
-    $wsfile = "$input_dir/MAP_COLLECTIONS.txt";
+    $wsfile = "$input_dir/$mcfile";
     print "\nReading map collection records from $wsfile\n";
     @records = readFile($wsfile);
     
@@ -387,29 +317,33 @@ EOS
       $line_count++;
       
       # check citation
-      if (!$fields->{'publink_citation'} || $fields->{'publink_citation'} eq ''
-            || $fields->{'publink_citation'} eq 'NULL') {
+      my $publink_citation = $fields->{$mci{'pub_fld'}};
+      if (!$publink_citation || $publink_citation eq ''
+            || $publink_citation eq 'NULL') {
         $has_errors++;
         $msg = "ERROR: citation is missing";
         reportError($line_count, $msg);
       }
-      if (!$citations{$fields->{'publink_citation'}}
-            && !publicationExists($dbh, $fields->{'publink_citation'})) {
+      if (!$citations{$publink_citation}
+            && !publicationExists($dbh, $publink_citation)) {
         $has_errors++;
-        $msg = "ERROR: citation ($fields->{'publink_citation'}) doesn't match any ";
+        $msg = "ERROR: citation ($publink_citation) doesn't match any ";
         $msg .= " citations in spreadsheet or database.";
         reportError($line_count, $msg);
       }
       
       # check species
-      if (!getOrganismID($dbh, $fields->{'specieslink_abv'})) {
+      my $species = $fields->{$mci{'species_fld'}};
+print "species: $species\n";
+      if (!getOrganismID($dbh, $species)) {
         $has_errors++;
-        $msg = "ERROR: species name ($fields->{'specieslink_abv'}) doesn't exist";
+        $msg = "ERROR: species name ($species) doesn't exist";
         reportError($line_count, $msg);
       }
       
       # check map unit
-      my $unit = $fields->{'unit'};
+      my $unit = $fields->{$mci{'unit_fld'}};
+print "unit: $unit\n";
       if (!unitExists($dbh, $unit)) {
         $has_errors++;
         $msg = "ERROR: map unit [$unit] is not set or doesn't exist in the ";
@@ -418,8 +352,8 @@ EOS
       }
       
       # check map name
-      my $mapname = $fields->{'map_name'};
-      
+      my $mapname = $fields->{$mci{'map_name_fld'}};
+print "map name: $mapname\n";
       if ($mapsets{$mapname}) {
         $has_errors++;
         $msg = "ERROR: map collection name ($mapname) ";
@@ -440,137 +374,69 @@ EOS
       print "\n\nThe map collection table has $has_errors errors.\n\n";
     }
   
-    if ($files{'CONSENSUS_MAP.txt'}) {
-      # consensus_map.txt:
-      # 1. map name must be unique in db and spreadsheet
-      # 2. must be a map set record
-      # 3. start and end coordinates must be specified
-      # 4. species name must exist
+    # MAPs.txt:
+    # 1. map name must be unique in db and spreadsheet
+    # 2. must be a map set record
+    # 3. start and end coordinates must be specified
+    # 4. species name must exist
+    
+    $wsfile = "$input_dir/$mfile";
+    print "\nReading map records from $wsfile\n";
+    @records = readFile($wsfile);
       
-      $wsfile = "$input_dir/CONSENSUS_MAP.txt";
-      print "\nReading consensus map records from $wsfile\n";
-      @records = readFile($wsfile);
-      
-      $has_errors = 0;
-      $line_count = 0;
-      foreach my $fields (@records) {
-        $line_count++;
+    $has_errors = 0;
+    $line_count = 0;
+    foreach my $fields (@records) {
+      $line_count++;
 
-        my $mapname = makeLinkageMapName($fields);
-        next if (linkageMapExists($mapname));
-        
-        # check for unique name
-        if ($linkagemaps{$mapname}) {
-          $has_errors++;
-          $msg = "ERROR: linkage map name ($mapname) is not unique within spreadsheet";
-          reportError($line_count, $msg);
-        }
-        elsif (consensusMapExists($mapname)) {
-          $has_warnings++;
-          $msg = "warning: linkage map name ($mapname) already exists in database";
-          reportError($line_count, $msg);
-        }
-        
-        # make sure there is an associated map collection record
-        if (!$mapsets{$fields->{'map_name'}}
-              && !mapSetExists($dbh, $fields->{'map_name'})) {
-          $has_errors++;
-          $msg = "ERROR: Map set record (map_collection) for ";
-          $msg .= "$fields->{'map_name'} does not ";
-          $msg .= "exist in spreadsheet or database.";
-          reportError($line_count, $msg);
-        }
-        
-        # map_start and map_end must be set
-        if ($fields->{'map_start'} ne '0' || $fields->{'map_start'} eq '' 
-              || $fields->{'map_start'} eq 'NULL') {
-          reportError($line_count, "map_start is missing");
-        }
-        if (!$fields->{'map_end'} || $fields->{'map_end'} eq '' 
-              || $fields->{'map_end'} eq 'NULL') {
-          reportError($line_count, "map_end is missing");
-        }
-        
-        if (!getOrganismID($dbh, $fields->{'specieslink_abv'})) {
-          $has_errors++;
-          $msg = "ERROR: species name ($fields->{'specieslink_abv'}) doesn't exist";
-          reportError($line_count, $msg);
-        }
-        
-        $linkagemaps{$mapname} = 1;
-      }#each record
-  
-      if ($has_errors) {
-        print "\n\nThe consensus map table has $has_errors errors. Unable to continue.\n\n";
-        exit;
+      my $ms_name = $fields->{$mi{'map_name_fld'}};
+      my $lg      = $fields->{$mi{'lg_fld'}};
+      my $mapname = makeLinkageMapName($ms_name, $lg);
+print "\nlinkage map name: $mapname ($ms_name, $lg)\n";
+      next if (linkageMapExists($mapname));
+          
+      # check for unique name
+      if ($linkagemaps{$mapname}) {
+        $has_errors++;
+        $msg = "ERROR: linkage map name ($mapname) is not unique within spreadsheet";
+        reportError($line_count, $msg);
       }
-    }#consensus map file exists
-    
-    if ($files{'EXPERIMENT_MAP.txt'}) {
-      # consensus_map.txt:
-      # 1. map name must be unique in db and spreadsheet
-      # 2. must be a map set record
-      # 3. start and end coordinates must be specified
-      # 4. species name must exist
-      
-      $wsfile = "$input_dir/EXPERIMENT_MAP.txt";
-      print "\nReading experiment map records from $wsfile\n";
-      @records = readFile($wsfile);
-      
-      $has_errors = 0;
-      $line_count = 0;
-      foreach my $fields (@records) {
-        $line_count++;
-    
-        my $mapname = makeLinkageMapName($fields);
-        next if (linkageMapExists($mapname));
         
-        # check for unique name
-        if ($linkagemaps{$mapname}) {
-          $has_errors++;
-          $msg = "ERROR: linkage map name ($mapname) is not unique within spreadsheet";
-          reportError($line_count, $msg);
-        }
-        elsif (consensusMapExists($mapname)) {
-          $has_warnings++;
-          $msg = "warning: linkage map name ($mapname) already exists in database";
-          reportError($line_count, $msg);
-        }
-        
-        # make sure there is an associated map collection record
-        if (!$mapsets{$fields->{'map_name'}}
-              && !mapSetExists($dbh, $fields->{'map_name'})) {
-          $has_errors++;
-          $msg = "ERROR: Map set record (map_collection) for ";
-          $msg .= "$fields->{'map_name'} does not ";
-          $msg .= "exist in spreadsheet or database.";
-          reportError($line_count, $msg);
-        }
-        
-        # map_start and map_end must be set
-        if ($fields->{'map_start'} ne '0' || $fields->{'map_start'} eq '' 
-              || $fields->{'map_start'} eq 'NULL') {
-          reportError($line_count, "map_start is missing");
-        }
-        if (!$fields->{'map_end'} || $fields->{'map_end'} eq '' 
-              || $fields->{'map_end'} eq 'NULL') {
-          reportError($line_count, "map_end is missing");
-        }
-        
-        if (!getOrganismID($dbh, $fields->{'specieslink_abv'})) {
-          $has_errors++;
-          $msg = "ERROR: species name ($fields->{'specieslink_abv'}) doesn't exist";
-          reportError($line_count, $msg);
-        }
-        
-        $linkagemaps{$mapname} = 1;
-      }#each record
-  
-      if ($has_errors) {
-        print "\n\nThe experiment map table has $has_errors errors. Unable to continue.\n\n";
-        exit;
+      # make sure there is an associated map collection record
+      if (!$mapsets{$ms_name} && !mapSetExists($dbh, $ms_name)) {
+        $has_errors++;
+        $msg = "ERROR: Map set record (map_collection) for ";
+        $msg .= "$ms_name does not exist in spreadsheet or database.";
+        reportError($line_count, $msg);
       }
-    }#experiment map file exists
+        
+      # map_start and map_end must be set
+      my $map_start = $fields->{$mi{'map_start_fld'}};
+      my $map_end   = $fields->{$mi{'map_end_fld'}};
+      if ($map_start eq '' || lc($map_start) eq 'null') {
+        reportError($line_count, "map_start is missing");
+      }
+      if (!$map_end || $map_end eq '' || lc($map_end) eq 'null') {
+        reportError($line_count, "map_end is missing");
+      }
+      
+      # species must exist
+      my $species = $fields->{$mi{'species_fld'}};
+print "species: $species\n";
+      if (!getOrganismID($dbh, $species)) {
+        $has_errors++;
+        $msg = "ERROR: species name ($species) doesn't exist";
+        reportError($line_count, $msg);
+      }
+        
+      $linkagemaps{$mapname} = 1;
+    }#each record
+  
+    if ($has_errors) {
+      print "\n\nThe map table has $has_errors errors. Unable to continue.\n\n";
+      exit;
+    }
+    
   }#do genetic maps
 
 
@@ -665,10 +531,14 @@ EOS
   my %traits;
   if ($do_traits) {
     
+    # Get spreadsheet constants
+    my %ti = getSSInfo('TRAITS');
+
     # Make sure we've got all the map table files
-    if (!$files{'OBS_TRAITS.txt'} || !$files{'PARENT_TRAITS.txt'}) {
-      $msg = "\nOne or more trait tables is missing.\n";
-      $msg .= "OBS_TRAITS.txt and PARENT_TRAITS.txt are required.\n\n";
+    my $traitfile = $ti{'worksheet'} . '.txt';
+    if (!$files{$traitfile}) {
+      $msg = "\nTrait table is missing.\n";
+      $msg .= "$traitfile is required.\n\n";
       reportError('', $msg);
       exit;
     }
@@ -676,8 +546,8 @@ EOS
     # obs_trait.txt:
     # 1. ontology term must be valid if provided
     
-    $wsfile = "$input_dir/OBS_TRAITS.txt";
-    print "\nReading observed trait records from $wsfile\n";
+    $wsfile = "$input_dir/$traitfile";
+    print "\nReading trait records from $wsfile\n";
     @records = readFile($wsfile);
     
     $has_errors = 0;
@@ -685,45 +555,32 @@ EOS
     foreach my $fields (@records) {
       $line_count++;
 
-#eksc this is not an error (same trait may have multiple synonyms in worksheet)
-#      if ($traits{$fields->{'qtl_symbol'}}) {
-#        $has_errors++;
-#        $msg = "ERROR: trait name ($fields->{'qtl_symbol'}) ";
-#        $msg .= "already exists in spreadsheet.";
-#        reportError($line_count, $msg);
-#      }
-#      elsif (traitExists($dbh, $fields->{'qtl_symbol'})) {
-      if (traitExists($dbh, $fields->{'qtl_symbol'})) {
+      my $trait_name = $fields->{$ti{'trait_name_fld'}};
+print "\ntrait name: $trait_name\n";
+      if (traitExists($dbh, $trait_name)) {
         $has_warnings++;
-        $msg = "warning: trait name ($fields->{'qtl_symbol'}) ";
+        $msg = "warning: trait name ($trait_name) ";
         $msg .= "already exists in database.";
         reportError($line_count, $msg);
       }
 
-# not tracking experiments for traits       
-#      if (!$experiments{$fields->{'qtl_experimentlink_name'}}
-#              && !experimentExists($dbh, $fields->{'qtl_experimentlink_name'})) {
-#        $has_errors++;
-#        $msg = "ERROR: experiment name '$fields->{'qtl_experimentlink_name'}' ";
-#        $msg .= "does not exist in spreadsheet or database.";
-#        reportError($line_count, $msg);
-#      }
-
-      if ($fields->{'ontology_number'} =~ /^(.*?):(.*)/) {
+      my $onto_id = $fields->{$ti{'onto_id_fld'}};
+print "ontology id: $onto_id\n";
+      if ($onto_id =~ /^(.*?):(.*)/) {
         my $db = $1;
         my $accession = $2;
         if (!dbxrefExists($dbh, $db, $accession)) {
           # non-fatal error (must be fixed, but don't hold up remaining process)
           $has_warnings++;
-          $msg = "warning: Invalid or deleted OBO term: $fields->{'ontology_numer'}";
+          $msg = "warning: Invalid or deleted OBO term: $onto_id";
           reportError($msg);
         }
       }
-      $traits{$fields->{'qtl_symbol'}} = 1;
+      $traits{$trait_name} = 1;
     }#each record
   
     if ($has_errors) {
-      print "\n\nThe observed trait table has $has_errors errors.\n\n";
+      print "\n\nThe trait table has $has_errors errors.\n\n";
     }
   
   

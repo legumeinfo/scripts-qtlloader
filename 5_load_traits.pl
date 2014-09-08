@@ -22,6 +22,7 @@
 #  06/03/13  eksc  created
 #  06/27/13  eksc  added update capability
 #  10/16/13  eksc  modified for spreadsheet changes
+#  09/05/14  eksc  modified for current all-traits spreadsheet
 
   use strict;
   use DBI;
@@ -48,13 +49,16 @@ EOS
   my @filepaths = <$input_dir/*.txt>;
   my %files = map { s/$input_dir\/(.*)$/$1/; $_ => 1} @filepaths;
   
+  # get worksheet contants
+  my %ti = getSSInfo('TRAITS');
+
   # Used all over
   my ($table_file, $sql, $sth, $row, $count, @records, @fields, $cmd, $rv);
   my ($has_errors, $line_count);
 
   my $dataset_name = 'traits';
   
-  # Holds traits that are already in db; assume they should be updated
+  # Holds traits that are already in db
   my %existing_traits;
 
   # Get connected
@@ -70,7 +74,8 @@ EOS
     loadTraits($dbh);
 #not yet properly mapped to chado schema
 #    loadParentTraits($dbh);
-    $dbh->commit;   # commit the changes if we get this far
+
+#    $dbh->commit;   # commit the changes if we get this far
   };
   if ($@) {
     print "\n\nTransaction aborted because $@\n\n";
@@ -95,80 +100,73 @@ sub loadTraits {
   my $dbh = $_[0];
   my ($fields, $sql, $sth);
   
-  $table_file = "$input_dir/OBS_TRAITS.txt";
+  $table_file = "$input_dir/$ti{'worksheet'}.txt";
   print "\nLoading/verifying $table_file...\n";  
   
+  my ($skip, $skip_all, $update, $update_all);
+
   @records = readFile($table_file);
-  $line_count = 0;
-  my $skip_all = 0;  # skip all existing trait records
-  my $update_all = 0; # update all existing trait records without asking
+  $line_count    = 0;
   foreach $fields (@records) {
     $line_count++;
     
-print "$line_count: '$fields->{'qtl_symbol'}'\n";
+    my $trait_name = $fields->{$ti{'trait_name_fld'}};
+
     my $trait_id;
-    if ($trait_id = getTraitRecord($dbh, 'qtl_symbol', $fields)) {
+    if ($trait_id = getTraitRecord($dbh, $trait_name)) {
+      # trait exists
       next if ($skip_all);
+      
       if ($update_all) {
-        cleanDependants($trait_id);
+          cleanDependants($trait_id);
       }
       else {
-        print "$line_count: qtl_symbol ($fields->{'qtl_symbol'}) is already loaded.\n";
-        print "Update? (y/all/n/skipall/q)\n";
-        my $userinput =  <STDIN>;
-        chomp ($userinput);
-        if ($userinput eq 'skipall') {
-          $skip_all = 1;
-          next;
-        }
-        elsif ($userinput eq 'n') {
-          next;
-        }
-        elsif ($userinput eq 'q') {
-          exit;
-        }
-        elsif ($userinput eq 'all') {
-          $update_all = 1;
-          cleanDependants($trait_id);
-        }
-        elsif ($userinput eq 'y') {
-          cleanDependants($trait_id);
-        }
-        else {
-          print "unknown option ($userinput), skipping trait\n";
-          next;
-        }
-      }
-    }
-
-    # insert a parent record for this obs_trait (qtl_symbol)
-    $trait_id = setTraitRecord($dbh, $trait_id, 'qtl_symbol', $fields);
+        my $prompt = "$line_count: trait ($trait_name} = $trait_id) ";
+        ($skip, $skip_all, $update, $update_all) = checkUpdate($prompt);
         
-    # trait_name [changed from qtl_name]
-    setTermRelationship($dbh, $trait_id, 'trait_name', 'has trait name', $fields);
+        next if ($skip || $skip_all);
+        
+        if ($update || $update_all) {
+          $existing_traits{$$trait_name} = $trait_id;
+          
+          # remove dependent records; they will be re-inserted
+          cleanDependants($trait_id);
+        }
+      }#update_all not set
+    }#trait exists
+
+    # insert a parent record for this QTL Symbol
+    $trait_id = setTraitRecord($dbh, $trait_id, 
+                               $fields->{$ti{'qtl_symbol_fld'}}, 
+                               $fields->{$ti{'description_fld'}});
     
-    # alt names: cvtermsynonym (comma separated, if any)
-    setAltNames($dbh, $trait_id, $fields);
+    # trait_name 
+    setTermRelationship($dbh, $trait_id, $fields->{$ti{'trait_name_fld'}}, 
+                        'Has Trait Name', $fields);
     
     # trait_class and trait_unit: cvterm_relationship
-    setTermRelationship($dbh, $trait_id, 'trait_class', 'has trait class', $fields);
+    setTermRelationship($dbh, $trait_id, $fields->{$ti{'trait_class_fld'}}, 
+                        'Has Trait Class', $fields);
 
     # OBO term
     setOBOTerm($dbh, $trait_id, $fields);
     
-    # comment
-    setCvtermprop($dbh, $trait_id, 'comment', 'comments', $fields);
-   }#each record
+# not in use
+#    # alt names: cvtermsynonym (comma separated, if any)
+#    setAltNames($dbh, $trait_id, $fields);
+#    
+#    # comment
+#    setCvtermprop($dbh, $trait_id, 'comment', 'comments', $fields);
+  }#each record
 
   print "Loaded $line_count obs. trait records\n\n";
 }#loadTraits
   
   
+=cut (not yet correctly mapped to chado schema)
 sub loadParentTraits {
   my ($fields, $sql, $sth) = @_;
 
-=cut (not yet correctly mapped to chado schema)
-  
   $table_file = "$input_dir/PARENT_TRAITS.txt";
   print "Loading/verifying $table_file...\n";
   
@@ -189,8 +187,8 @@ sub loadParentTraits {
    }#each record
 
   print "Loaded $line_count parent trait records\n\n";
-=cut
 }#loadParentTraits
+=cut
 
 
 ################################################################################
@@ -233,10 +231,9 @@ sub cleanDependants {
 
 
 sub getDbxref {
-  my ($dbh, $fieldname, $fields) = @_;
+  my ($dbh, $term) = @_;
   my ($sql, $sth, $row);
   
-  my $term = $fields->{$fieldname};
   if ($term && $term ne '' && $term ne 'NULL') {
     if ($term =~ /(\w+)\:(\d+)/) {
       my $cv = $1;
@@ -250,8 +247,8 @@ sub getDbxref {
     else {
       $sql = "
         SELECT dbxref_id FROM chado.dbxref 
-        WHERE db_id = (SELECT db_id FROM chado.db WHERE name='LegumeInfo')
-              AND accession = '$fields->{$fieldname}'
+        WHERE db_id = (SELECT db_id FROM chado.db WHERE name='LegumeInfo:traits')
+              AND accession = '$term'
       ";
     }
     logSQL($dataset_name, "$line_count: $sql");
@@ -265,13 +262,13 @@ sub getDbxref {
   
   
 sub getTraitRecord {
-  my ($dbh, $fieldname, $fields) = @_;
+  my ($dbh, $trait_name) = @_;
   my ($sql, $sth, $row);
   
   $sql = "
     SELECT cvterm_id FROM chado.cvterm
     WHERE cv_id = (SELECT cv_id FROM chado.cv WHERE name='LegumeInfo:traits')
-      AND name='$fields->{$fieldname}'";
+      AND name='$trait_name'";
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
   if ($row=$sth->fetchrow_hashref) {
@@ -282,6 +279,7 @@ sub getTraitRecord {
 }#getTraitRecord
 
 
+=cut unused
 sub setAltNames {
   my ($dbh, $trait_id, $fields) = @_;
   my ($sql, $sth);
@@ -297,14 +295,14 @@ sub setAltNames {
       INSERT INTO chado.cvtermsynonym
         (cvterm_id, synonym)
       VALUES
-        ((SELECT cvterm_id FROM chado.cvterm WHERE name='$fields->{'qtl_symbol'}'),
+        ((SELECT cvterm_id FROM chado.cvterm WHERE name='$fields->{$qtl_symbol_fld}'),
          '$name')";
   }#each name
 }#setAltNames
-
+=cut
 
 sub setCvtermprop {
-  my ($dbh, $trait_id, $fieldname, $proptype, $fields) = @_;
+  my ($dbh, $trait_id, $prop, $proptype) = @_;
   my ($sql, $sth, $row);
   
   # Check if there are already properties of this type
@@ -329,7 +327,7 @@ sub setCvtermprop {
     VALUES
       ($trait_id,
        (SELECT cvterm_id FROM chado.cvterm WHERE name='$proptype'),
-       '$fields->{$fieldname}', 
+       '$prop', 
        $rank)";
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
@@ -337,21 +335,20 @@ sub setCvtermprop {
 
 
 sub setDbxref {
-  my ($dbh, $fieldname, $fields) = @_;
+  my ($dbh, $term) = @_;
   my ($sql, $sth, $row);
   
   my $dbxref_id = 0;
   
-  my $term = $fields->{$fieldname};
   if ($term && $term ne '' && $term ne 'NULL') {
-    $dbxref_id = getDbxref($dbh, $fieldname, $fields);
+    $dbxref_id = getDbxref($dbh, $term);
     if (!$dbxref_id) {
       $sql = "
         INSERT INTO chado.dbxref
           (db_id, accession)
         VALUES
-          ((SELECT db_id FROM chado.db WHERE name='LegumeInfo'),
-           '$fields->{$fieldname}')
+          ((SELECT db_id FROM chado.db WHERE name='LegumeInfo:traits'),
+           '$name')
         RETURNING dbxref_id";
       logSQL($dataset_name, "$line_count: $sql");
       $sth = doQuery($dbh, $sql);
@@ -368,8 +365,18 @@ sub setDbxref {
 sub setOBOTerm {
   my ($dbh, $trait_id, $fields) = @_;
   
-  my $term = $fields->{'controlled_vocab_accessions'};
-#print "set term $term\n";
+  my $term = $fields->{$ti{'onto_id_fld'}};
+  $term =~ /.*?\.(\d+)/;
+  my $acc = $1;
+  my $name = $fields->{$ti{'onto_name_fld'}};
+#print "set term $term: accession: $acc, name=$name\n";
+
+  # check for existence
+  
+  # check name against provided name
+  
+  # association via cvterm_dbxref
+  
   my $object_id = getOBOTerm($dbh, $term);
   if ($object_id) {
     $sql = "
@@ -378,7 +385,7 @@ sub setOBOTerm {
       VALUES
         ($trait_id,
          (SELECT cvterm_id FROM chado.cvterm 
-          WHERE name='has OBO term'
+          WHERE name='Has OBO Term'
             AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='local')),
          $object_id)";
     logSQL($dataset_name, "$line_count: $sql");
@@ -388,23 +395,28 @@ sub setOBOTerm {
 
 
 sub setTermRelationship {
-  my ($dbh, $trait_id, $fieldname, $relationship, $fields) = @_;
+  my ($dbh, $trait_id, $term, $relationship, $fields) = @_;
   my ($sql, $sth, $row);
 
-  if ($fields->{$fieldname} && $fields->{$fieldname} ne '' 
-        && $fields->{$fieldname} ne 'NULL') {
-    # insert related term if need be
-    $sql = " SELECT cvterm_id FROM chado.cvterm WHERE name='$fields->{$fieldname}'";
+  if ($name && $name ne '' && lc($name) ne 'null') {
+    # Does this related term exist?
+    $sql = "
+      SELECT cvterm_id FROM chado.cvterm 
+      WHERE name='$term' 
+            AND cv_id = (SELECT cv_id FROM chado.cv 
+                         WHERE name='LegumeInfo:traits')";
     logSQL($dataset_name, "$line_count: $sql");
     $sth = doQuery($dbh, $sql);
+    
     if (!($row=$sth->fetchrow_hashref)) {
-      my $dbxref_id = setDbxref($dbh, $fieldname, $fields);
+      # Term doesn't exist, create it
+      my $dbxref_id = setDbxref($dbh, $name);
       $sql = "
         INSERT INTO chado.cvterm
           (cv_id, name, dbxref_id)
         VALUES
           ((SELECT cv_id FROM chado.cv WHERE name='LegumeInfo:traits'),
-           '$fields->{$fieldname}',
+           '$term',
            $dbxref_id)
         RETURNING cvterm_id";
       logSQL($dataset_name, "$line_count: $sql");
@@ -413,6 +425,7 @@ sub setTermRelationship {
     }
     my $object_id = $row->{'cvterm_id'};
     
+    # Indicate relationship between term and trait
     $sql = "
       INSERT INTO chado.cvterm_relationship
         (subject_id, type_id, object_id)
@@ -429,16 +442,20 @@ sub setTermRelationship {
 
 
 sub setTraitRecord {
-  my ($dbh, $trait_id, $fieldname, $fields) = @_;
+  my ($dbh, $trait_id, $name, $definition) = @_;
   my ($sql, $sth, $row);
   
+  $name        = $dbh->quote($name);
+  $description = $dbh->quote($definition);
+  
   # create dbxref
-  my $dbxref_id = setDbxref($dbh, $fieldname, $fields);
+  my $dbxref_id = setDbxref($dbh, $name);
   
   if ($trait_id) {
     $sql = "
       UPDATE chado.cvterm SET
-        name='$fields->{$fieldname}',
+        name='$name',
+        definition='$definition',
         dbxref_id=$dbxref_id
       WHERE cvterm_id=$trait_id
       RETURNING cvterm_id";
@@ -446,10 +463,10 @@ sub setTraitRecord {
   else {
     $sql = "
       INSERT INTO chado.cvterm
-        (cv_id, name, dbxref_id)
+        (cv_id, name, definition, dbxref_id)
       VALUES
         ((SELECT cv_id FROM chado.cv WHERE name='LegumeInfo:traits'),
-         '$fields->{$fieldname}', $dbxref_id)
+         '$name', '$definition', $dbxref_id)
       RETURNING cvterm_id";
   }
   

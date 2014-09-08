@@ -4,11 +4,16 @@
 #
 #          It is assumed that the .txt files have been verified.
 #
+#          Tables: project, projectprop, project_pub, nd_geolocation, 
+#                  nd_experiment_project
+#
 # http://search.cpan.org/~capttofu/DBD-mysql-4.022/lib/DBD/mysql.pm
 # http://search.cpan.org/~timb/DBI/DBI.pm
 #
 # history:
-#  06/03/13
+#  06/03/13  eksc  created
+#  08/20/14  eksc  modified for revised spreadsheets and better use of CVs; 
+#                    working toward proper Tripal QTL module.
 
 
   use strict;
@@ -36,16 +41,19 @@ EOS
   my @filepaths = <$input_dir/*.txt>;
   my %files = map { s/$input_dir\/(.*)$/$1/; $_ => 1} @filepaths;
   
+  # get worksheet contants
+  my %qei = getSSInfo('QTL_EXPERIMENTS');
+  
   # Used all over
   my ($table_file, $sql, $sth, $row, $count, @records, @fields, $cmd, $rv);
   my ($has_errors);
 
   my $dataset_name = 'qtl_experiments';
 
-  # Holds experiments that are already in db; assume they should be updated
+  # holds experiments that are already in db; assume they should be updated
   my %existing_experiments;
 
-  # Get connected
+  # get connected
   my $dbh = connectToDB;
 
   # set default schema
@@ -53,7 +61,7 @@ EOS
   $sth = $dbh->prepare($sql);
   $sth->execute();
 
-  # Use a transaction so that it can be rolled back if there are any errors
+  # use a transaction so that it can be rolled back if there are any errors
   eval {
     loadQTLexperiments($dbh);
     $dbh->commit;   # commit the changes if we get this far
@@ -80,56 +88,47 @@ sub loadQTLexperiments {
   my $dbh = $_[0];
   my ($fields, $sql, $sth, $row);
   
-  print "Loading/verifying QTL_EXPERIMENT.txt...\n";
-  
-  $table_file = "$input_dir/QTL_EXPERIMENT.txt";
+  print "Loading/verifying $qei{'worksheet'}.txt...\n";
+  $table_file = "$input_dir/$qei{'worksheet'}.txt";
   @records = readFile($table_file);
+  
+  my ($skip, $skip_all, $update, $update_all);
+
   my $line_count = 0;
-  my $skip_all = 0;  # skip all existing trait records
   foreach $fields (@records) {
     $line_count++;
 
     my $experiment_id;
-    if ($experiment_id=experimentExists($dbh, $fields->{'name'})) {
+    if ($experiment_id=experimentExists($dbh, $fields->{$qei{'name_fld'}})) {
+      # qtl experiment exists
       next if ($skip_all);
-      print "$line_count: experiment ($fields->{'name'}) is already loaded.\nUpdate? (y/n/skipall/q)\n";
-      my $userinput =  <STDIN>;
-      chomp ($userinput);
-      if ($userinput eq 'skipall') {
-        $skip_all = 1;
-        next;
-      }
-      elsif ($userinput eq 'n') {
-        next;
-      }
-      elsif ($userinput eq 'q') {
-        exit;
-      }
-      elsif ($userinput eq 'y') {
-        $existing_experiments{$fields->{'name'}} = $experiment_id;
-        cleanDependants($experiment_id);
+      if ($update_all) {
+          $existing_experiments{$fields->{$qei{'name_fld'}}} = $experiment_id;
+          
+          # remove dependent records; they will be re-inserted
+          cleanDependants($experiment_id);
       }
       else {
-        print "unknown option ($userinput), skipping experiment\n";
-        next;
-      }
-    }
+        my $prompt = "$line_count: qtl experiment ($fields->{$qei{'name_fld'}}) ";
+        ($skip, $skip_all, $update, $update_all) = checkUpdate($prompt);
+        
+        next if ($skip || $skip_all);
+        
+        if ($update || $update_all) {
+          $existing_experiments{$fields->{$$qei{'name_fld'}}} = $experiment_id;
+          
+          # remove dependent records; they will be re-inserted
+          cleanDependants($experiment_id);
+        }
+      }#update_all not set
+    }#map set exists
     
     # name, title, description
     $experiment_id = setExperimentRec($dbh, $experiment_id, $fields);
-    
-    # indicate that this is a QTL project
-    $sql = "
-      INSERT INTO chado.projectprop
-        (project_id, type_id, value)
-      VALUES
-        ($experiment_id,
-         (SELECT cvterm_id FROM chado.cvterm 
-          WHERE name='QTL experiment'
-            AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local')),
-         '')";
-    logSQL($dataset_name, $sql);
-    doQuery($dbh, $sql);
+    if (!$experiment_id) {
+      print "Unable to process record $line_count.\n\n";
+      next;
+    }
     
     # attach description
     attachDescription($dbh, $experiment_id, $fields);
@@ -137,6 +136,11 @@ sub loadQTLexperiments {
     # attach geolocation to project record
     my $geolocation_id = getGeoLocation($dbh, $fields);
     my $nd_experiment_id = createExperiment($dbh, $geolocation_id, $fields);
+    if (!$geolocation_id || !$nd_experiment_id) {
+      print "Unable to process record $line_count.\n\n";
+      next;
+    }
+    
     attachExperiment($dbh, $experiment_id, $nd_experiment_id, $fields);
 
     # publink_citation
@@ -146,8 +150,8 @@ sub loadQTLexperiments {
     setMapCollection($dbh, $experiment_id, $fields);
     
     # comment
-    if ($fields->{'comment'} ne '' && $fields->{'comment'} ne 'null'
-          && $fields->{'comment'} ne 'NULL') {
+    my $comment = $fields->{$qei{'comment_fld'}};
+    if ($comment ne '' && $comment ne 'null' && $comment ne 'NULL') {
       $sql = "
         INSERT INTO chado.projectprop
           (project_id, type_id, value)
@@ -156,11 +160,10 @@ sub loadQTLexperiments {
            (SELECT cvterm_id FROM chado.cvterm 
             WHERE name='comments'
               AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local')),
-           '')";
+           $comment)";
       logSQL($dataset_name, $sql);
       doQuery($dbh, $sql);
     }#there is a comment
-
   }#each record
   
   print "Loaded $line_count QTL experiment records.\n\n";
@@ -174,7 +177,7 @@ sub loadQTLexperiments {
 sub attachDescription {
   my ($dbh, $experiment_id, $fields) = @_;
   
-  my $desc = $fields->{'description'};
+  my $desc = $fields->{$qei{'desc_fld'}};
   
   $sql = "
     INSERT INTO chado.projectprop
@@ -182,7 +185,7 @@ sub attachDescription {
     VALUES
       ($experiment_id,
        (SELECT cvterm_id FROM chado.cvterm 
-        WHERE name='experiment description'
+        WHERE name='Project Description'
           AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local')),
        '$desc')";
   logSQL($dataset_name, $sql);
@@ -205,12 +208,18 @@ sub attachExperiment {
 
 sub attachPublication {
   my ($dbh, $experiment_id, $fields) = @_;
+  
+  my $pub_id = getPubID($dbh, $fields->{$qei{'pub_fld'}});
+  if ($pub_id == 0) {
+    print "Fatal error: Unable to continue\n\n";
+    exit;
+  }
+  
   my $sql = "
     INSERT INTO chado.project_pub
       (project_id, pub_id)
     VALUES
-      ($experiment_id,
-       (SELECT pub_id FROM chado.pub WHERE uniquename='$fields->{'publink_citation'}'))";
+      ($experiment_id, $pub_id)";
   logSQL($dataset_name, $sql);
   doQuery($dbh, $sql);
 }#attachPublication
@@ -261,16 +270,23 @@ sub getGeoLocation {
   my ($dbh, $fields) = @_;
   my ($sql, $sth, $row);
   
+  my $geoloc = $fields->{$qei{'geoloc_fld'}}
+  # make sure the description will fit (if not already loaded)
+  if (length($geoloc) > 255) {
+    print "Geolocation description is too long: [$geoloc]";
+    return 0;
+  }
+  
   # nd_geolocation_id is a requied field, so there is (or will be) a 
   #   a record for a null, or unknown, geolocation.
   
-  if ($fields->{'geolocation'} eq 'NULL') {
-    $fields->{'geolocation'} = '';
+  if ($geoloc eq 'NULL') {
+    $geoloc = '';
   }
   
   $sql = "
    SELECT * FROM chado.nd_geolocation 
-   WHERE description = '$fields->{'geolocation'}'";
+   WHERE description = '$geoloc'";
   logSQL($dataset_name, $sql);
   $sth = doQuery($dbh, $sql);
   if ($row=$sth->fetchrow_hashref) {
@@ -279,7 +295,7 @@ sub getGeoLocation {
   else {
     $sql = "
       INSERT INTO chado.nd_geolocation (description) 
-      VALUES ('$fields->{'geolocation'}')
+      VALUES ('$geoloc')
       RETURNING nd_geolocation_id";
     logSQL($dataset_name, $sql);
     $sth = doQuery($dbh, $sql);
@@ -292,14 +308,19 @@ sub getGeoLocation {
 
 sub setMapCollection {
   my ($dbh, $experiment_id, $fields) = @_;
-  if ($fields->{'map_collection'} && $fields->{'map_collection'} ne 'NULL') {
+  
+  my $mapname = $fields->{$qei{'map_fld'}};
+  if ($mapname && $mapname ne 'NULL') {
     my $sql = "
        INSERT INTO chado.projectprop
          (project_id, type_id, value, rank)
        VALUES
          ($experiment_id,
-          (SELECT cvterm_id FROM chado.cvterm WHERE name='map collection'),
-          '$fields->{'map_collection'}')";
+          (SELECT cvterm_id FROM chado.cvterm 
+           WHERE name='Project Map Collection'
+                 AND cv_id = (SELECT cv_id FROM cv 
+                              WHERE name='project_property')),
+          '$mapname')";
     doQuery($dbh, $sql);
     logSQL($dataset_name, $sql);
   }#map_collection field is set
@@ -311,12 +332,13 @@ sub setExperimentRec {
   my ($sql, $sth, $row);
   
   # use title for description field
-  my $desc = $fields->{'title'};
+  my $desc = $fields->{$qei{'title_fld'}};
+  my $name = $fields->{$qei{'name_fld'}};
   
   if ($experiment_id) {
     $sql = "
       UPDATE chado.project SET
-        name='$fields->{'name'}',
+        name='$name',
         description='$desc'
       WHERE project_id=$experiment_id
       RETURNING project_id";
@@ -326,16 +348,32 @@ sub setExperimentRec {
       INSERT INTO chado.project
         (name, description)
       VALUES
-        ('$fields->{'name'}', '$desc')
+        ('$name', '$desc')
       RETURNING project_id";
   }
   
   logSQL($dataset_name, $sql);
   $sth = doQuery($dbh, $sql);
-  $row = $sth->fetchrow_hashref;
+  if ($row = $sth->fetchrow_hashref) {
+    $experiment_id = ($experiment_id) ? $experiment_id : $row->{'project_id'};
+
+    # indicate that this is a QTL project
+    $sql = "
+      INSERT INTO chado.projectprop
+        (project_id, type_id, value)
+      VALUES
+        ($experiment_id,
+         (SELECT cvterm_id FROM chado.cvterm 
+          WHERE name='QTL Experiment'
+            AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local')),
+         '')";
+    logSQL($dataset_name, $sql);
+    doQuery($dbh, $sql);
+    
+    return $experiment_id;
+  }
   
-  $experiment_id = ($experiment_id) ? $experiment_id : $row->{'project_id'};
-  return $experiment_id;
+  return 0;
 }#setExperimentRec
 
 
