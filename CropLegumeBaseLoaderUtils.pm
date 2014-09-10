@@ -7,6 +7,7 @@ package CropLegumeBaseLoaderUtils;
 our $VERSION     = 1.00;
 our @ISA         = qw(Exporter);
 our @EXPORT      = (
+                    qw(checkUpdate),
                     qw(connectToDB), 
                     qw(dbxrefExists),
                     qw(doQuery), 
@@ -14,13 +15,16 @@ our @EXPORT      = (
                     qw(getChromosomeID),
                     qw(getCvtermID), 
                     qw(getMapSetID),
-                    qw(getOBOTerm),
+                    qw(getOBOName),
+                    qw(getOBOTermID),
                     qw(getOrganismID),
                     qw(getOrganismMnemonic),
+                    qw(getPubID),
                     qw(getQTLid),
                     qw(getScaffoldID),
                     qw(getSSInfo),
                     qw(getTrait), 
+                    qw(isNull),
                     qw(logSQL),
                     qw(makeLinkageMapName),
                     qw(makeMappingPopulationName),
@@ -126,7 +130,47 @@ sub getSSInfo {
       'trait_name_fld'  => 'Trait_Name',
       'trait_class_fld' => 'Trait_Class',
       'onto_id_fld'     => 'Similar_Controlled_Vocab_Accessions',
+      'onto_name_fld'   => 'Similar_Controlled_Vocabulary',
       'description_fld' => 'Description',
+    );
+  }
+  elsif ($ss eq 'QTL') {
+    return (
+      'worksheet'           => 'QTL',
+      'species_fld'         => 'specieslink_abv',
+      'qtl_expt_fld'        => 'qtl_experimentlink_name',
+      'expt_trait_name_fld' => 'expt_trait_name',
+      'expt_trait_desc_fld' => 'expt_trait_description',
+      'trait_unit_fld'      => 'trait_unit',
+      'qtl_symbol_fld'      => 'qtl_symbol',
+      'qtl_identifier_fld'  => 'qtl_identifier',
+      'expt_qtl_symbol_fld' => 'expt_qtl_symbol',
+      'fav_allele_fld'      => 'favorable_allele_source',
+      'treatment_fld'       => 'treatment',
+      'method_fld'          => 'analysis_method',
+      'lod_fld'             => 'lod',
+      'like_ratio_fld'      => 'likelihood_ratio',
+      'marker_r2_fld'       => 'marker_r2',
+      'total_r2_fld'        => 'total_r2',
+      'additivity_fld'      => 'additivity',
+      'comment_fld'         => 'comment',
+    );
+  }
+  elsif ($ss eq 'MAP_POSITIONS') {
+    return(
+      'worksheet'           => 'MAP_POSITION',
+      'qtl_symbol_fld'      => 'qtl_symbol',
+      'qtl_identifier_fld'  => 'qtl_identifier',
+      'map_name_fld'        => 'map_name',
+      'pub_lg_fld'          => 'publication_lg',
+      'lg_fld'              => 'lg',
+      'left_end_fld'        => 'left_end',
+      'right_end_fld'       => 'right_end',
+      'QTL_peak_fld'        => 'QTL_peak',
+      'int_calc_meth_fld'   => 'interval_calc_method',
+      'nearest_mrkr_fld'    => 'nearest_marker',
+      'flank_mrkr_low_fld'  => 'flanking_marker_low',
+      'flank_mrkr_high_fld' => 'flanking_marker_high',
     );
   }
 }#getSSInfo
@@ -338,7 +382,27 @@ sub getMapSetID {
 }#getMapSetID
 
 
-sub getOBOTerm {
+sub getOBOName {
+  my ($dbh, $dbxref_id) = @_;
+  my ($sql, $sth, $row);
+  
+  my $obo_name;
+  
+  $sql = "SELECT name FROM cvterm WHERE dbxref_id=$dbxref_id";
+  $sth = doQuery($dbh, $sql);
+  if (!($row=$sth->fetchrow_hashref)) {
+    # pretty unlikely, but just in case...
+    print "ERROR: unable to find cvterm record for $dbxref_id\n";
+  }
+  else {
+    $obo_name = $row->{'name'};
+  }
+  
+  return $obo_name;
+}#getOBOName
+
+
+sub getOBOTermID {
   my ($dbh, $term) = @_;
   my ($sql, $sth, $row);
   
@@ -382,7 +446,7 @@ sub getOBOTerm {
   }#looks like an OBO term
   
   return $cvterm_id;
-}#getOBOTerm
+}#getOBOTermID
 
 
 sub getOrganismID {
@@ -412,6 +476,7 @@ sub getPubID {
   my ($sql, $sth, $row);
   
   $sql = "SELECT pub_id FROM chado.pub WHERE uniquename='$citation'";
+  $sth = $dbh->prepare($sql);
   $sth->execute();
   if ($row=$sth->fetchrow_hashref) {
     return $row->{'pub_id'};
@@ -509,6 +574,13 @@ sub getTrait {
   
   return $trait_id;
 }#getTrait
+
+
+sub isNull {
+  my $value = $_[0];
+  return (!$value || $value eq '' || lc($value) eq 'null');
+  
+}#isNull
 
 
 sub logSQL {

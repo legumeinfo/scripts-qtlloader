@@ -95,7 +95,7 @@ EOS
 
 
     # pubs.txt:
-    # 1. ref_type must be in cvterm table
+    # 1. ref_type must exist and be in cvterm table
     # 2. citation can't already be in pub table or spread
     # 3. all citations must be unique in spreadsheet
     # 4. PMID, if present, should be a number
@@ -554,9 +554,10 @@ print "species: $species\n";
     $line_count = 0;
     foreach my $fields (@records) {
       $line_count++;
-
+      
+      # See if trait already exists
       my $trait_name = $fields->{$ti{'trait_name_fld'}};
-print "\ntrait name: $trait_name\n";
+#print "\ntrait name: $trait_name\n";
       if (traitExists($dbh, $trait_name)) {
         $has_warnings++;
         $msg = "warning: trait name ($trait_name) ";
@@ -564,18 +565,41 @@ print "\ntrait name: $trait_name\n";
         reportError($line_count, $msg);
       }
 
+      # See if obo term exists
       my $onto_id = $fields->{$ti{'onto_id_fld'}};
-print "ontology id: $onto_id\n";
-      if ($onto_id =~ /^(.*?):(.*)/) {
-        my $db = $1;
-        my $accession = $2;
-        if (!dbxrefExists($dbh, $db, $accession)) {
-          # non-fatal error (must be fixed, but don't hold up remaining process)
-          $has_warnings++;
-          $msg = "warning: Invalid or deleted OBO term: $onto_id";
+#print "ontology id: $onto_id\n";
+      if ($onto_id && $onto_id ne '' && lc($onto_id) ne 'null') {
+        if (!($onto_id =~ /^(.*?):(.*)/)) {
+          $has_errors++;
+          $msg = "ERROR: invalid OBO term format: [$onto_id]";
           reportError($msg);
         }
-      }
+        else {
+          my $db        = $1;
+          my $accession = $2;
+          my $dbxref_id;
+          if (!($dbxref_id = dbxrefExists($dbh, $db, $accession))) {
+            # non-fatal error (must be fixed, but don't hold up remaining process)
+            $has_warnings++;
+            $msg = "warning: Invalid or deleted OBO term: $onto_id";
+            reportError($msg);
+          }
+          
+          # Check if name in spread sheet matches name in db
+          my $ss_obo_name = $fields->{$ti{'onto_name_fld'}};
+#print "OBO name in ss: $ss_obo_name\n";
+          if ($ss_obo_name) {
+            my $obo_name = getOBOName($dbh, $dbxref_id);
+            if (lc($obo_name) ne lc($ss_obo_name)) {
+              $has_warnings++;
+              $msg = "warning: OBO name in spreadsheet ($ss_obo_name) ";
+              $msg .= "doesn't match offical name ($obo_name).";
+              reportError($msg);
+            }
+          }
+        }#onto term exists
+      }#onto term provided in ss
+      
       $traits{$trait_name} = 1;
     }#each record
   
@@ -640,10 +664,16 @@ print "ontology id: $onto_id\n";
   my %qtls;
   if ($do_qtls) {
     
+    # Get spreadsheet constants
+    my %qi  = getSSInfo('QTL');
+    my %mpi = getSSInfo('MAP_POSITIONS');
+
     # Make sure we've got all the qtl table file
-    if (!$files{'QTL.txt'}) {
-      $msg = "\nthe qtl table is missing.\n";
-      $msg .= "QTL.txt is required.\n\n";
+    my $qtlfile = $qi{'worksheet'} . '.txt';
+    my $mpfile  = $mpi{'worksheet'} . '.txt';
+    if (!$files{$qtlfile} || !$files{$mpfile}) {
+      $msg = "\nOne or more QTL tables are missing.\n";
+      $msg .= "$qtlfile and $mpfile are required.\n\n";
       reportError('', $msg);
       exit;
     }
@@ -657,7 +687,7 @@ print "ontology id: $onto_id\n";
     # 5. nearest_marker, flanking markers must exist in db or spreadsheet (warning only)
     # 6. species name must exist
     
-    $wsfile = "$input_dir/QTL.txt";
+    $wsfile = "$input_dir/$qtlfile";
     print "\nReading qtl records from $wsfile\n";
     @records = readFile($wsfile);
     
@@ -665,9 +695,10 @@ print "ontology id: $onto_id\n";
     $line_count = 0;
     foreach my $fields (@records) {
       $line_count++;
-#print Dumper($fields);
-#exit;
-      my $qtl_name    = "$fields->{'qtl_symbol'}+$fields->{'qtl_identifier'}";
+
+      my $qtl_name = makeQTLname($fields->{$qi{'qtl_symbol_fld'}}, 
+                                 $fields->{$qi{'qtl_identifier_fld'}});
+print "\nQTL name: $qtl_name\n";
       if ($qtls{$qtl_name}) {
         $has_errors++;
         $msg = "ERROR: QTL ($qtl_name) already exists in spreadsheet.";
@@ -679,25 +710,111 @@ print "ontology id: $onto_id\n";
         reportError($line_count, $msg);
       }
       
-      if (!$experiments{$fields->{'qtl_experimentlink_name'}}
-              && !experimentExists($dbh, $fields->{'qtl_experimentlink_name'})) {
+      my $expt = $fields->{$qi{'qtl_expt_fld'}};
+print "experiment: $expt\n";
+      if (!$experiments{$expt} && !experimentExists($dbh, $expt)) {
         $has_errors++;
-        $msg = "ERROR: experiment name ";
-        $msg .= "'$fields->{'qtl_experimentlink_name'}' does not exist ";
+        $msg = "ERROR: experiment name '$expt' does not exist ";
         $msg .= "in spreadsheet or database.";
         reportError($line_count, $msg);
       }
       
-      if (!$traits{$fields->{'qtl_symbol'}}) {
-        if (!getTrait($dbh, $fields->{'qtl_symbol'})) {
+      my $qtl_symbol = $fields->{$qi{'qtl_symbol_fld'}};
+print "QTL symbol: $qtl_symbol\n";
+      if (!$traits{$qtl_symbol}) {
+        if (!getTrait($dbh, $qtl_symbol)) {
           $has_errors++;
-          $msg = "ERROR: QTL symbol ($fields->{'qtl_symbol'}) is not defined in ";
+          $msg = "ERROR: QTL symbol ($qtl_symbol) is not defined in ";
           $msg .= "the spreadsheet or database.";
           reportError($line_count, $msg);
         }
       }
       
-      if (my $mapname = makeLinkageMapName($fields)) {
+      my $uniq_marker_name;
+      
+      my $nearest_marker = $fields->{$qi{'nearest_marker_fld'}};
+print "Nearest marker: $nearest_marker\n";
+      if ($nearest_marker ne '' && lc($nearest_marker) ne 'null') {
+        $uniq_marker_name = makeMarkerName('nearest_marker', $fields);
+        if (!$markers{$nearest_marker} 
+                && !markerExists($dbh, $uniq_marker_name)) {
+          $has_warnings++;
+          $msg = "warning: nearest marker ($nearest_marker) ";
+          $msg .= "does not exist in spreadsheet or database. ";
+          $msg .= "A stub record will be created.";
+          reportError($line_count, $msg);
+        }
+      }
+      
+      my $flanking_marker_low = $fields->{$qi{'flanking_marker_low_fld'}};
+print "Flanking marker low: $flanking_marker_low\n";
+      if ($flanking_marker_low ne '' && lc($flanking_marker_low) ne 'null') {
+        $uniq_marker_name = makeMarkerName('flanking_marker_low', $fields);
+        if (!$markers{$flanking_marker_low}
+              && !markerExists($dbh, $uniq_marker_name)) {
+          $has_warnings++;
+          $msg = "warning: flanking marker low ($flanking_marker_low) ";
+          $msg .= "does not exist in spreadsheet or database. ";
+          $msg .= "A stub record will be created.";
+          reportError($line_count, $msg);
+        }
+      }
+      
+      my $flanking_marker_high = $fields->{$qi{'flanking_marker_high_fld'}};
+print "Flanking marker high: $flanking_marker_high\n";
+      if ($flanking_marker_high ne '' && lc($flanking_marker_high) ne 'null') {
+        $uniq_marker_name = makeMarkerName('flanking_marker_high', $fields);
+        if (!$markers{$flanking_marker_high}
+              && !markerExists($dbh, $uniq_marker_name)) {
+          $has_warnings++;
+          $msg = "warning: flanking marker high ($flanking_marker_high) ";
+          $msg .= "does not exist in spreadsheet or database. ";
+          $msg .= "A stub record will be created.";
+          reportError($line_count, $msg);
+        }
+      }
+      
+      my $species = $fields->{$qi{'species_fld'}};
+print "species: $species\n";
+      if (!getOrganismID($dbh, $species)) {
+        $has_errors++;
+        $msg = "ERROR: species name ($species) doesn't exist";
+        reportError($line_count, $msg);
+      }
+      
+      $qtls{$qtl_name} = 1;
+    }#each record
+  
+    if ($has_errors) {
+      print "\n\nThe qtl table has $has_errors errors and $has_warnings warnings.\n\n";
+    }
+    
+    # MAP_POSITION.txt:
+    # 1. QTL name must match an existing one in the spreadsheet
+    # 2. map set (map_collection) must exist in db or spreadsheet
+    # 3. left_end should be < right_end
+    
+    $wsfile = "$input_dir/$mpfile";
+    print "\nReading map position records from $wsfile\n";
+    @records = readFile($wsfile);
+    
+    $has_errors = 0;
+    $line_count = 0;
+    foreach my $fields (@records) {
+      $line_count++;
+
+      my $qtl_name = makeQTLname($fields->{$mpi{'qtl_symbol_fld'}},
+                                 $fields->{$mpi{'qtl_identifier_fld'}});
+print "\nQTL name: $qtl_name\n";
+      
+      my $mapname = $fields->{$mpi{'map_name_fld'}};
+print "map name: $mapname\n";
+      if (!$mapname || $mapname eq '' || lc($mapname) eq 'null') {
+        $has_errors++;
+        $msg = "ERROR: map name is missing from record.";
+        reportError($line_count, $msg);
+      }
+      else {
         if (!$linkagemaps{$mapname}) {
           if (!linkageMapExists($mapname)) {
             $has_warnings++;
@@ -708,60 +825,24 @@ print "ontology id: $onto_id\n";
         }
       }
       
-      my $uniq_marker_name;
-      
-      if ($fields->{'nearest_marker'} ne '' 
-            && $fields->{'nearest_marker'} ne 'NULL') {
-        $uniq_marker_name = makeMarkerName('nearest_marker', $fields);
-        if (!$markers{$fields->{'nearest_marker'}} 
-                && !markerExists($dbh, $uniq_marker_name)) {
-          $has_warnings++;
-          $msg = "warning: nearest marker ($fields->{'nearest_marker'}) ";
-          $msg .= "does not exist in spreadsheet or database. ";
-          $msg .= "A stub record will be created.";
-          reportError($line_count, $msg);
-        }
-      }
-      
-      if ($fields->{'flanking_marker_low'} ne '' 
-            && $fields->{'flanking_marker_low'} ne 'NULL') {
-        $uniq_marker_name = makeMarkerName('flanking_marker_low', $fields);
-        if (!$markers{$fields->{'flanking_marker_low'}}
-              && !markerExists($dbh, $uniq_marker_name)) {
-          $has_warnings++;
-          $msg = "warning: flanking marker low ($fields->{'flanking_marker_low'}) ";
-          $msg .= "does not exist in spreadsheet or database. ";
-          $msg .= "A stub record will be created.";
-          reportError($line_count, $msg);
-        }
-      }
-      
-      if ($fields->{'flanking_marker_high'} ne '' 
-            && $fields->{'flanking_marker_high'} ne 'NULL') {
-        $uniq_marker_name = makeMarkerName('flanking_marker_high', $fields);
-        if (!$markers{$fields->{'flanking_marker_high'}}
-              && !markerExists($dbh, $uniq_marker_name)) {
-          $has_warnings++;
-          $msg = "warning: flanking marker high ($fields->{'flanking_marker_high'}) ";
-          $msg .= "does not exist in spreadsheet or database. ";
-          $msg .= "A stub record will be created.";
-          reportError($line_count, $msg);
-        }
-      }
-      
-      if (!getOrganismID($dbh, $fields->{'specieslink_abv'})) {
+      my $left_end  = $fields->{$mpi{'left_end_fld'}};
+      my $right_end = $fields->{$mpi{'right_end_fld'}};
+print "QTL coordinates: $left_end - $right_end\n";
+      if ($left_end eq '' || lc($left_end) eq 'null'
+            || $right_end eq '' || lc($right_end) eq 'null') {
         $has_errors++;
-        $msg = "ERROR: species name ($fields->{'specieslink_abv'}) doesn't exist";
+        $msg = "ERROR: missing left and/or right end coordinates for QTL.";
+        reportError($line_count, $msg);
+      }
+      elsif ($left_end > $right_end) {
+        $has_errors++;
+        $msg = "ERROR: right coordinate is larger than left coordinate for QTL.";
         reportError($line_count, $msg);
       }
       
-      $qtls{$qtl_name} = 1;
+      $line_count++;
     }#each record
-  
-    if ($has_errors) {
-      print "\n\nThe qtl table has $has_errors errors and $has_warnings warnings.\n\n";
-    }
-  }
+  }#check QTL tables
   
   print "\n\n\nSpreadsheet verification is completed.\n";
   print "There were $has_warnings warnings that should be checked.\n\n\n";
@@ -822,6 +903,13 @@ sub linkageMapExists {
   
   return 0;
 }#linkageMapExists
+
+
+sub makeQTLname {
+  my ($symbol, $id) = @_;
+  my $qtl_name = "$symbol+$id";
+  return $qtl_name;
+}#makeQTLname
 
 
 sub unitExists {

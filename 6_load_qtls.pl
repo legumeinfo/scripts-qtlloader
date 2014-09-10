@@ -38,38 +38,11 @@ EOS
   my @filepaths = <$input_dir/*.txt>;
   my %files = map { s/$input_dir\/(.*)$/$1/; $_ => 1} @filepaths;
 
-  # hard-coded worksheet constants
-  my $qtl_worksheet       = 'QTL';
-  my $species_fld         = 'specieslink_abv';
-  my $qtl_expt_fld        = 'qtl_experimentlink_name';
-  my $expt_trait_name_fld = 'expt_trait_name';
-  my $expt_trait_desc_fld = 'expt_trait_description';
-  my $trait_unit_fld      = 'trait_unit';
-  my $qtl_symbol_fld      = 'qtl_symbol';
-  my $qtl_identifier      = 'qtl_identifier'
-  my $expt_qtl_symbol_fld = 'expt_qtl_symbol'
-  my $fav_allele_fld      = 'favorable_allele_source';
-  my $treatment_fld       = 'treatment';
-  my $method_fld          = 'analysis_method';
-  my $lod_fld             = 'lod';
-  my $like_ratio_fld      = 'likelihood_ratio';
-  my $marker_r2_fld       = 'marker_r2';
-  my $total_r2_fld        = 'total_r2';
-  my $additivity_fld      = 'additivity';
-  my $comment_fld         = 'comment';
-
-  my $pos_worksheet       = 'MAP_POSITION';
-  my $map_name_fld        = 'map_name';	
-  my $pub_lg_fld          = 'publication_lg';
-  my $lg_fld              = 'lg';
-  my $left_end_fld        = 'left_end';
-  my $right_end_fld       = 'right_end';
-  my $QTL_peak_fld        = 'QTL_peak';
-  my $int_calc_meth_fld   = 'interval_calc_method';
-  my $nearest_mrkr_fld    = 'nearest_marker';
-  my $flank_mrkr_low_fld  = 'flanking_marker_low';
-  my $flank_mrkr_high_fld = 'flanking_marker_high';
   
+  # get worksheet contants
+  my %qi  = getSSInfo('QTL');
+  my %mpi = getSSInfo('MAP_POSITIONS');
+
   my $line_count;   # current line in file to load
   my %skip_QTLs;    # list of QTLs to skip (don't load map positions)
   
@@ -91,7 +64,7 @@ EOS
     loadQTLs($dbh);  
     loadQTLpos($dbh);
     
-    $dbh->commit;   # commit the changes if we get this far
+#    $dbh->commit;   # commit the changes if we get this far
   };
   if ($@) {
     print "\n\nTransaction aborted because $@\n\n";
@@ -114,7 +87,7 @@ sub loadQTLs {
   my $dbh = $_[0];
   my ($fields, $sql, $sth, $row);
   
-  my $table_file = "$input_dir/$worksheet";
+  my $table_file = "$input_dir/$qi{'worksheet'}";
   print "Loading/verifying $table_file...\n";
   
   my @records = readFile($table_file);
@@ -127,7 +100,7 @@ sub loadQTLs {
     
     # create parent record: feature
     #   specieslink_name, qtl_symbol, qtl_identifer
-    my $qtl_name    = makeQTLName($fields);
+    my $qtl_name = makeQTLName($fields);
 #print "$line_count: $qtl_name\n";
     
     my $qtl_id;
@@ -163,17 +136,17 @@ sub loadQTLs {
          
 #print "  attach experiment trait name\n";
     # trait_name
-    loadFeatureprop($dbh, $qtl_id, $expt_trait_name_fld, 
+    loadFeatureprop($dbh, $qtl_id, $fields->{$qi{'expt_trait_name_fld'}}, 
                     'Experiment Trait Name', 'feature_property', $fields);
     
 #print "  attach experiment trait description\n";
     # trait_description
-    loadFeatureprop($dbh, $qtl_id, $expt_trait_desc_fld, 
+    loadFeatureprop($dbh, $qtl_id, $fields->{$qi{'expt_trait_desc_fld'}}, 
                     'Experiment Trait Description', 'feature_property', $fields);
     
 #print "  attach trait unit\n";
     # trait_unit
-    loadFeatureprop($dbh, $qtl_id, $trait_unit_fld, 
+    loadFeatureprop($dbh, $qtl_id, $fields->{$qi{'trait_unit_fld'}}, 
                     'Trait Unit', 'feature_property', $fields);
 
 #print "  attach qtl symbol\n";
@@ -182,12 +155,12 @@ sub loadQTLs {
     
 #print "  attach qtl identifier\n";
     # qtl_identifier
-    loadFeatureprop($dbh, $qtl_id, $qtl_identifier, 
+    loadFeatureprop($dbh, $qtl_id, $fields->{$qi{'qtl_identifier_fld'}}, 
                     'QTL Identifier', 'feature_property', $fields);
     
 #print "  attach pub qtl symbol\n";
     # expt_qtl_symbol: set publication QTL symbol (if any) as synonym
-    setSynonym($dbh, $qtl_id, $expt_qtl_symbol_fld, $fields);
+    setSynonym($dbh, $qtl_id, $fields->{$qi{'expt_qtl_symbol_fld'}}, $fields);
     
 #print "  attach favorable allele source\n";
     # favorable_allele_source
@@ -195,26 +168,31 @@ sub loadQTLs {
 
 #print "  attach treatment\n";
     # treatment
-    loadFeatureprop($dbh, $qtl_id, $treatment_fld, 
+    loadFeatureprop($dbh, $qtl_id, $fields->{$qi{'treatment_fld'}}, 
                     'QTL Study Treatment', 'feature_property', $fields);
 
 #print "  attach analysis method\n";
     # analysis_method
-    loadFeatureprop($dbh, $qtl_id, $method_fld, 
+    loadFeatureprop($dbh, $qtl_id, $fields->{$qi{'method_fld'}}, 
                     'QTL analysis method', 'feature_property', $fields);
     
 #print "  attach measurements\n";
     # load measurements via analysisfeature
-    loadMeasurement($dbh, $qtl_id, $lod_fld, 'LOD', $fields);
-    loadMeasurement($dbh, $qtl_id, $like_ratio_fld, 'likelihood ratio', $fields);
-    loadMeasurement($dbh, $qtl_id, $marker_r2_fld, 'marker R2', $fields);
-    loadMeasurement($dbh, $qtl_id, $total_r2_fld, 'total R2', $fields);
-    loadMeasurement($dbh, $qtl_id, $additivity_fld, 'additivity', $fields);
+    loadMeasurement($dbh, $qtl_id, $fields->{$qi{'lod_fld'}}, 
+                    'LOD', $fields);
+    loadMeasurement($dbh, $qtl_id, $fields->{$qi{'like_ratio_fld'}}, 
+                    'likelihood ratio', $fields);
+    loadMeasurement($dbh, $qtl_id, $fields->{$qi{'marker_r2_fld'}}, 
+                    'marker R2', $fields);
+    loadMeasurement($dbh, $qtl_id, $fields->{$qi{'total_r2_fld'}}, 
+                    'total R2', $fields);
+    loadMeasurement($dbh, $qtl_id, $fields->{$qi{'additivity_fld'}}, 
+                    'additivity', $fields);
 
 #print "  attach comment\n";
     # comment
-    loadFeatureprop($dbh, $qtl_id, $comment_fld, 'comments', 
-                    'feature_property', $fields);
+    loadFeatureprop($dbh, $qtl_id, $fields->{$qi{'comment_fld'}}, 
+                    'comments', 'feature_property', $fields);
   }#each record
 
   print "Loaded $line_count QTL records\n\n";
@@ -225,7 +203,7 @@ sub loadQTLpos {
   my $dbh = $_[0];
   my ($fields, $sql, $sth, $row);
   
-  my $table_file = "$input_dir/$worksheet";
+  my $table_file = "$input_dir/$mpi{'worksheet'}";
   print "Loading/verifying $table_file...\n";
   
   my @records = readFile($table_file);
@@ -238,7 +216,7 @@ sub loadQTLpos {
     
     # create parent record: feature
     #   specieslink_name, qtl_symbol, qtl_identifer
-    my $qtl_name    = makeQTLName($fields);
+    my $qtl_name = makeQTLName($fields);
 print "$line_count: $qtl_name\n";
     
     # check if this QTL should be skipped
@@ -256,13 +234,13 @@ print "$line_count: $qtl_name\n";
 
 #print "  attach pub lg\n";
     # publication_lg
-    loadFeatureprop($dbh, $qtl_id, $pub_lg_fld, 
+    loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'pub_lg_fld'}}, 
                     'publication linkage group', 'feature_property', $fields);
     
 #print "  attach lg\n";
 # TODO: a linkage group should be a feature!
 #    # lg (is this already in via the map and position?)
-    loadFeatureprop($dbh, $qtl_id, 'lg', 
+    loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'lg_fld'}}, 
                     'linkage_group', 'sequence', $fields);
     
 #print "  attach map position\n";
@@ -272,17 +250,20 @@ print "$line_count: $qtl_name\n";
     insertGeneticCoordinates($dbh, $qtl_name, $mapset, $lg_mapname, $fields);
 
     # set interval calculation method
-    loadFeatureprop($dbh, $qtl_id, $int_calc_meth_fld, 
+    loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'int_calc_meth_fld'}}, 
                     'Interval Calculation Method', 'feature_property', $fields);
     
 #print "  attach markers\n";
     # link to markers (nearest, flanking) via feature_relationship
-    attachMarker($dbh, $qtl_id, $nearest_mrkr_fld, 'Nearest Marker', $fields);
-    attachMarker($dbh, $qtl_id, $flank_mrkr_low_fld, 'Flanking Marker Low', $fields);
-    attachMarker($dbh, $qtl_id, $flank_mrkr_high_fld, 'Flanking Marker High', $fields);
+    attachMarker($dbh, $qtl_id, $fields{$mpi{'nearest_mrkr_fld'}}, 
+                 'Nearest Marker', $fields);
+    attachMarker($dbh, $qtl_id, $fields{$mpi{'flank_mrkr_low_fld'}}, 
+                 'Flanking Marker Low', $fields);
+    attachMarker($dbh, $qtl_id, $fields{$mpi{'flank_mrkr_high_fld'}}, 
+                 'Flanking Marker High', $fields);
 
     # change rank because there may already be a comment for this QTL
-    loadFeatureprop($dbh, $qtl_id, $comment_fld, 'comments', 
+    loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'comment_fld'}}, 'comments', 
                     'feature_property', $fields, 2);  # 2 = rank
 }#loadQTLpos
 
@@ -295,7 +276,8 @@ sub setQTLRecord {
   my ($dbh, $qtl_id, $fields) = @_;
   my ($sql, $sth, $row);
   
-  my $organism_id = getOrganismID($dbh, $fields->{$species_fld}, $line_count);
+  my $species     = $fields->{$qi{'species_fld'}};
+  my $organism_id = getOrganismID($dbh, $species, $line_count);
   my $qtl_name    = makeQTLName($fields);
   
   if ($qtl_id) {
@@ -304,7 +286,7 @@ sub setQTLRecord {
       SET 
         organism_id=$organism_id,
         name = '$qtl_name',
-        uniquename = '$fields->{$species_fld}:$qtl_name',
+        uniquename = '$species:$qtl_name',
         type_id = (SELECT cvterm_id FROM chado.cvterm 
                    WHERE name = 'QTL'
                          AND cv_id=(SELECT cv_id FROM chado.cv 
@@ -320,7 +302,7 @@ sub setQTLRecord {
       VALUES
         ($organism_id,
          '$qtl_name',
-         '$fields->{$species_fld}:$qtl_name',
+         '$species:$qtl_name',
          (SELECT cvterm_id FROM chado.cvterm 
           WHERE name = 'QTL'
             AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='sequence')))
@@ -375,28 +357,28 @@ sub cleanDependants {
 
 sub attachExperiment {
   my ($dbh, $feature_id, $fields) = @_;
+  my ($sql, $sth);
   
-#TODO: there may be more than one of these: increase rank if need be
-    $sql = "
-      INSERT INTO chado.feature_project
-        (feature_id, project_id, rank)
-      VALUES
-        ($feature_id,
-         (SELECT project_id FROM chado.project 
-          WHERE name='$fields->{$qtl_expt_fld}'),
-         0)";
-    logSQL($dataset_name, "$line_count: $sql");
-    $sth = doQuery($dbh, $sql);
+  my $expt = $fields->{$qi{'qtl_expt_fld'}};
+  $sql = "
+    INSERT INTO chado.feature_project
+      (feature_id, project_id, rank)
+    VALUES
+      ($feature_id,
+       (SELECT project_id FROM chado.project 
+        WHERE name='$expt'),
+       0)";
+  logSQL($dataset_name, "$line_count: $sql");
+  $sth = doQuery($dbh, $sql);
 }#attachExperiment
 
 
 sub attachFavorableAlleleSource {
   my ($dbh, $feature_id, $fields) = @_;
   my ($sql, $sth, $row);
-       
-  if (!$fields->{$fav_allele_fld} 
-        || $fields->{$fav_allele_fld} eq '' 
-        || $fields->{$fav_allele_fld} eq 'NULL') {
+  
+  my $fav_allele = $fields->{$qi{'fav_allele_fld'}};
+  if (!$fav_allele $fav_allele eq '' || $fav_allele eq 'NULL') {
     return;
   }
   
@@ -406,27 +388,26 @@ sub attachFavorableAlleleSource {
      VALUES
        ($feature_id,
         (SELECT stock_id FROM chado.stock 
-         WHERE name='$fields->{$fav_allele_fld}'),
+         WHERE name='$fav_allele'),
         (SELECT cvterm_id FROM chado.cvterm 
          WHERE name='Favorable Allele Source'
            AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local')))";
-#print "$line_count: $sql\n";
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
 }#attachFavorableAlleleSource
 
 
 sub attachMarker {
-  my ($dbh, $feature_id, $fieldname, $relationship, $fields) = @_;
+  my ($dbh, $feature_id, $markername, $relationship, $fields) = @_;
   my ($sql, $sth, $row);
 #print "attach marker in field '$fieldname'.\n" . Dumper($fields);
 
-  if (!$fields->{$fieldname} || $fields->{$fieldname} eq '' 
-        || $fields->{$fieldname} eq 'NULL') {
+  if (!$markername || $markername eq '' || lc($markername) eq 'null') {
     return;
   }
   
-  my $unique_marker_name = "$fields->{$fieldname}-$fields->{$species_fld}";
+  my species = $fields->{$qi{'species_fld'}};
+  my $unique_marker_name = "$markername-$species";
   
   # check for existing marker
   my $marker_id = 0;
@@ -435,36 +416,21 @@ sub attachMarker {
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
   if (!($row=$sth->fetchrow_hashref)) {
-=cut
-    print "The marker $fields->{$fieldname} is not in the database. Should it be added? (y/n) ";
-    my $ui =  <STDIN>;
-    chomp ($ui);
-=cut
-my $ui = 'y';
-    if (!($ui =~ /y.*/)) {
-      # kill the whole process here
-      print "\nQuitting process. No records will be inserted.\n";
-      exit;
-    }
-    else {
-      # insert a stub record for this marker
-      my $organism_id = getOrganismID($dbh, $fields->{$species_fld}, $line_count);
-      $sql = "
-        INSERT INTO chado.feature
-          (organism_id, name, uniquename, type_id)
-        VALUES
-          ($organism_id, '$fields->{$fieldname}', '$unique_marker_name',
-           (SELECT cvterm_id FROM chado.cvterm 
-            WHERE name='genetic_marker'
-              AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='sequence')))
-         RETURNING feature_id";
-#print "$sql\n";
-      logSQL($dataset_name, "line_count:$sql");
-      $sth = doQuery($dbh, $sql);
-      $row = $sth->fetchrow_hashref;
-      $marker_id = $row->{'feature_id'};
-#print "returned id $marker_id\n\n";
-    }
+    # insert a stub record for this marker
+    my $organism_id = getOrganismID($dbh, $fields->{$species_fld}, $line_count);
+    $sql = "
+      INSERT INTO chado.feature
+        (organism_id, name, uniquename, type_id)
+      VALUES
+        ($organism_id, '$markername', '$unique_marker_name',
+         (SELECT cvterm_id FROM chado.cvterm 
+          WHERE name='genetic_marker'
+            AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='sequence')))
+       RETURNING feature_id";
+    logSQL($dataset_name, "line_count: $sql");
+    $sth = doQuery($dbh, $sql);
+    $row = $sth->fetchrow_hashref;
+    $marker_id = $row->{'feature_id'};
   }
   
   if ($marker_id > 0) {
@@ -477,10 +443,8 @@ my $ui = 'y';
            WHERE name='$relationship' 
              AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='feature_relationship')),
           $marker_id, '', 0)";
-#print "$line_count: $sql\n";
     logSQL($dataset_name, "$line_count: $sql");
     $sth = doQuery($dbh, $sql);
-#print "returned $sth\n\n";
   }
 }#attachMarker
 
@@ -489,12 +453,12 @@ sub attachTrait {
   my ($dbh, $feature_id, $fields) = @_;
   my ($sql, $sth, $row);
   
-  my $pub_id = getPubFromExperiment($dbh, $fields->{$qtl_expt_fld});
+  my $pub_id = getPubFromExperiment($dbh, $fields->{$gi{'qtl_expt_fld'}});
   
-  my $trait_id = getTrait($dbh, $fields->{$qtl_symbol_fld});
+  my $trait_id = getTrait($dbh, $fields->{$qi{'qtl_symbol_fld'}});
   if ($trait_id == 0) {
     # fatal error
-    print "ERROR: unable to find QTL symbol '$fields->{$qtl_symbol_fld}'\n";
+    print "ERROR: unable to find QTL symbol $fields->{$qi{'qtl_symbol_fld'}}\n";
     exit;
   }
   
@@ -520,7 +484,6 @@ sub attachTrait {
              AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local')),
           '', 
           0)";
-#print "$line_count: $sql\n";
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
 }#attachTrait
@@ -575,8 +538,9 @@ sub insertGeneticCoordinates {
   my ($dbh, $qtl_name, $mapset, $lg_mapname, $fields) = @_;
   my ($sql, $sth, $row);
   
-  return if (!$mapset || !$lg_mapname
-              || (!$fields->{$left_end_fld} && !($fields->{$right_end_fld})));
+  my $left_end  = $fields->{$mpi{'left_end_fld'}};
+  my $right_end = $fields->{$mpi{'right_end_fld'}};
+  return if (!$mapset || !$lg_mapname || (!$left_end && !($right_end)));
   
   # Get id for mapset
   my $mapset_id = getMapSetID($dbh, $mapset);
@@ -585,7 +549,6 @@ sub insertGeneticCoordinates {
   if ($mapset_id == 0) {
     return;
   }
-#print "insertGeneticCoordinates(): Got mapset id: $mapset_id\n";
 
   $sql = "
     INSERT INTO chado.featurepos
@@ -594,7 +557,7 @@ sub insertGeneticCoordinates {
       ($mapset_id,
        (SELECT feature_id FROM chado.feature WHERE name='$qtl_name'),
        (SELECT feature_id FROM chado.feature WHERE name='$lg_mapname'),
-       $fields->{$left_end_fld})
+       $left_end)
     RETURNING featurepos_id";
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
@@ -610,7 +573,6 @@ sub insertGeneticCoordinates {
         WHERE name='start'
           AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='featurepos_property')),
        '', 1)";
-#print "$line_count: $sql\n";
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
   
@@ -621,9 +583,8 @@ sub insertGeneticCoordinates {
       ($mapset_id,
        (SELECT feature_id FROM chado.feature WHERE name='$qtl_name'),
        (SELECT feature_id FROM chado.feature WHERE name='$lg_mapname'),
-       $fields->{$right_end_fld})
+       $right_end)
     RETURNING featurepos_id";
-#print "$line_count: $sql\n";
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
   $row = $sth->fetchrow_hashref;
@@ -638,14 +599,13 @@ sub insertGeneticCoordinates {
        WHERE name='stop'
          AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='featurepos_property')),
       '', 1)";
-#print "$line_count: $sql\n";
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
 }#insertGeneticCoordinates
 
 
 sub loadFeatureprop {
-  my ($dbh, $feature_id, $fieldname, $propname, $cv, $fields, $rank=1) = @_;
+  my ($dbh, $feature_id, $prop, $propname, $cv, $fields, $rank=1) = @_;
   
   if (!$fields->{$fieldname} || $fields->{$fieldname} eq '' 
         || $fields->{$fieldname} eq 'NULL') {
@@ -660,7 +620,7 @@ sub loadFeatureprop {
       (SELECT cvterm_id FROM chado.cvterm 
        WHERE name='$propname'
          AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='$cv')),
-      '$fields->{$fieldname}',
+      '$prop',
       $rank)";
 #print "$line_count: $sql\n";
   logSQL($dataset_name, "$line_count: $sql");
@@ -669,7 +629,7 @@ sub loadFeatureprop {
 
 
 sub loadMeasurement {
-  my ($dbh, $feature_id, $fieldname, $analysis, $fields) = @_;
+  my ($dbh, $feature_id, $measure, $analysis, $fields) = @_;
   my ($sql, $sth);
 #print "attach analysis in field '$fieldname' of type $analysis.\n" . Dumper($fields);
   
@@ -684,7 +644,7 @@ sub loadMeasurement {
        VALUES
          ($feature_id,
           (SELECT analysis_id FROM chado.analysis WHERE name='$analysis'),
-          $fields->{$fieldname})";
+          $measure)";
 #print "$line_count: $sql\n";
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
@@ -692,21 +652,20 @@ sub loadMeasurement {
 
 
 sub setSynonym {
-  my ($dbh, $feature_id, $fieldname, $fields) = @_;
+  my ($dbh, $feature_id, $synonym, $fields) = @_;
   my ($sql, $sth, $row);
 
-  if (!$fields->{$fieldname} || $fields->{$fieldname} eq '' 
-        || $fields->{$fieldname} eq 'NULL') {
+  if (!$synonym || $synonym eq '' || lc($synonym) eq 'null') {
     return;
   }
   
-  my $synonym_id = getSynonym($dbh, $fields->{$fieldname});
+  my $synonym_id = getSynonym($dbh, $synonym);
   if (!$synonym_id) {
     $sql = "
       INSERT INTO chado.synonym
        (name, synonym_sgml, type_id)
       VALUES
-       ('$fields->{$fieldname}', '$fields->{$fieldname}',
+       ('$synonym', '$synonym',
         (SELECT cvterm_id FROM chado.cvterm
          WHERE name='symbol'
            AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='synonym_type')))

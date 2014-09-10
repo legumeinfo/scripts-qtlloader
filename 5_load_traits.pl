@@ -75,7 +75,7 @@ EOS
 #not yet properly mapped to chado schema
 #    loadParentTraits($dbh);
 
-#    $dbh->commit;   # commit the changes if we get this far
+    $dbh->commit;   # commit the changes if we get this far
   };
   if ($@) {
     print "\n\nTransaction aborted because $@\n\n";
@@ -111,6 +111,8 @@ sub loadTraits {
     $line_count++;
     
     my $trait_name = $fields->{$ti{'trait_name_fld'}};
+    next if (!$trait_name || $trait_name eq '' || lc($trait_name) eq 'null');
+#print "\ntrait name: $trait_name\n";
 
     my $trait_id;
     if ($trait_id = getTraitRecord($dbh, $trait_name)) {
@@ -139,6 +141,7 @@ sub loadTraits {
     $trait_id = setTraitRecord($dbh, $trait_id, 
                                $fields->{$ti{'qtl_symbol_fld'}}, 
                                $fields->{$ti{'description_fld'}});
+#print "trait ID: $trait_id\n";
     
     # trait_name 
     setTermRelationship($dbh, $trait_id, $fields->{$ti{'trait_name_fld'}}, 
@@ -225,6 +228,10 @@ sub cleanDependants {
   doQuery($dbh, $sql);
   
   my $sql = "DELETE FROM chado.cvtermsynonym WHERE cvterm_id=$trait_id";
+  logSQL('', $sql);
+  doQuery($dbh, $sql);
+  
+  my $sql = "DELETE FROM chado.cvterm_dbxref WHERE cvterm_id=$trait_id";
   logSQL('', $sql);
   doQuery($dbh, $sql);
 }#cleanDependants
@@ -343,12 +350,13 @@ sub setDbxref {
   if ($term && $term ne '' && $term ne 'NULL') {
     $dbxref_id = getDbxref($dbh, $term);
     if (!$dbxref_id) {
+      $term = $dbh->quote($term);
       $sql = "
         INSERT INTO chado.dbxref
           (db_id, accession)
         VALUES
           ((SELECT db_id FROM chado.db WHERE name='LegumeInfo:traits'),
-           '$name')
+           $term)
         RETURNING dbxref_id";
       logSQL($dataset_name, "$line_count: $sql");
       $sth = doQuery($dbh, $sql);
@@ -366,28 +374,22 @@ sub setOBOTerm {
   my ($dbh, $trait_id, $fields) = @_;
   
   my $term = $fields->{$ti{'onto_id_fld'}};
-  $term =~ /.*?\.(\d+)/;
+  
+  return if (!$term || $term eq '' || lc($term) eq 'null');
+  
+  $term =~ /.*?:(\d+)/;
   my $acc = $1;
   my $name = $fields->{$ti{'onto_name_fld'}};
 #print "set term $term: accession: $acc, name=$name\n";
 
   # check for existence
-  
-  # check name against provided name
-  
-  # association via cvterm_dbxref
-  
-  my $object_id = getOBOTerm($dbh, $term);
-  if ($object_id) {
+  my $dbxref_id = getDbxref($dbh, $term);
+  if ($dbxref_id) {
     $sql = "
-      INSERT INTO chado.cvterm_relationship
-        (subject_id, type_id, object_id)
+      INSERT INTO chado.cvterm_dbxref
+        (cvterm_id, dbxref_id)
       VALUES
-        ($trait_id,
-         (SELECT cvterm_id FROM chado.cvterm 
-          WHERE name='Has OBO Term'
-            AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='local')),
-         $object_id)";
+        ($trait_id, $dbxref_id)";
     logSQL($dataset_name, "$line_count: $sql");
     $sth = doQuery($dbh, $sql);
   }
@@ -398,7 +400,7 @@ sub setTermRelationship {
   my ($dbh, $trait_id, $term, $relationship, $fields) = @_;
   my ($sql, $sth, $row);
 
-  if ($name && $name ne '' && lc($name) ne 'null') {
+  if ($term && $term ne '' && lc($term) ne 'null') {
     # Does this related term exist?
     $sql = "
       SELECT cvterm_id FROM chado.cvterm 
@@ -410,7 +412,7 @@ sub setTermRelationship {
     
     if (!($row=$sth->fetchrow_hashref)) {
       # Term doesn't exist, create it
-      my $dbxref_id = setDbxref($dbh, $name);
+      my $dbxref_id = setDbxref($dbh, $term);
       $sql = "
         INSERT INTO chado.cvterm
           (cv_id, name, dbxref_id)
@@ -445,17 +447,17 @@ sub setTraitRecord {
   my ($dbh, $trait_id, $name, $definition) = @_;
   my ($sql, $sth, $row);
   
-  $name        = $dbh->quote($name);
-  $description = $dbh->quote($definition);
-  
   # create dbxref
   my $dbxref_id = setDbxref($dbh, $name);
   
+  $name       = $dbh->quote($name);
+  $definition = $dbh->quote($definition);
+
   if ($trait_id) {
     $sql = "
       UPDATE chado.cvterm SET
-        name='$name',
-        definition='$definition',
+        name=$name,
+        definition=$definition,
         dbxref_id=$dbxref_id
       WHERE cvterm_id=$trait_id
       RETURNING cvterm_id";
@@ -466,7 +468,7 @@ sub setTraitRecord {
         (cv_id, name, definition, dbxref_id)
       VALUES
         ((SELECT cv_id FROM chado.cv WHERE name='LegumeInfo:traits'),
-         '$name', '$definition', $dbxref_id)
+         $name, $definition, $dbxref_id)
       RETURNING cvterm_id";
   }
   

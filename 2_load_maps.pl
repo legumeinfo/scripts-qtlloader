@@ -96,7 +96,7 @@ sub loadMapCollection {
   my $dbh = $_[0];
   my (%fields, $sql, $sth);
   
-  $table_file = "$input_dir/$mci{'worksheet'}";
+  $table_file = "$input_dir/$mci{'worksheet'}.txt";
   print "\n\nLoading $table_file...\n";
   
   my ($skip, $skip_all, $update, $update_all);
@@ -136,24 +136,31 @@ sub loadMapCollection {
     }#map set exists
 
     # create mapping population stock record if needed
-    confirmStockRecord($dbh, $mi{'map_name_fld'}, 'Mapping Population', $fields);
+    confirmStockRecord($dbh, $fields->{$mci{'map_name_fld'}}, 
+                       'Mapping Population', $fields);
     
     # create parent stock records if needed
     if ($fields->{$mci{'parent1_fld'}} 
         && $fields->{$mci{'parent1_fld'}} ne '' 
         && $fields->{$mci{'parent1_fld'}} ne 'NULL') {
-       confirmStockRecord($dbh, $mci{'parent1_fld'}, 'Cultivar', $fields);
-       connectParent($dbh, $mci{'parent1_fld'}, $fields);
+       confirmStockRecord($dbh, $fields->{$mci{'parent1_fld'}}, 
+                          'Cultivar', $fields);
+       connectParent($dbh, $fields->{$mci{'parent1_fld'}}, 'Parent1', $fields);
     }
     if ($fields->{$mci{'parent2_fld'}} 
         && $fields->{$mci{'parent2_fld'}} ne '' 
         && $fields->{$mci{'parent2_fld'}} ne 'NULL') {
-      confirmStockRecord($dbh, $mci{'parent2_fld'}, 'Cultivar', $fields);
-      connectParent($dbh, $mci{'parent2_fld'}, $fields);
+      confirmStockRecord($dbh, $fields->{$mci{'parent2_fld'}}, 
+                         'Cultivar', $fields);
+      connectParent($dbh, $fields->{$mci{'parent2_fld'}}, 'Parent2', $fields);
     }
     
     # attach mapping population to publication
-    my $pub_id = getPubID($dbh, $fields->{$mci{'pub_fld'}});
+    my @publink_citations = split ';', $fields->{$mci{'pub_fld'}};
+print "publink_citations: " . Dumper(@publink_citations);
+exit;
+
+    my $pub_id = getPubID($dbh, $publink_citation);
     $sql = "
       INSERT INTO chado.stock_pub
         (stock_id, pub_id)
@@ -163,7 +170,7 @@ sub loadMapCollection {
         )";
     logSQL($dataset_name, "$sql");
     $sth = $dbh->prepare($sql);
-    $sth->execute($fields->{$mci{'pub_fld'}});
+    $sth->execute();
 
     # create featuremap record (base record for map)
     my $map_id = setMapSetRec($dbh, $fields);  # featuremap_id
@@ -183,9 +190,9 @@ sub loadMapCollection {
       VALUES
         ($map_id,
          (SELECT pub_id FROM chado.pub WHERE uniquename=?))";
-    logSQL($dataset_name, $sql);
+    logSQL($dataset_name, "$sql\nWITH:\n$publink_citation");
     $sth = $dbh->prepare($sql);
-    $sth->execute($fields->{$mci{'pub_fld'}});
+    $sth->execute($publink_citation);
 
     # attach map collection (featuremap) to mapping population (stock)
     # map name = mapping population uniquename
@@ -340,22 +347,11 @@ sub clearMapLGDependencies {
 
 
 sub confirmStockRecord {
-  my ($dbh, $fieldname, $stock_type, $fields) = @_;
+  my ($dbh, $stockname, $stock_type, $fields) = @_;
   my ($sql, $sth, $row);
   
-  my $stockname;
-  if ($stock_type eq 'cultivar') {
-    # create only one record per parent with the assumption that parent names
-    #   will be unique within a species
-    $stockname = $fields->{$fieldname};
-  }
-  else {
-    # stock names which are crosses between two parents are different stocks
-    #   even if the names are the same, so append a unique id
-    $stockname = $fields->{$mi{'map_name_fld'}};
-  }
-  
-  $sql = "SELECT * FROM chado.stock WHERE uniquename=?";
+  $sql = "
+    SELECT * FROM chado.stock WHERE uniquename=?";
   logSQL($dataset_name, "$sql\nwith '$stockname'");
   $sth = $dbh->prepare($sql);
   $sth->execute($stockname);
@@ -368,7 +364,7 @@ sub confirmStockRecord {
         ($organism_id, ?, '$stockname',
          (SELECT cvterm_id FROM chado.cvterm 
           WHERE name='$stock_type'
-            AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local')))";
+            AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='stock_type')))";
     logSQL($dataset_name, "$sql\nWith '$stockname'");
     $sth = $dbh->prepare($sql);
     $sth->execute($stockname);
@@ -377,12 +373,12 @@ sub confirmStockRecord {
 
 
 sub connectParent {
-  my ($dbh, $fieldname, $parent_type, $fields) = @_;
+  my ($dbh, $parent_stock, $parent_type, $fields) = @_;
   my ($sql, $sth, $row);
 
-  my $parent_stock = $fields->{$fieldname};
-  my $mapping_stock = $fields->{$mi{'map_name_fld'}};
-  
+  my $mapping_stock = $fields->{$mci{'map_name_fld'}};
+print "\nGot mapping stock: $mapping_stock\n";
+
   $sql = "
     SELECT * FROM chado.stock_relationship
     WHERE subject_id=(SELECT stock_id FROM chado.stock WHERE uniquename=?)
@@ -394,8 +390,9 @@ sub connectParent {
   $sth = $dbh->prepare($sql);
   $sth->execute($parent_stock, $mapping_stock);
   if (!$sth || !($row = $sth->fetchrow_hashref)) {
-    my $subj_stockname = $fields->{$fieldname};
+    my $subj_stockname = $parent_stock;
     my $obj_stockname = $mapping_stock;
+print "subject: $subj_stockname, object: $obj_stockname\n";
     $sql = "
          INSERT INTO chado.stock_relationship
            (subject_id, object_id, type_id, rank)
