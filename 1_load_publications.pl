@@ -66,7 +66,7 @@ EOS
 #    loadURLs($dbh);
 #    loadKeywords($dbh);
     
-#    $dbh->commit;   # commit the changes if we get this far
+    $dbh->commit;   # commit the changes if we get this far
   };
   if ($@) {
     print "\n\nTransaction aborted because $@\n\n";
@@ -317,8 +317,9 @@ sub clearDependencies {
 sub setAbstract {
   my ($dbh, $fields) = @_;
   
-  if ($fields->{$pi{'abstract_fld'}} && $fields->{$pi{'abstract_fld'}} ne '' 
-        && $fields->{$pi{'abstract_fld'}} ne 'NULL') {
+  my $abstract = $fields->{$pi{'abstract_fld'}};
+  my $citation = $fields->{$pi{'pub_fld'}};
+  if ($abstract && $abstract ne '' && $abstract ne 'NULL') {
     $sql = "
      INSERT INTO chado.pubprop
        (pub_id, type_id, value, rank)
@@ -328,9 +329,8 @@ sub setAbstract {
          WHERE name='Abstract'
            AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub')),
         ?, 0)";
-    logSQL($dataset_name, $sql);
-    doQuery($dbh, $sql, 
-            ($fields->{$pi{'pub_fld'}}, $fields->{$pi{'abstract_fld'}}));
+    logSQL($dataset_name, "$sql\nWITH:\n  citation: $citation\n  abstract: " . substr($abstract, 0, 20) . "...");
+    doQuery($dbh, $sql, ($citation, $abstract));
   }
 }#setAbstract
 
@@ -338,8 +338,8 @@ sub setAbstract {
 sub setAuthors {
   my ($dbh, $fields) = @_;
 
-  my $author_list = $fields->{$pi{'authorfld'}};
-  my @authors = split /,/, $fields->{$pi{'author_fld'}};
+  my $author_list = $fields->{$pi{'author_fld'}};
+  my @authors = split /,/, $author_list;
   my $publink_citation = $fields->{$pi{'pub_fld'}};
   
   # (bleech) save in a comma-separate list as a prop
@@ -357,6 +357,7 @@ sub setAuthors {
   doQuery($dbh, $sql, ($publink_citation, $author_list));
   
   # (the right way) also store each author in the pubauthor table
+  my $cite_order = 1;
   foreach my $author (@authors) {
     # split author into last, first
     my ($last, $first) = split " ", $author;
@@ -365,10 +366,12 @@ sub setAuthors {
         (pub_id, rank, surname, givennames)
       VALUES
         ((SELECT pub_id FROM chado.pub WHERE uniquename=?),
-         $fields->{'cite_order'}, ?, ?)";
+         $cite_order, ?, ?)";
     logSQL($dataset_name, 
            "$sql\nWITH:\n  uniquename: $publink_citation\n  surname: $last\n  givennames: $first");
     doQuery($dbh, $sql, ($publink_citation, $last, $first));
+    
+    $cite_order++;
   }#each record
 }#setAuthors
 
@@ -456,13 +459,22 @@ sub setPubRec {
   my ($dbh, $fields) = @_;
   
   my $publink_citation = $fields->{$pi{'pub_fld'}};
-
+  my $journal = (isNull($fields->{$pi{'journal_fld'}})) 
+          ? '' : $fields->{$pi{'journal_fld'}};
+  my $volume  = (isNull($fields->{$pi{'volume_fld'}})) 
+          ? '' : $fields->{$pi{'volume_fld'}};
+  my $issue   = (isNull($fields->{$pi{'issue_fld'}}))
+          ? '' : $fields->{$pi{'issue_fld'}};
+  my $year    = (isNull($fields->{$pi{'year_fld'}}))
+          ? '' : $fields->{$pi{'year_fld'}};
+  my $page    = (isNull($fields->{$pi{'page_fld'}}))
+          ? '' : $fields->{$pi{'page_fld'}};
+  
   if ($existing_citations{$publink_citation}) {
     $sql = "
       UPDATE chado.pub SET
-        title=?, series_name=?, volume='$fields->{$pi{'volume_fld'}}',
-        issue='$fields->{$pi{'issue_fld'}}', pyear='$fields->{$pi{'year_fld'}}',
-        pages='$fields->{$pi{'page_fld'}}', uniquename=?,
+        title=?, series_name=?, volume='$volume',
+        issue='$issue', pyear='$year', pages='$page', uniquename=?,
         type_id=(SELECT cvterm_id FROM chado.cvterm 
                  WHERE LOWER(name)=LOWER('$fields->{$pi{'ref_type_fld'}}')
                    AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub'))
@@ -473,16 +485,14 @@ sub setPubRec {
      INSERT INTO chado.pub 
        (title, series_name, volume, issue, pyear, pages, uniquename, type_id)
       VALUES
-         (?, ?, '$fields->{$pi{'volume_fld'}}', '$fields->{$pi{'issue_fld'}}', 
-          '$fields->{$pi{'year_fld'}}', '$fields->{$pi{'page_fld'}}', ?,
+         (?, ?, '$volume', '$issue', '$year', '$page', ?,
           (SELECT cvterm_id FROM chado.cvterm 
            WHERE LOWER(name)=LOWER('$fields->{$pi{'ref_type_fld'}}')
              AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub'))
          )";
   }
-  
   logSQL($dataset_name, 
-         "$sql\nWITH:\n  title: $fields->{$pi{'title_fld'}}\n  journal: $fields->{$pi{'journal_fld'}}\n  uniquename: $publink_citation\n\n");
+         "$sql\nWITH:\n  title: $fields->{$pi{'title_fld'}}\n  journal: $journal\n  uniquename: $publink_citation\n\n");
   doQuery($dbh, $sql, 
           ($fields->{$pi{'title_fld'}}, 
            $fields->{$pi{'journal_fld'}}, 
