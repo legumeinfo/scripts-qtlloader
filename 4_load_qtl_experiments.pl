@@ -20,6 +20,8 @@
   use DBI;
   use Data::Dumper;
   use Encode;
+  use feature 'unicode_strings';
+
 
   # load local util library
   use File::Spec::Functions qw(rel2abs);
@@ -115,7 +117,7 @@ sub loadQTLexperiments {
         next if ($skip || $skip_all);
         
         if ($update || $update_all) {
-          $existing_experiments{$fields->{$$qei{'name_fld'}}} = $experiment_id;
+          $existing_experiments{$fields->{$qei{'name_fld'}}} = $experiment_id;
           
           # remove dependent records; they will be re-inserted
           cleanDependants($experiment_id);
@@ -150,7 +152,7 @@ sub loadQTLexperiments {
     setMapCollection($dbh, $experiment_id, $fields);
     
     # comment
-    my $comment = $fields->{$qei{'comment_fld'}};
+    my $comment = $dbh->quote($fields->{$qei{'comment_fld'}});
     if ($comment ne '' && $comment ne 'null' && $comment ne 'NULL') {
       $sql = "
         INSERT INTO chado.projectprop
@@ -158,8 +160,8 @@ sub loadQTLexperiments {
         VALUES
           ($experiment_id,
            (SELECT cvterm_id FROM chado.cvterm 
-            WHERE name='comments'
-              AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local')),
+            WHERE name='Project Comment'
+              AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='project_property')),
            $comment)";
       logSQL($dataset_name, $sql);
       doQuery($dbh, $sql);
@@ -186,7 +188,7 @@ sub attachDescription {
       ($experiment_id,
        (SELECT cvterm_id FROM chado.cvterm 
         WHERE name='Project Description'
-          AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='local')),
+          AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='project_property')),
        '$desc')";
   logSQL($dataset_name, $sql);
   doQuery($dbh, $sql);
@@ -254,7 +256,9 @@ sub createExperiment {
        (nd_geolocation_id, type_id)
      VALUES
        ($geolocation_id,
-        (SELECT cvterm_id FROM chado.cvterm WHERE name='QTL experiment'))
+        (SELECT cvterm_id FROM chado.cvterm 
+         WHERE name='QTL Experiment'
+               AND cv_id=(SELECT cv_id FROM cv WHERE name='nd_experiment_types')))
      RETURNING nd_experiment_id";
   logSQL($dataset_name, $sql);
   $sth = doQuery($dbh, $sql);
@@ -270,7 +274,7 @@ sub getGeoLocation {
   my ($dbh, $fields) = @_;
   my ($sql, $sth, $row);
   
-  my $geoloc = $fields->{$qei{'geoloc_fld'}}
+  my $geoloc = $fields->{$qei{'geoloc_fld'}};
   # make sure the description will fit (if not already loaded)
   if (length($geoloc) > 255) {
     print "Geolocation description is too long: [$geoloc]";
@@ -320,7 +324,8 @@ sub setMapCollection {
            WHERE name='Project Map Collection'
                  AND cv_id = (SELECT cv_id FROM cv 
                               WHERE name='project_property')),
-          '$mapname')";
+          '$mapname',
+          0)";
     doQuery($dbh, $sql);
     logSQL($dataset_name, $sql);
   }#map_collection field is set

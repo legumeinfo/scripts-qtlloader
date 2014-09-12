@@ -17,6 +17,7 @@
   use DBI;
   use Encode;
   use Data::Dumper;
+  use feature 'unicode_strings';
 
   # load local util library
   use File::Spec::Functions qw(rel2abs);
@@ -72,7 +73,7 @@ EOS
     loadMapCollection($dbh);
     loadMaps($dbh, $mi{'worksheet'});
     
-#    $dbh->commit;   # commit the changes if we get this far
+    $dbh->commit;   # commit the changes if we get this far
   };
   if ($@) {
     print "\n\nTransaction aborted because $@\n\n";
@@ -135,46 +136,67 @@ sub loadMapCollection {
       }#update_all not set
     }#map set exists
 
-    # create mapping population stock record if needed
-    confirmStockRecord($dbh, $fields->{$mci{'map_name_fld'}}, 
-                       'Mapping Population', $fields);
-    
-    # create parent stock records if needed
-    if ($fields->{$mci{'parent1_fld'}} 
-        && $fields->{$mci{'parent1_fld'}} ne '' 
-        && $fields->{$mci{'parent1_fld'}} ne 'NULL') {
-       confirmStockRecord($dbh, $fields->{$mci{'parent1_fld'}}, 
-                          'Cultivar', $fields);
-       connectParent($dbh, $fields->{$mci{'parent1_fld'}}, 'Parent1', $fields);
-    }
-    if ($fields->{$mci{'parent2_fld'}} 
-        && $fields->{$mci{'parent2_fld'}} ne '' 
-        && $fields->{$mci{'parent2_fld'}} ne 'NULL') {
-      confirmStockRecord($dbh, $fields->{$mci{'parent2_fld'}}, 
-                         'Cultivar', $fields);
-      connectParent($dbh, $fields->{$mci{'parent2_fld'}}, 'Parent2', $fields);
-    }
-    
-    # attach mapping population to publication
-    my @publink_citations = split ';', $fields->{$mci{'pub_fld'}};
-print "publink_citations: " . Dumper(@publink_citations);
-exit;
-
-    my $pub_id = getPubID($dbh, $publink_citation);
-    $sql = "
-      INSERT INTO chado.stock_pub
-        (stock_id, pub_id)
-      VALUES
-        ((SELECT stock_id FROM chado.stock WHERE uniquename='$mapname'),
-         $pub_id
-        )";
-    logSQL($dataset_name, "$sql");
-    $sth = $dbh->prepare($sql);
-    $sth->execute();
-
     # create featuremap record (base record for map)
     my $map_id = setMapSetRec($dbh, $fields);  # featuremap_id
 
+    my @publink_citations = split ';', $fields->{$mci{'pub_fld'}};
+    
+    my $map_name = $fields->{$mci{'map_name_fld'}};
+    if ($map_name =~ /^.*_x_.*$/i) {
+      # create mapping population stock record if needed
+      confirmStockRecord($dbh, $map_name, 
+                         'Mapping Population', $fields);
+      
+      # create parent stock records if needed
+      if ($fields->{$mci{'parent1_fld'}} 
+          && $fields->{$mci{'parent1_fld'}} ne '' 
+          && $fields->{$mci{'parent1_fld'}} ne 'NULL') {
+         confirmStockRecord($dbh, $fields->{$mci{'parent1_fld'}}, 
+                            'Cultivar', $fields);
+         connectParent($dbh, $fields->{$mci{'parent1_fld'}}, 'Parent1', $fields);
+      }
+      if ($fields->{$mci{'parent2_fld'}} 
+          && $fields->{$mci{'parent2_fld'}} ne '' 
+          && $fields->{$mci{'parent2_fld'}} ne 'NULL') {
+        confirmStockRecord($dbh, $fields->{$mci{'parent2_fld'}}, 
+                           'Cultivar', $fields);
+        connectParent($dbh, $fields->{$mci{'parent2_fld'}}, 'Parent2', $fields);
+      }
+    
+      # attach mapping population to publication
+print "publink_citations: " . Dumper(@publink_citations);
+  
+      foreach my $publink_citation (@publink_citations) {
+        $publink_citation =~ s/^\s//;
+        $publink_citation =~ s/\s+$//;
+        my $pub_id = getPubID($dbh, $publink_citation);
+        if ($pub_id) {
+          $sql = "
+            INSERT INTO chado.stock_pub
+              (stock_id, pub_id)
+            VALUES
+              ((SELECT stock_id FROM chado.stock WHERE uniquename='$mapname'),
+               $pub_id
+              )";
+          logSQL($dataset_name, "$sql");
+          $sth = $dbh->prepare($sql);
+          $sth->execute();
+        }
+      }
+      
+      # attach map collection (featuremap) to mapping population (stock)
+      # map name = mapping population uniquename
+      $sql = "
+        INSERT INTO chado.featuremap_stock
+          (featuremap_id, stock_id)
+        VALUES
+          ($map_id,
+           (SELECT stock_id FROM chado.stock WHERE uniquename='$mapname'))";
+      logSQL($dataset_name, $sql);
+      $sth = $dbh->prepare($sql);
+      $sth->execute();
+    }#has mapping population
+    
     # map_name, publication_map_name, pop_size, pop_type, analysis_method, and comment
     insertFeaturemapprop($dbh, $map_id, $mi{'map_name_fld'}, 'Display Map Name', $fields);
     insertFeaturemapprop($dbh, $map_id, $mci{'pub_map_name_fld'}, 'Publication Map Name', $fields);
@@ -184,27 +206,17 @@ exit;
     insertFeaturemapprop($dbh, $map_id, $mci{'comment_fld'}, 'Featuremap Comment', $fields);
           
     # attach map collection (featuremap) to publication
-    $sql = "
-      INSERT INTO chado.featuremap_pub
-        (featuremap_id, pub_id)
-      VALUES
-        ($map_id,
-         (SELECT pub_id FROM chado.pub WHERE uniquename=?))";
-    logSQL($dataset_name, "$sql\nWITH:\n$publink_citation");
-    $sth = $dbh->prepare($sql);
-    $sth->execute($publink_citation);
-
-    # attach map collection (featuremap) to mapping population (stock)
-    # map name = mapping population uniquename
-    $sql = "
-      INSERT INTO chado.featuremap_stock
-        (featuremap_id, stock_id)
-      VALUES
-        ($map_id,
-         (SELECT stock_id FROM chado.stock WHERE uniquename='$mapname'))";
-    logSQL($dataset_name, $sql);
-    $sth = $dbh->prepare($sql);
-    $sth->execute();
+    foreach my $publink_citation (@publink_citations) {
+      $sql = "
+        INSERT INTO chado.featuremap_pub
+          (featuremap_id, pub_id)
+        VALUES
+          ($map_id,
+           (SELECT pub_id FROM chado.pub WHERE uniquename=?))";
+      logSQL($dataset_name, "$sql\nWITH:\n$publink_citation");
+      $sth = $dbh->prepare($sql);
+      $sth->execute($publink_citation);
+    }
     
     # make a dbxref record for LIS cmap link (for full mapset)
     makeMapsetDbxref($dbh, $map_id, $mci{'LIS_name_fld'}, $fields);
@@ -236,7 +248,7 @@ sub loadMaps {
   foreach my $fields (@records) {
     $line_count++;
     
-    my $lg_mapname = makeLinkageMapName($fields);
+    my $lg_mapname = makeLinkageMapName($fields->{$mi{'map_name_fld'}}, $fields->{$mi{'lg_fld'}});
     
     if (my $map_id = lgMapExists($dbh, $lg_mapname, $fields)) {
       next if ($skip_all);
@@ -443,8 +455,6 @@ sub insertFeaturemapprop {
   if ($fields->{$fieldname}
         && $fields->{$fieldname} ne '' 
         && $fields->{$fieldname} ne 'NULL') {
-    my $map_set_name = $fields->{$mi{'map_name_fld'}};
-    
     $sql = "
       INSERT INTO chado.featuremapprop
         (featuremap_id, type_id, value, rank)
@@ -621,7 +631,7 @@ sub setGeneticCoordinates {
 sub setLgMapRec {
   my ($fields) = @_;
   
-  my $mapname = makeLinkageMapName($fields);
+  my $mapname = makeLinkageMapName($fields->{$mi{'map_name_fld'}}, $fields->{$mi{'lg_fld'}});
   my $organism_id = getOrganismID($dbh, $fields->{$mi{'species_fld'}}, $line_count);
   
   # A consensus map, or linkage group map is a feature

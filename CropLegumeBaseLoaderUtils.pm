@@ -14,6 +14,7 @@ our @EXPORT      = (
                     qw(experimentExists),
                     qw(getChromosomeID),
                     qw(getCvtermID), 
+                    qw(getFeatureID),
                     qw(getMapSetID),
                     qw(getOBOName),
                     qw(getOBOTermID),
@@ -167,7 +168,7 @@ sub getSSInfo {
       'left_end_fld'        => 'left_end',
       'right_end_fld'       => 'right_end',
       'QTL_peak_fld'        => 'QTL_peak',
-      'int_calc_meth_fld'   => 'interval_calc_method',
+      'int_calc_meth_fld'   => 'measurement_method',
       'nearest_mrkr_fld'    => 'nearest_marker',
       'flank_mrkr_low_fld'  => 'flanking_marker_low',
       'flank_mrkr_high_fld' => 'flanking_marker_high',
@@ -339,30 +340,24 @@ sub getChromosomeID {
 }#getChromosomeID
 
 
-sub getQTLid {
-  my ($dbh, $qtl) = @_;
+sub getFeatureID {
+  my ($dbh, $uniquename) = @_;
   my ($sql, $sth, $row);
   
-  if (!$qtl || $qtl eq '' || $qtl eq 'NULL' || $qtl eq 'none') {
-    return 0;
-  }
-  
   $sql = "
-    SELECT F.feature_id
-    FROM chado.feature F
-    WHERE F.name='$qtl' 
-      AND F.type_id=(SELECT cvterm_id FROM chado.cvterm 
-                     WHERE name = 'QTL'
-                           AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='sequence'))";
-  logSQL('lib', $sql);
-  $sth = doQuery($dbh, $sql);
+    SELECT feature_id FROM chado.feature
+    WHERE uniquename='$uniquename'";
+  $sth = $dbh->prepare($sql);
+  $sth->execute();
   if ($row=$sth->fetchrow_hashref) {
     return $row->{'feature_id'};
   }
   else {
     return 0;
   }
-}#getQTLid
+}#getFeatureID
+
+
 sub getMapSetID {
   my ($dbh, $mapset) = @_;
   my ($sql, $sth, $row);
@@ -471,23 +466,6 @@ sub getOrganismID {
 }#getOrganismID
 
 
-sub getPubID {
-  my ($dbh, $citation) = @_;
-  my ($sql, $sth, $row);
-  
-  $sql = "SELECT pub_id FROM chado.pub WHERE uniquename='$citation'";
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
-  if ($row=$sth->fetchrow_hashref) {
-    return $row->{'pub_id'};
-  }
-  else {
-    reportError("unknown publication: [$citation]");
-    return 0;
-  }
-}#getPubID
-
-
 sub getOrganismMnemonic {
   my ($dbh, $mnemonic, $line_count) = @_;
   my ($sql, $sth, $row);
@@ -508,6 +486,49 @@ sub getOrganismMnemonic {
     return 0;
   }
 }#getOrganismMnemonic
+
+
+sub getPubID {
+  my ($dbh, $citation) = @_;
+  my ($sql, $sth, $row);
+  
+  $sql = "SELECT pub_id FROM chado.pub WHERE uniquename='$citation'";
+  $sth = $dbh->prepare($sql);
+  $sth->execute();
+  if ($row=$sth->fetchrow_hashref) {
+    return $row->{'pub_id'};
+  }
+  else {
+    reportError("unknown publication: [$citation]");
+    return 0;
+  }
+}#getPubID
+
+
+sub getQTLid {
+  my ($dbh, $qtl) = @_;
+  my ($sql, $sth, $row);
+  
+  if (!$qtl || $qtl eq '' || $qtl eq 'NULL' || $qtl eq 'none') {
+    return 0;
+  }
+  
+  $sql = "
+    SELECT F.feature_id
+    FROM chado.feature F
+    WHERE F.name='$qtl' 
+      AND F.type_id=(SELECT cvterm_id FROM chado.cvterm 
+                     WHERE name = 'QTL'
+                           AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='sequence'))";
+  logSQL('lib', $sql);
+  $sth = doQuery($dbh, $sql);
+  if ($row=$sth->fetchrow_hashref) {
+    return $row->{'feature_id'};
+  }
+  else {
+    return 0;
+  }
+}#getQTLid
 
 
 sub getScaffoldID {
@@ -629,9 +650,9 @@ sub makeMarkerName {
 
 
 sub makeQTLName {
-  my ($fields) = @_;
+  my ($symbol, $id) = @_;
   
-  my $qtl_name = "$fields->{'qtl_symbol'} $fields->{'qtl_identifier'}";
+  my $qtl_name = "$symbol $id";
   
   return $qtl_name;
 }#makeQTLName

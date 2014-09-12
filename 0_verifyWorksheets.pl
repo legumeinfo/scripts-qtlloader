@@ -16,6 +16,7 @@
   use Data::Dumper;
   use Getopt::Std;
   use Encode;
+  use feature 'unicode_strings';
 
   # Load local util library
   use File::Spec::Functions qw(rel2abs);
@@ -115,7 +116,7 @@ EOS
         # check for required field ref_type
         my $ref_type = $fields->{$pi{'ref_type_fld'}};
         if ($ref_type ne '' && lc($ref_type) ne 'null' 
-              && !getCvtermID($dbh, $ref_type, 'local')) {
+              && !getCvtermID($dbh, $ref_type, 'pub_type')) {
           $has_errors++;
           $msg = "ERROR: missing ref_type cvterm: $ref_type";
           reportError($line_count, $msg);
@@ -302,7 +303,7 @@ EOS
     }
   
     # map_collection.txt:
-    # 1. citation must exist
+    # 1. citations must exist
     # 2. species name must exist
     # 3. map unit must be set and exist
     # 4. map name must not be duplicated in this spreadsheet
@@ -317,19 +318,24 @@ EOS
       $line_count++;
       
       # check citation
-      my $publink_citation = $fields->{$mci{'pub_fld'}};
-      if (!$publink_citation || $publink_citation eq ''
-            || $publink_citation eq 'NULL') {
-        $has_errors++;
-        $msg = "ERROR: citation is missing";
-        reportError($line_count, $msg);
-      }
-      if (!$citations{$publink_citation}
-            && !publicationExists($dbh, $publink_citation)) {
-        $has_errors++;
-        $msg = "ERROR: citation ($publink_citation) doesn't match any ";
-        $msg .= " citations in spreadsheet or database.";
-        reportError($line_count, $msg);
+      my @publink_citations = split ';', $fields->{$mci{'pub_fld'}};
+print "Publication(s):\n" . Dumper(@publink_citations);
+      foreach my $publink_citation (@publink_citations) {
+        $publink_citation =~ s/^\s//;
+        $publink_citation =~ s/\s+$//;
+        if (!$publink_citation || $publink_citation eq ''
+              || $publink_citation eq 'NULL') {
+          $has_errors++;
+          $msg = "ERROR: citation is missing";
+          reportError($line_count, $msg);
+        }
+        if (!$citations{$publink_citation}
+              && !publicationExists($dbh, $publink_citation)) {
+          $has_errors++;
+          $msg = "ERROR: citation ($publink_citation) doesn't match any ";
+          $msg .= " citations in spreadsheet or database.";
+          reportError($line_count, $msg);
+        }
       }
       
       # check species
@@ -807,8 +813,10 @@ print "species: $species\n";
                                  $fields->{$mpi{'qtl_identifier_fld'}});
 print "\nQTL name: $qtl_name\n";
       
-      my $mapname = $fields->{$mpi{'map_name_fld'}};
-print "map name: $mapname\n";
+      my $ms_name = $fields->{$mpi{'map_name_fld'}};
+      my $lg      = $fields->{$mpi{'lg_fld'}};
+      my $mapname = makeLinkageMapName($ms_name, $lg);
+print "linkage map name: $mapname\n";
       if (!$mapname || $mapname eq '' || lc($mapname) eq 'null') {
         $has_errors++;
         $msg = "ERROR: map name is missing from record.";
