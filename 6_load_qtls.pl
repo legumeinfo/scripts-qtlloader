@@ -177,6 +177,15 @@ print "\n$line_count: $qtl_name\n";
     loadFeatureprop($dbh, $qtl_id, $fields->{$qi{'method_fld'}}, 
                     'QTL Analysis Method', 'feature_property', $fields);
     
+#print "  attach markers\n";
+    # link to markers (nearest, flanking) via feature_relationship
+    attachMarker($dbh, $qtl_id, $fields->{$mpi{'nearest_mrkr_fld'}}, 
+                 'Nearest Marker', $fields);
+    attachMarker($dbh, $qtl_id, $fields->{$mpi{'flank_mrkr_low_fld'}}, 
+                 'Flanking Marker Low', $fields);
+    attachMarker($dbh, $qtl_id, $fields->{$mpi{'flank_mrkr_high_fld'}}, 
+                 'Flanking Marker High', $fields);
+
 #print "  attach measurements\n";
     # load measurements via analysisfeature
     loadMeasurement($dbh, $qtl_id, $fields->{$qi{'lod_fld'}}, 
@@ -242,8 +251,8 @@ print "\n$line_count: $qtl_name\n";
     
 #print "  attach lg\n";
 #    # lg (is this already in via the map and position?)
-    loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'lg_fld'}}, 
-                    'linkage_group', 'sequence', $fields);
+#    loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'lg_fld'}}, 
+#                    'linkage_group', 'sequence', $fields);
     
 #print "  attach map position\n";
     # set position (featurepos + featureposprop
@@ -256,15 +265,6 @@ print "\n$line_count: $qtl_name\n";
     loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'int_calc_meth_fld'}}, 
                     'Interval Calculation Method', 'feature_property', $fields);
     
-#print "  attach markers\n";
-    # link to markers (nearest, flanking) via feature_relationship
-    attachMarker($dbh, $qtl_id, $fields->{$mpi{'nearest_mrkr_fld'}}, 
-                 'Nearest Marker', $fields);
-    attachMarker($dbh, $qtl_id, $fields->{$mpi{'flank_mrkr_low_fld'}}, 
-                 'Flanking Marker Low', $fields);
-    attachMarker($dbh, $qtl_id, $fields->{$mpi{'flank_mrkr_high_fld'}}, 
-                 'Flanking Marker High', $fields);
-
     # change rank because there may already be a comment for this QTL
     loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'comment_fld'}}, 'comments', 
                     'feature_property', $fields, 2);  # 2 = rank
@@ -442,7 +442,8 @@ sub attachFavorableAlleleSource {
 sub attachMarker {
   my ($dbh, $feature_id, $markername, $relationship, $fields) = @_;
   my ($sql, $sth, $row);
-#print "attach marker in field '$fieldname'.\n" . Dumper($fields);
+print "attach marker $markername\n";
+#print "attach marker $markername'.\n" . Dumper($fields);
 
   if (isNull($markername)) {
     return;
@@ -457,7 +458,10 @@ sub attachMarker {
 #print "$sql\n";
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
-  if (!($row=$sth->fetchrow_hashref)) {
+  if ($row=$sth->fetchrow_hashref) {
+    $marker_id = $row->{'feature_id'};
+  }
+  else {
     # insert a stub record for this marker
     my $organism_id = getOrganismID($dbh, $species, $line_count);
     $sql = "
@@ -469,11 +473,13 @@ sub attachMarker {
           WHERE name='genetic_marker'
             AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='sequence')))
        RETURNING feature_id";
+#print "$sql\n";
     logSQL($dataset_name, "line_count: $sql");
     $sth = doQuery($dbh, $sql);
     $row = $sth->fetchrow_hashref;
     $marker_id = $row->{'feature_id'};
   }
+print "Got marker id: $marker_id\n";
   
   if ($marker_id > 0) {
     $sql = "

@@ -16,6 +16,7 @@
   use DBI;
   use Data::Dumper;
   use Encode;
+  use feature 'unicode_strings';
 
   # load local util library
   use File::Spec::Functions qw(rel2abs);
