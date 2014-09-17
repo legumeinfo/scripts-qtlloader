@@ -362,13 +362,12 @@ print "unit: $unit\n";
 print "map name: $mapname\n";
       if ($mapsets{$mapname}) {
         $has_errors++;
-        $msg = "ERROR: map collection name ($mapname) ";
-        $msg .= "already exists in spreadsheet";
+        $msg = "ERROR: map collection name ($mapname) already exists in spreadsheet";
         reportError($line_count, $msg);
       }
       elsif (mapSetExists($dbh, $mapname)) {
         $has_warnings++;
-        $msg = "warning: this map collection name ($mapname)";
+        $msg = "WARNING: this map collection name ($mapname)";
         $msg .= "is already in the database and will be updated.";
         reportError($line_count, $msg);
       }
@@ -377,14 +376,16 @@ print "map name: $mapname\n";
     }#each record
   
     if ($has_errors) {
-      print "\n\nThe map collection table has $has_errors errors.\n\n";
+      print "\n\nThe map collection table $mcfile has $has_errors errors.\n\n";
+      exit;
     }
   
     # MAPs.txt:
     # 1. map name must be unique in db and spreadsheet
     # 2. must be a map set record
     # 3. start and end coordinates must be specified
-    # 4. species name must exist
+    # 4. start <= end
+    # 5. species name must exist
     
     $wsfile = "$input_dir/$mfile";
     print "\nReading map records from $wsfile\n";
@@ -420,10 +421,16 @@ print "\nlinkage map name: $mapname ($ms_name, $lg)\n";
       my $map_start = $fields->{$mi{'map_start_fld'}};
       my $map_end   = $fields->{$mi{'map_end_fld'}};
       if ($map_start eq '' || lc($map_start) eq 'null') {
-        reportError($line_count, "map_start is missing");
+        $has_errors++;
+        reportError($line_count, "ERROR: map_start is missing");
       }
       if (!$map_end || $map_end eq '' || lc($map_end) eq 'null') {
-        reportError($line_count, "map_end is missing");
+        $has_errors++;
+        reportError($line_count, "ERROR: map_end is missing");
+      }
+      if ($map_end < $map_start) {
+        $has_errors++;
+        reportError($line_count, "ERROR: map end is < map start");
       }
       
       # species must exist

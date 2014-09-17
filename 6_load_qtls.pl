@@ -17,6 +17,7 @@
   use DBI;
   use Data::Dumper;
   use Encode;
+  use feature 'unicode_strings';
   
   # load local util library
   use File::Spec::Functions qw(rel2abs);
@@ -261,10 +262,6 @@ print "\n$line_count: $qtl_name\n";
     my $lg_mapname = makeLinkageMapName($ms_name, $lg);
     insertGeneticCoordinates($dbh, $qtl_id, $qtl_name, $ms_name, $lg_mapname, $fields);
 
-    # set interval calculation method
-    loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'int_calc_meth_fld'}}, 
-                    'Interval Calculation Method', 'feature_property', $fields);
-    
     # change rank because there may already be a comment for this QTL
     loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'comment_fld'}}, 'comments', 
                     'feature_property', $fields, 2);  # 2 = rank
@@ -414,9 +411,9 @@ sub attachFavorableAlleleSource {
         (organism_id, name, uniquename, description, type_id)
       VALUES
         ($organism_id, '$fav_allele', '$species:$fav_allele', '',
-         SELECT cvterm_id FROM cvterm 
-         WHERE name='Cultivar'
-               AND cv_id=(SELECT cv_id FROM cv WHERE name='stock_type'))
+         (SELECT cvterm_id FROM cvterm 
+          WHERE name='Cultivar'
+                AND cv_id=(SELECT cv_id FROM cv WHERE name='stock_type')))
       RETURNING stock_id";
     logSQL($dataset_name, "$line_count: $sql");
     $sth = $dbh->prepare($sql);
@@ -517,7 +514,6 @@ sub attachTrait {
       ($feature_id, $trait_id, $pub_id)
     RETURNING feature_cvterm_id";
   logSQL($dataset_name, "$line_count: $sql");
-#print "$line_count: $sql\n";
   $sth = doQuery($dbh, $sql);
   $row = $sth->fetchrow_hashref;
   my $feature_cvterm_id = $row->{'feature_cvterm_id'};
@@ -613,10 +609,28 @@ sub insertGeneticCoordinates {
     INSERT INTO chado.featureloc
       (feature_id, srcfeature_id, fmin, fmax, rank)
     VALUES
-      ($qtl_id, $srcfeature_id, $left_end, $right_end, $rank)";
-   logSQL($dataset_name, "$line_count: $sql");
-   $sth = $dbh->prepare($sql);
-   $sth->execute();
+      ($qtl_id, $srcfeature_id, $left_end, $right_end, $rank)
+    RETURNING featureloc_id";
+  logSQL($dataset_name, "$line_count: $sql");
+  $sth = $dbh->prepare($sql);
+  $sth->execute();
+  my $featureloc_id = ($row=$sth->fetchrow_hashref) ? $row->{'featureloc_id'} : 0;
+
+  $sql = "
+    INSERT INTO chado.featurelocprop
+      (featureloc_id, type_id, value, rank)
+    VALUES
+      ($featureloc_id,
+       (SELECT cvterm_id FROM cvterm 
+        WHERE name='Interval Calculation Method'
+              AND cv_id=(SELECT cv_id FROM cv WHERE name='feature_property')),
+       '$fields->{$mpi{'int_calc_meth_fld'}}',
+       0
+      )";
+  logSQL($dataset_name, "$line_count: $sql");
+  $sth = $dbh->prepare($sql);
+  $sth->execute();
+    
 =cut
   # Get id for mapset
   my $mapset_id = getMapSetID($dbh, $mapset);
@@ -721,7 +735,6 @@ sub loadFeatureprop {
       $prop,
       $rank)";
   logSQL($dataset_name, "$line_count: $sql");
-#print "Added property $propname for $feature_id\n";
   $sth = doQuery($dbh, $sql);
 }#loadFeatureprop
 
@@ -764,7 +777,7 @@ sub setSynonym {
       VALUES
        ('$synonym', '$synonym',
         (SELECT cvterm_id FROM chado.cvterm
-         WHERE name='symbol'
+         WHERE name='Symbol'
            AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='synonym_type')))
       RETURNING synonym_id";
 #print "$line_count: $sql\n";

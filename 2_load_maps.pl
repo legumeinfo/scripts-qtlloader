@@ -434,9 +434,9 @@ sub coordinatesExist {
       AND feature_id= $feature_id
       AND map_feature_id= $feature_id
       AND fp.type_id=(SELECT cvterm_id FROM chado.cvterm 
-                      WHERE name='start coordinate'
+                      WHERE name='start'
                         AND cv_id=(SELECT cv_id FROM chado.cv 
-                                   WHERE name='local'))";
+                                   WHERE name='featurepos_property'))";
   logSQL('', $sql);
   $sth = doQuery($dbh, $sql);
   if ($row=$sth->fetchrow_hashref) {
@@ -631,10 +631,14 @@ sub setGeneticCoordinates {
 sub setLgMapRec {
   my ($fields) = @_;
   
-  my $mapname = makeLinkageMapName($fields->{$mi{'map_name_fld'}}, $fields->{$mi{'lg_fld'}});
+  my $lg       = $fields->{$mi{'lg_fld'}};
+  my $map_name = $fields->{$mi{'map_name_fld'}};
+  my $mapname  = makeLinkageMapName($map_name, $lg);
+  
   my $organism_id = getOrganismID($dbh, $fields->{$mi{'species_fld'}}, $line_count);
   
-  # A consensus map, or linkage group map is a feature
+  # A consensus map, or linkage group map is a feature.
+  #   Its proper name is map_name + linkage group.
   if ($existing_lg_maps{$mapname}) {
     $sql = "
       UPDATE chado.feature SET
@@ -661,6 +665,22 @@ sub setLgMapRec {
   $sth->execute();
   $row = $sth->fetchrow_hashref;
   my $map_id = $row->{'feature_id'};
+  
+  # Attach linkage group name as a property
+  $sql = "
+    INSERT INTO chado.featureprop
+      (feature_id, type_id, value, rank)
+    VALUES
+      ($map_id,
+       (SELECT cvterm_id FROM chado.cvterm
+        WHERE name='Assigned Linkage Group'
+          AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='feature_property')),
+       '$lg',
+       0)";
+  logSQL($dataset_name, $sql);
+  $sth = $dbh->prepare($sql);
+  $sth->execute();
+  
   $sth->finish;
 
   return $map_id;
