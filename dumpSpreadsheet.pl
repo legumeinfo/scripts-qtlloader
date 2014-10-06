@@ -3,6 +3,9 @@
 # purpose: dump an Excel spread sheet to a tab-delineated file with
 #          properly coded unicode chars
 #
+# http://search.cpan.org/~doy/Spreadsheet-ParseXLSX-0.16/lib/Spreadsheet/ParseXLSX.pm
+# http://search.cpan.org/dist/Spreadsheet-ParseExcel/
+#
 # history:
 #  06/03/13  eksc  created
 #  09/16/13  sdash empty cell to 'NULL' in markers and QTLs
@@ -134,7 +137,7 @@ print "$filename: Dump " . (scalar @cols) . " cols\n";
     my $check_cell = $worksheet->get_cell($row, 0);
     next if (!$check_cell);
     next if ($check_cell->value() =~ /^##/);  # comments at top of worksheet
-    next if ($check_cell->value =~ /^#/ && $row_count > 0);
+    next if ($check_cell->value() =~ /^#/ && $row_count > 0);
     startRow($fh);
     for my $col (@cols) {
       my $cell = $worksheet->get_cell($row, $col);
