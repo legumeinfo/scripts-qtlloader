@@ -4,35 +4,40 @@
 INSERT INTO chado.db
   (name, description, url, urlprefix)
 VALUES
-  ('SoyBase', 
-   'Web resource for Glycine Max (soybean)', 
-   'http://soybase.org/', 
-   'http://soybase.org/'),
   ('DOI', 
    'Document Object Identifier', 
    'http://www.doi.org/',  
    'http://dx.doi.org/'),
-  ('PMID',
-   'PubMed ID',
-   'http://www.ncbi.nlm.nih.gov/pubmed/',
-   'http://www.ncbi.nlm.nih.gov/pubmed/'),
-  ('genbank:taxonomy', 
-   'GenBank taxonomy',
-   'http://www.ncbi.nlm.nih.gov',
-   'http://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id='),
-  ('genbank:nuccore', 
-   'GenBank nucleotide collection',
-   'http://www.ncbi.nlm.nih.gov',
-   'http://www.ncbi.nlm.nih.gov/nuccore/'),
-  ('uniprot:species',
-   'Uniprot species mnemonics',
-   'http://www.uniprot.org/docs/speclist',
-   ''),
+  ('LegumeInfo:traits', 
+   'Trait names defined by LegumeInfo',
+   '',
+   ''
+  ),
   ('LIS:cmap',
    'CMap at LIS',
    '',
    'http://cmap.comparative-legumes.org/cgi-bin/cmap/viewer'
-  )
+  ),
+  ('PMID',
+   'PubMed ID',
+   'http://www.ncbi.nlm.nih.gov/pubmed/',
+   'http://www.ncbi.nlm.nih.gov/pubmed/'),
+  ('SoyBase', 
+   'Web resource for Glycine Max (soybean)', 
+   'http://soybase.org/', 
+   'http://soybase.org/'),
+  ('genbank:nuccore', 
+   'GenBank nucleotide collection',
+   'http://www.ncbi.nlm.nih.gov',
+   'http://www.ncbi.nlm.nih.gov/nuccore/'),
+  ('genbank:taxonomy', 
+   'GenBank taxonomy',
+   'http://www.ncbi.nlm.nih.gov',
+   'http://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id='),
+  ('uniprot:species',
+   'Uniprot species mnemonics',
+   'http://www.uniprot.org/docs/speclist',
+   '')
 ;
 
 UPDATE chado.db SET 
@@ -70,7 +75,7 @@ VALUES
   ((SELECT db_id FROM db WHERE name='internal'), 'favorable_allele_source'),
   ((SELECT db_id FROM db WHERE name='internal'), 'has_trait'),
   ((SELECT db_id FROM db WHERE name='internal'), 'has_trait_class'),
-  ((SELECT db_id FROM db WHERE name='internal'), 'has_obo_term'),
+  ((SELECT db_id FROM db WHERE name='internal'), 'has_obo_term')
   
 ;
 
@@ -227,7 +232,9 @@ INSERT INTO chado.cvterm
 VALUES
   ((SELECT cv_id FROM cv WHERE name='featuremap_units'),
    'cM', 'centiMorgans', 
-   (SELECT dbxref_id FROM dbxref WHERE accession='cm'))
+   (SELECT dbxref_id FROM dbxref 
+    WHERE accession='cm' 
+          AND db_id=(SELECT db_id FROM db WHERE name='tripal')))
    
 ;
 
@@ -290,11 +297,15 @@ INSERT INTO chado.cvterm
 VALUES
   ((SELECT cv_id FROM cv WHERE name='stock_relationship'),
    'Parent1', 'A parent stock, can be paternal or maternal', 
-   (SELECT dbxref_id FROM dbxref WHERE accession='parent1')),
+   (SELECT dbxref_id FROM dbxref 
+    WHERE accession='parent1'
+          AND db_id=(SELECT db_id FROM db WHERE name='tripal'))),
    
   ((SELECT cv_id FROM cv WHERE name='stock_relationship'),
    'Parent2', 'A parent stock, can be paternal or maternal', 
-   (SELECT dbxref_id FROM dbxref WHERE accession='parent2'))
+   (SELECT dbxref_id FROM dbxref 
+    WHERE accession='parent2'
+          AND db_id=(SELECT db_id FROM db WHERE name='tripal')))
    
 ;
 
@@ -311,11 +322,15 @@ INSERT INTO chado.cvterm
 VALUES
   ((SELECT cv_id FROM cv WHERE name='stock_type'),
    'Mapping Population', 'Stock record describes a mapping population', 
-   (SELECT dbxref_id FROM dbxref WHERE accession='mapping_population')),
+   (SELECT dbxref_id FROM dbxref 
+    WHERE accession='mapping_population'
+          AND db_id=(SELECT db_id FROM db WHERE name='tripal'))),
    
   ((SELECT cv_id FROM cv WHERE name='stock_type'),
    'Cultivar', 'Stock record describes a specific Cultivar', 
-   (SELECT dbxref_id FROM dbxref WHERE accession='cultivar'))
+   (SELECT dbxref_id FROM dbxref 
+    WHERE accession='cultivar'
+          AND db_id=(SELECT db_id FROM db WHERE name='tripal')))
    
 ;
 
@@ -332,9 +347,10 @@ INSERT INTO chado.cvterm
 VALUES
   ((SELECT cv_id FROM cv WHERE name='synonym_type'),
    'Symbol', '', 
-   (SELECT dbxref_id FROM dbxref WHERE accession='symbol'
-                                       AND db_id = (SELECT db_id FROM db 
-                                                    WHERE name='internal')))
+   (SELECT dbxref_id FROM dbxref 
+    WHERE accession='symbol'
+          AND db_id = (SELECT db_id FROM db 
+                       WHERE name='tripal')))
    
 ;
 

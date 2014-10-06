@@ -18,6 +18,9 @@ Note: once upon a time the scripts needed to be executed in the order indicated
       by their names. This is no longer true, which complicates things, rather.
 
 Recommended order:
+  0. Load cvterms (QTL_cvterms.sql) and create tables (QTL_new_tables.sql)
+       Do this by hand rather than executing the .sql files to catch any errors.
+  
   1. dumpSpreadsheet.pl (to get tsv tables from the worksheets)
   
   If you have traits to load:

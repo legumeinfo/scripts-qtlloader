@@ -573,8 +573,7 @@ print "species: $species\n";
 #print "\ntrait name: $trait_name\n";
       if (traitExists($dbh, $trait_name)) {
         $has_warnings++;
-        $msg = "warning: trait name ($trait_name) ";
-        $msg .= "already exists in database.";
+        $msg = "warning: trait name ($trait_name) already exists in database.";
         reportError($line_count, $msg);
       }
 

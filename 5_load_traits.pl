@@ -129,7 +129,7 @@ sub loadTraits {
         next if ($skip || $skip_all);
         
         if ($update || $update_all) {
-          $existing_traits{$$trait_name} = $trait_id;
+          $existing_traits{$trait_name} = $trait_id;
           
           # remove dependent records; they will be re-inserted
           cleanDependants($trait_id);

@@ -630,68 +630,6 @@ sub insertGeneticCoordinates {
   logSQL($dataset_name, "$line_count: $sql");
   $sth = $dbh->prepare($sql);
   $sth->execute();
-    
-=cut
-  # Get id for mapset
-  my $mapset_id = getMapSetID($dbh, $mapset);
-
-  # Quit if no mapset
-  if ($mapset_id == 0) {
-    return;
-  }
-
-  $sql = "
-    INSERT INTO chado.featurepos
-      (featuremap_id, feature_id, map_feature_id, mappos)
-    VALUES
-      ($mapset_id,
-       (SELECT feature_id FROM chado.feature WHERE name='$qtl_name'),
-       (SELECT feature_id FROM chado.feature WHERE name='$lg_mapname'),
-       $left_end)
-    RETURNING featurepos_id";
-  logSQL($dataset_name, "$line_count: $sql");
-  $sth = doQuery($dbh, $sql);
-  $row = $sth->fetchrow_hashref;
-  my $featurepos_id = $row->{'featurepos_id'};
-  
-  $sql = "
-    INSERT INTO chado.featureposprop
-      (featurepos_id, type_id, value, rank)
-    VALUES
-      ($featurepos_id,
-       (SELECT cvterm_id FROM chado.cvterm 
-        WHERE name='start'
-          AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='featurepos_property')),
-       '', 1)";
-  logSQL($dataset_name, "$line_count: $sql");
-  $sth = doQuery($dbh, $sql);
-  
-  $sql = "
-    INSERT INTO chado.featurepos
-      (featuremap_id, feature_id, map_feature_id, mappos)
-    VALUES
-      ($mapset_id,
-       (SELECT feature_id FROM chado.feature WHERE name='$qtl_name'),
-       (SELECT feature_id FROM chado.feature WHERE name='$lg_mapname'),
-       $right_end)
-    RETURNING featurepos_id";
-  logSQL($dataset_name, "$line_count: $sql");
-  $sth = doQuery($dbh, $sql);
-  $row = $sth->fetchrow_hashref;
-  $featurepos_id = $row->{'featurepos_id'};
-
-  $sql = "
-    INSERT INTO chado.featureposprop
-     (featurepos_id, type_id, value, rank)
-    VALUES
-     ($featurepos_id,
-      (SELECT cvterm_id FROM chado.cvterm 
-       WHERE name='stop'
-         AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='featurepos_property')),
-      '', 1)";
-  logSQL($dataset_name, "$line_count: $sql");
-  $sth = doQuery($dbh, $sql);
-=cut
 }#insertGeneticCoordinates
 
 
