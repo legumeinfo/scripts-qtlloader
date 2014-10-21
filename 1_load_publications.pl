@@ -106,10 +106,10 @@ sub loadPublications {
       # publication exists
       next if ($skip_all);
       if ($update_all) {
-          $existing_citations{$fields->{$pi{'pub_fld'}}} = $pub_id;
+        $existing_citations{$fields->{$pi{'pub_fld'}}} = $pub_id;
           
-          # remove dependent records; they will be re-inserted
-          clearDependencies($dbh, $pub_id);
+        # remove dependent records; they will be re-inserted
+        clearDependencies($dbh, $pub_id);
       }
       else {
         my $prompt = "$line_count: publication ($fields->{$pi{'pub_fld'}}) ";
@@ -129,6 +129,9 @@ sub loadPublications {
     # title, volume, issue, year, pages, citation, ref_type
     setPubRec($dbh, $fields);
 
+    # species
+    setSpecies($dbh, $fields);
+    
     # doi, pmid
     set_dbxref($dbh, 'DOI', $pi{'doi_fld'}, $fields);
     set_dbxref($dbh, 'PMID', $pi{'pmid_fld'}, $fields);
@@ -501,11 +504,38 @@ sub setPubRec {
 }#setPubRec
 
 
+sub setSpecies {
+  my ($dbh, $fields) = @_;
+  
+  my $publink_citation = $fields->{$pi{'pub_fld'}};
+  my $species = $fields->{$pi{'species_fld'}};
+  my @species_names = split ';', $species;
+  
+  my $species_count = 0;
+  foreach my $species_name (@species_names) {
+    $species_count++;
+    $sql = "
+      INSERT INTO chado.pubprop
+       (pub_id, type_id, value, rank)
+      VALUES
+       ((SELECT pub_id FROM chado.pub WHERE uniquename=?),
+        (SELECT cvterm_id FROM chado.cvterm 
+         WHERE name='Publication Species'
+           AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub')),
+        ?, 0)";
+    logSQL($dataset_name, 
+           "$sql\nWITH:\n  uniquename: $publink_citation\n  species: $species_name");
+    doQuery($dbh, $sql, ($publink_citation, $species_name));
+  }
+}#setSpecies
+
+
 sub setURLs {
   my ($dbh, $fields) = @_;
 
   my $publink_citation = $fields->{$pi{'pub_fld'}};
   my @URLs = split ",", $fields->{$pi{'url_fld'}};
+  
   my $URL_count = 0;
   foreach my $URL (@URLs) {    
     $URL_count++;
