@@ -164,12 +164,13 @@ sub loadMapCollection {
       }
     
       # attach mapping population to publication
-print "publink_citations: " . Dumper(@publink_citations);
-  
+#print "publink_citations: " . Dumper(@publink_citations);
       foreach my $publink_citation (@publink_citations) {
         $publink_citation =~ s/^\s//;
         $publink_citation =~ s/\s+$//;
+#print "Get id for $publink_citation\n";
         my $pub_id = getPubID($dbh, $publink_citation);
+#print "$publink_citation: $pub_id\n";
         if ($pub_id) {
           $sql = "
             INSERT INTO chado.stock_pub
@@ -214,8 +215,7 @@ print "publink_citations: " . Dumper(@publink_citations);
           ($map_id,
            (SELECT pub_id FROM chado.pub WHERE uniquename=?))";
       logSQL($dataset_name, "$sql\nWITH:\n$publink_citation");
-      $sth = $dbh->prepare($sql);
-      $sth->execute($publink_citation);
+      $sth = doQuery($dbh, $sql, ($publink_citation));
     }
     
     # make a dbxref record for LIS cmap link (for full mapset)
@@ -364,9 +364,8 @@ sub confirmStockRecord {
   
   $sql = "
     SELECT * FROM chado.stock WHERE uniquename=?";
-  logSQL($dataset_name, "$sql\nwith '$stockname'");
-  $sth = $dbh->prepare($sql);
-  $sth->execute($stockname);
+  logSQL($dataset_name, "$sql\WITH\n'$stockname'");
+  $sth = doQuery($dbh, $sql, ($stockname));
   if (!$sth || !($row = $sth->fetchrow_hashref)) {
     my $organism_id = getOrganismID($dbh, $fields->{$mci{'species_fld'}}, $line_count);
     $sql = "
@@ -377,9 +376,8 @@ sub confirmStockRecord {
          (SELECT cvterm_id FROM chado.cvterm 
           WHERE name='$stock_type'
             AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='stock_type')))";
-    logSQL($dataset_name, "$sql\nWith '$stockname'");
-    $sth = $dbh->prepare($sql);
-    $sth->execute($stockname);
+    logSQL($dataset_name, "$sql\nWITH\n'$stockname'");
+    $sth = doQuery($dbh, $sql, ($stockname));
   }#create stock record
 }#confirmStockRecord
 
@@ -389,7 +387,7 @@ sub connectParent {
   my ($sql, $sth, $row);
 
   my $mapping_stock = $fields->{$mci{'map_name_fld'}};
-print "\nGot mapping stock: $mapping_stock\n";
+print "\n$parent_type: Got mapping stock: $mapping_stock\n";
 
   $sql = "
     SELECT * FROM chado.stock_relationship
@@ -398,9 +396,8 @@ print "\nGot mapping stock: $mapping_stock\n";
       AND type_id=(SELECT cvterm_id FROM chado.cvterm 
                    WHERE name='$parent_type'
                      AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='stock_relationship'))";
-  logSQL($dataset_name, "$sql\nwith '$parent_stock' and '$mapping_stock'");
-  $sth = $dbh->prepare($sql);
-  $sth->execute($parent_stock, $mapping_stock);
+  logSQL($dataset_name, "$sql\nWITH\n'$parent_stock' and '$mapping_stock'");
+  $sth = doQuery($dbh, $sql, ($parent_stock, $mapping_stock));
   if (!$sth || !($row = $sth->fetchrow_hashref)) {
     my $subj_stockname = $parent_stock;
     my $obj_stockname = $mapping_stock;
@@ -464,9 +461,8 @@ sub insertFeaturemapprop {
           WHERE name='$proptype'
             AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='featuremap_property')),
          ?, 1)";
-     logSQL($dataset_name, "$sql\nwith '$fields->{$fieldname}'");
-     $sth = $dbh->prepare($sql);
-     $sth->execute($fields->{$fieldname});
+     logSQL($dataset_name, "$sql\nWITH\n'$fields->{$fieldname}'");
+     $sth = doQuery($dbh, $sql, ($fields->{$fieldname}));
    }
 }#insertFeaturemapprop
 
@@ -487,9 +483,8 @@ sub makeMapsetDbxref {
     VALUES
       ((SELECT db_id FROM db WHERE name='LIS:cmap'), ?)
     RETURNING dbxref_id";
-  logSQL($dataset_name, "$sql\n with [$accession]");
-  $sth = $dbh->prepare($sql);
-  $sth->execute($accession);
+  logSQL($dataset_name, "$sql\nWITH\n$accession");
+  $sth = doQuery($dbh, $sql, ($accession));
   $row = $sth->fetchrow_hashref;
   
   my $dbxref_id = $row->{'dbxref_id'};
@@ -524,9 +519,8 @@ sub makeLgDbxref {
     VALUES
       ((SELECT db_id FROM db WHERE name='LIS:cmap'), ?)
     RETURNING dbxref_id";
-  logSQL($dataset_name, "$sql\nwith [$accession]");
-  $sth = $dbh->prepare($sql);
-  $sth->execute($accession);
+  logSQL($dataset_name, "$sql\nWITH\n$accession");
+  $sth = doQuery($dbh, $sql, ($accession));
   $row = $sth->fetchrow_hashref;
   
   my $dbxref_id = $row->{'dbxref_id'};
@@ -718,9 +712,8 @@ sub setMapSetRec {
       RETURNING featuremap_id";
   }
   
-  logSQL($dataset_name, $sql);
-  $sth = $dbh->prepare($sql);
-  $sth->execute(decode("iso-8859-1", $description));
+  logSQL($dataset_name, "$sql\nWITH\n$description");
+  $sth = doQuery($dbh, $sql, ($description));
   $row = $sth->fetchrow_hashref;
   my $map_id = $row->{'featuremap_id'};
   $sth->finish;

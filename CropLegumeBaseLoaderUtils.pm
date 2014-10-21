@@ -347,8 +347,8 @@ sub getFeatureID {
   $sql = "
     SELECT feature_id FROM chado.feature
     WHERE uniquename='$uniquename'";
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
+  logSQL('', "$sql");
+  $sth = doQuery($dbh, $sql);
   if ($row=$sth->fetchrow_hashref) {
     return $row->{'feature_id'};
   }
@@ -384,6 +384,7 @@ sub getOBOName {
   my $obo_name;
   
   $sql = "SELECT name FROM cvterm WHERE dbxref_id=$dbxref_id";
+  logSQL('', "$sql");
   $sth = doQuery($dbh, $sql);
   if (!($row=$sth->fetchrow_hashref)) {
     # pretty unlikely, but just in case...
@@ -430,6 +431,7 @@ sub getOBOTermID {
     }
     else {
       $sql = "SELECT cvterm_id FROM cvterm WHERE dbxref_id=$dbxref_id";
+      logSQL('', "$sql");
       $sth = doQuery($dbh, $sql);
       if (!($row=$sth->fetchrow_hashref)) {
         print "ERROR: unable to find matching cvterm record for $dbxref_id = $term\n";
@@ -454,8 +456,8 @@ sub getOrganismID {
       INNER JOIN chado.organism_dbxref OD ON OD.organism_id=O.organism_id 
       INNER JOIN chado.dbxref D on D.dbxref_id=OD.dbxref_id 
     WHERE D.accession='$mnemonic'";
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
+  logSQL('', "$sql");
+  $sth = doQuery($dbh, $sql);
   if ($row=$sth->fetchrow_hashref) {
     return $row->{'organism_id'};
   }
@@ -476,8 +478,8 @@ sub getOrganismMnemonic {
       INNER JOIN chado.organism_dbxref OD ON OD.organism_id=O.organism_id 
       INNER JOIN chado.dbxref D on D.dbxref_id=OD.dbxref_id 
     WHERE D.accession='$mnemonic'";
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
+  logSQL('', "$sql");
+  $sth = doQuery($dbh, $sql);
   if ($row=$sth->fetchrow_hashref) {
     return $row->{'organism_id'};
   }
@@ -492,9 +494,9 @@ sub getPubID {
   my ($dbh, $citation) = @_;
   my ($sql, $sth, $row);
   
-  $sql = "SELECT pub_id FROM chado.pub WHERE uniquename='$citation'";
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
+  $sql = "SELECT pub_id FROM chado.pub WHERE uniquename=?";
+  logSQL('', "$sql");
+  $sth = doQuery($dbh, $sql, ($citation));
   if ($row=$sth->fetchrow_hashref) {
     return $row->{'pub_id'};
   }
@@ -540,13 +542,13 @@ sub getScaffoldID {
     return 0;
   }
   
-  $sql = "
-    SELECT F.feature_id
-    FROM chado.feature F
-      INNER JOIN chado.featureprop FP
-        ON FP.feature_id=F.feature_id
-          AND FP.type_id = (SELECT cvterm_id FROM chado.cvterm WHERE name = 'assembly version')
-    WHERE F.name='$scaffold' AND FP.value='$version'";
+#  $sql = "
+#    SELECT F.feature_id
+#    FROM chado.feature F
+#      INNER JOIN chado.featureprop FP
+#        ON FP.feature_id=F.feature_id
+#          AND FP.type_id = (SELECT cvterm_id FROM chado.cvterm WHERE name = 'assembly version')
+#    WHERE F.name='$scaffold' AND FP.value='$version'";
   $sql = "
     SELECT F.feature_id
     FROM chado.feature F
@@ -664,8 +666,7 @@ sub mapSetExists {
   
   $sql = "SELECT featuremap_id FROM chado.featuremap WHERE name = '$mapname'";
   logSQL('', $sql);
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
+  $sth = doQuery($dbh, $sql);
   if (($row = $sth->fetchrow_hashref)) {
     return $row->{'featuremap_id'};
   }
