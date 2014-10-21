@@ -284,6 +284,24 @@ VALUES
    
 ;
 
+
+-- Add to pub_type
+INSERT INTO chado.dbxref
+  (db_id, accession)
+VALUES
+  ((SELECT db_id FROM db WHERE name='tripal'), 'journal')
+;
+
+INSERT INTO chado.cvterm
+  (cv_id, name, definition, dbxref_id)
+VALUES
+  ((SELECT cv_id FROM cv WHERE name='pub_type'),
+   'Journal', '', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='journal'))
+   
+;
+
+
 -- Add to stock_relationship
 INSERT INTO chado.dbxref
   (db_id, accession)
@@ -308,6 +326,7 @@ VALUES
           AND db_id=(SELECT db_id FROM db WHERE name='tripal')))
    
 ;
+
 
 -- Add to stock_type
 INSERT INTO chado.dbxref
@@ -355,19 +374,19 @@ VALUES
 ;
 
 
--- Add to pub_type
+-- Add to tripal_pub --
 INSERT INTO chado.dbxref
   (db_id, accession)
 VALUES
-  ((SELECT db_id FROM db WHERE name='tripal'), 'journal')
+  ((SELECT db_id FROM db WHERE name='tripal'), 'publication_species')
 ;
 
 INSERT INTO chado.cvterm
   (cv_id, name, definition, dbxref_id)
 VALUES
-  ((SELECT cv_id FROM cv WHERE name='pub_type'),
-   'Journal', '', 
-   (SELECT dbxref_id FROM dbxref WHERE accession='journal'))
+  ((SELECT cv_id FROM cv WHERE name='tripal_pub'),
+   'Publication Species', '', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='publication_species'))
    
 ;
 
