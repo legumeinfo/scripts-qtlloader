@@ -154,6 +154,9 @@ sub getSSInfo {
       'marker_r2_fld'       => 'marker_r2',
       'total_r2_fld'        => 'total_r2',
       'additivity_fld'      => 'additivity',
+      'nearest_mrkr_fld'    => 'nearest_marker',
+      'flank_mrkr_low_fld'  => 'flanking_marker_low',
+      'flank_mrkr_high_fld' => 'flanking_marker_high',
       'comment_fld'         => 'comment',
     );
   }
@@ -169,9 +172,6 @@ sub getSSInfo {
       'right_end_fld'       => 'right_end',
       'QTL_peak_fld'        => 'QTL_peak',
       'int_calc_meth_fld'   => 'interval_calc_method',
-      'nearest_mrkr_fld'    => 'nearest_marker',
-      'flank_mrkr_low_fld'  => 'flanking_marker_low',
-      'flank_mrkr_high_fld' => 'flanking_marker_high',
     );
   }
 }#getSSInfo
@@ -774,6 +774,8 @@ sub readFile {
       foreach my $col (@cols) {
         next if $col eq 'NULL';
         next if $col =~/TEMP/;
+        $col =~ s/^\s+//;
+        $col =~ s/\s+$//;
         push @field_names, $col;
       }
 

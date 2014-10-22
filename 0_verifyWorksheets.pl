@@ -88,7 +88,7 @@ EOS
     # Make sure we've got all the pub table files
     my $pubsfile = $pi{'worksheet'} . '.txt';
     if (!$files{$pubsfile}) {
-      $msg = "\nPublication tables is missing.\n";
+      $msg = "\nPublication table is missing.\n";
       $msg .= "$pubsfile is required.\n\n";
       reportError('', $msg);
       exit;
@@ -569,11 +569,14 @@ print "species: $species\n";
       $line_count++;
       
       # See if trait already exists
-      my $trait_name = $fields->{$ti{'trait_name_fld'}};
+#      my $trait_name = $fields->{$ti{'trait_name_fld'}};
 #print "\ntrait name: $trait_name\n";
-      if (traitExists($dbh, $trait_name)) {
+#      if (traitExists($dbh, $trait_name)) {
+      my $qtl_symbol = $fields->{$ti{'qtl_symbol_fld'}};
+#print "\ntrait name: $trait_name\n";
+      if (traitExists($dbh, $qtl_symbol)) {
         $has_warnings++;
-        $msg = "warning: trait name ($trait_name) already exists in database.";
+        $msg = "warning: trait name ($qtl_symbol) already exists in database.";
         reportError($line_count, $msg);
       }
 
@@ -612,7 +615,7 @@ print "species: $species\n";
         }#onto term exists
       }#onto term provided in ss
       
-      $traits{$trait_name} = 1;
+      $traits{$qtl_symbol} = 1;
     }#each record
   
     if ($has_errors) {
@@ -706,6 +709,7 @@ print "species: $species\n";
     $has_errors = 0;
     $line_count = 0;
     foreach my $fields (@records) {
+#print Dumper($fields);
       $line_count++;
 
       my $qtl_name = makeQTLname($fields->{$qi{'qtl_symbol_fld'}}, 
@@ -744,7 +748,7 @@ print "QTL symbol: $qtl_symbol\n";
       
       my $uniq_marker_name;
       
-      my $nearest_marker = $fields->{$qi{'nearest_marker_fld'}};
+      my $nearest_marker = $fields->{$qi{'nearest_mrkr_fld'}};
 print "Nearest marker: $nearest_marker\n";
       if ($nearest_marker ne '' && lc($nearest_marker) ne 'null') {
         $uniq_marker_name = makeMarkerName('nearest_marker', $fields);
@@ -758,7 +762,7 @@ print "Nearest marker: $nearest_marker\n";
         }
       }
       
-      my $flanking_marker_low = $fields->{$qi{'flanking_marker_low_fld'}};
+      my $flanking_marker_low = $fields->{$qi{'flank_mrkr_low_fld'}};
 print "Flanking marker low: $flanking_marker_low\n";
       if ($flanking_marker_low ne '' && lc($flanking_marker_low) ne 'null') {
         $uniq_marker_name = makeMarkerName('flanking_marker_low', $fields);
@@ -772,7 +776,7 @@ print "Flanking marker low: $flanking_marker_low\n";
         }
       }
       
-      my $flanking_marker_high = $fields->{$qi{'flanking_marker_high_fld'}};
+      my $flanking_marker_high = $fields->{$qi{'flanking_marker_high'}};
 print "Flanking marker high: $flanking_marker_high\n";
       if ($flanking_marker_high ne '' && lc($flanking_marker_high) ne 'null') {
         $uniq_marker_name = makeMarkerName('flanking_marker_high', $fields);

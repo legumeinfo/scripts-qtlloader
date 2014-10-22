@@ -110,12 +110,17 @@ sub loadTraits {
   foreach $fields (@records) {
     $line_count++;
     
-    my $trait_name = $fields->{$ti{'trait_name_fld'}};
-    next if (!$trait_name || $trait_name eq '' || lc($trait_name) eq 'null');
+#    my $trait_name = $fields->{$ti{'trait_name_fld'}};
+#    next if (!$trait_name || $trait_name eq '' || lc($trait_name) eq 'null');
 #print "\ntrait name: $trait_name\n";
+    my $qtl_symbol = $fields->{$ti{'qtl_symbol_fld'}};
+    next if (!$qtl_symbol || $qtl_symbol eq '' || lc($qtl_symbol) eq 'null');
+print "\nQTL symbol: $qtl_symbol\n";
 
     my $trait_id;
-    if ($trait_id = getTraitRecord($dbh, $trait_name)) {
+#    if ($trait_id = getTraitRecord($dbh, $trait_name)) {
+    if ($trait_id = getTraitRecord($dbh, $qtl_symbol)) {
+print "  exists\n";
       # trait exists
       next if ($skip_all);
       
@@ -123,13 +128,13 @@ sub loadTraits {
           cleanDependants($trait_id);
       }
       else {
-        my $prompt = "$line_count: trait ($trait_name} = $trait_id) ";
+        my $prompt = "$line_count: QTL symbol ($qtl_symbol} = $trait_id) ";
         ($skip, $skip_all, $update, $update_all) = checkUpdate($prompt);
         
         next if ($skip || $skip_all);
         
         if ($update || $update_all) {
-          $existing_traits{$trait_name} = $trait_id;
+          $existing_traits{$qtl_symbol} = $trait_id;
           
           # remove dependent records; they will be re-inserted
           cleanDependants($trait_id);
@@ -141,7 +146,7 @@ sub loadTraits {
     $trait_id = setTraitRecord($dbh, $trait_id, 
                                $fields->{$ti{'qtl_symbol_fld'}}, 
                                $fields->{$ti{'description_fld'}});
-#print "trait ID: $trait_id\n";
+print "  trait ID: $trait_id\n";
     
     # trait_name 
     setTermRelationship($dbh, $trait_id, $fields->{$ti{'trait_name_fld'}}, 
@@ -153,20 +158,13 @@ sub loadTraits {
 
     # OBO term
     setOBOTerm($dbh, $trait_id, $fields);
-    
-# not in use
-#    # alt names: cvtermsynonym (comma separated, if any)
-#    setAltNames($dbh, $trait_id, $fields);
-#    
-#    # comment
-#    setCvtermprop($dbh, $trait_id, 'comment', 'comments', $fields);
   }#each record
 
   print "Loaded $line_count obs. trait records\n\n";
 }#loadTraits
   
   
-=cut (not yet correctly mapped to chado schema)
+=cut #(not yet correctly mapped to chado schema)
 sub loadParentTraits {
   my ($fields, $sql, $sth) = @_;
 
@@ -285,28 +283,6 @@ sub getTraitRecord {
   return 0;
 }#getTraitRecord
 
-
-=cut unused
-sub setAltNames {
-  my ($dbh, $trait_id, $fields) = @_;
-  my ($sql, $sth);
-  
-  if (!$fields->{'alt_names'} || $fields->{'alt_names'} eq '' 
-        || $fields->{'alt_names'} eq 'NULL') {
-    return;
-  }
-  
-  my @names = split ',', $fields->{'alt_names'};
-  foreach my $name (@names) {
-    $sql = "
-      INSERT INTO chado.cvtermsynonym
-        (cvterm_id, synonym)
-      VALUES
-        ((SELECT cvterm_id FROM chado.cvterm WHERE name='$fields->{$qtl_symbol_fld}'),
-         '$name')";
-  }#each name
-}#setAltNames
-=cut
 
 sub setCvtermprop {
   my ($dbh, $trait_id, $prop, $proptype) = @_;

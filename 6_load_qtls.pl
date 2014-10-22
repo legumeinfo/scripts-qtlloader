@@ -115,7 +115,7 @@ print "\n$line_count: $qtl_name\n";
         cleanDependants($dbh, $qtl_id);
       }
       else {
-        my $prompt =  "$line_count: This QTL ($qtl_name) is already loaded.";
+        my $prompt =  "$line_count: This QTL ($qtl_name)";
         ($skip, $skip_all, $update, $update_all) = checkUpdate($prompt);
         
         if ($skip || $skip_all) {
@@ -136,19 +136,22 @@ print "\n$line_count: $qtl_name\n";
     # link to study (project) via new table feature_project
     attachExperiment($dbh, $qtl_id, $fields);
          
-#print "  attach experiment trait name\n";
     # trait_name
-    loadFeatureprop($dbh, $qtl_id, $fields->{$qi{'expt_trait_name_fld'}}, 
+    my $trait_name = $fields->{$qi{'expt_trait_name_fld'}};
+#print "  attach experiment trait name: $trait_name\n";
+    loadFeatureprop($dbh, $qtl_id, $trait_name, 
                     'Experiment Trait Name', 'feature_property', $fields);
     
-#print "  attach experiment trait description\n";
     # trait_description
-    loadFeatureprop($dbh, $qtl_id, $fields->{$qi{'expt_trait_desc_fld'}}, 
+    my $expt_trait_desc = $fields->{$qi{'expt_trait_desc_fld'}};
+#print "  attach experiment trait description: $expt_trait_desc\n";
+    loadFeatureprop($dbh, $qtl_id, $expt_trait_desc, 
                     'Experiment Trait Description', 'feature_property', $fields);
     
-#print "  attach trait unit\n";
     # trait_unit
-    loadFeatureprop($dbh, $qtl_id, $fields->{$qi{'trait_unit_fld'}}, 
+    my $trait_unit = $fields->{$qi{'trait_unit_fld'}};
+#print "  attach trait unit: $trait_unit\n";
+    loadFeatureprop($dbh, $qtl_id, $trait_unit, 
                     'Trait Unit', 'feature_property', $fields);
 
 #print "  attach qtl symbol\n";
@@ -398,8 +401,7 @@ sub attachFavorableAlleleSource {
      SELECT stock_id FROM chado.stock 
      WHERE name='$fav_allele'";
   logSQL($dataset_name, "$line_count: $sql");
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
+  $sth = doQuery($dbh, $sql);
   if ($row=$sth->fetchrow_hashref) {
     $stock_id = $row->{'stock_id'};
   }
@@ -410,14 +412,13 @@ sub attachFavorableAlleleSource {
       INSERT INTO chado.stock
         (organism_id, name, uniquename, description, type_id)
       VALUES
-        ($organism_id, '$fav_allele', '$species:$fav_allele', '',
+        ($organism_id, '$fav_allele', '$fav_allele', '',
          (SELECT cvterm_id FROM cvterm 
           WHERE name='Cultivar'
                 AND cv_id=(SELECT cv_id FROM cv WHERE name='stock_type')))
       RETURNING stock_id";
     logSQL($dataset_name, "$line_count: $sql");
-    $sth = $dbh->prepare($sql);
-    $sth->execute();
+    $sth = doQuery($dbh, $sql);
     $row = $sth->fetchrow_hashref;
     $stock_id = $row->{'stock_id'};
   }
@@ -601,8 +602,7 @@ sub insertGeneticCoordinates {
   $sql = "
     SELECT rank FROM chado.featureloc WHERE feature_id=$qtl_id";
   logSQL($dataset_name, "$line_count: $sql");
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
+  $sth = doQuery($dbh, $sql);
   my $rank = ($row=$sth->fetchrow_hashref) ? $row->{'rank'}+1 : 0;
   
   $sql = "
@@ -612,8 +612,7 @@ sub insertGeneticCoordinates {
       ($qtl_id, $srcfeature_id, $left_end, $right_end, $rank)
     RETURNING featureloc_id";
   logSQL($dataset_name, "$line_count: $sql");
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
+  $sth = doQuery($dbh, $sql);
   my $featureloc_id = ($row=$sth->fetchrow_hashref) ? $row->{'featureloc_id'} : 0;
 
   $sql = "
@@ -628,8 +627,7 @@ sub insertGeneticCoordinates {
        0
       )";
   logSQL($dataset_name, "$line_count: $sql");
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
+  $sth = doQuery($dbh, $sql);
 }#insertGeneticCoordinates
 
 
@@ -654,8 +652,7 @@ sub loadFeatureprop {
                        WHERE name='$propname'
                        AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='$cv'))";
   logSQL($dataset_name, "$line_count: $sql");
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
+  $sth = doQuery($dbh, $sql);
   if ($row=$sth->fetchrow_hashref) {
 #print "Found rank $row->{'rank'} for $feature_id and $propname\n";
     $rank = $row->{'rank'} + 1;
