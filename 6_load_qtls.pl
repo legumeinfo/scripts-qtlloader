@@ -183,11 +183,11 @@ print "\n$line_count: $qtl_name\n";
     
 #print "  attach markers\n";
     # link to markers (nearest, flanking) via feature_relationship
-    attachMarker($dbh, $qtl_id, $fields->{$mpi{'nearest_mrkr_fld'}}, 
+    attachMarker($dbh, $qtl_id, $fields->{$qi{'nearest_mrkr_fld'}}, 
                  'Nearest Marker', $fields);
-    attachMarker($dbh, $qtl_id, $fields->{$mpi{'flank_mrkr_low_fld'}}, 
+    attachMarker($dbh, $qtl_id, $fields->{$qi{'flank_mrkr_low_fld'}}, 
                  'Flanking Marker Low', $fields);
-    attachMarker($dbh, $qtl_id, $fields->{$mpi{'flank_mrkr_high_fld'}}, 
+    attachMarker($dbh, $qtl_id, $fields->{$qi{'flank_mrkr_high_fld'}}, 
                  'Flanking Marker High', $fields);
 
 #print "  attach measurements\n";
@@ -361,7 +361,10 @@ sub cleanDependants {
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
 
-  $sql = "DELETE FROM feature_synonym WHERE feature_id=$qtl_id";
+  $sql = "
+    DELETE FROM synonym 
+    WHERE synonym_id IN (SELECT synonym_id FROM feature_synonym 
+                         WHERE feature_id=$qtl_id)";
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
 }#cleanDependants
@@ -565,9 +568,9 @@ sub getSynonym {
     SELECT synonym_id FROM chado.synonym 
     WHERE name='$synonym' 
       AND type_id=(SELECT cvterm_id FROM chado.cvterm
-                   WHERE name='symbol'
+                   WHERE name='Symbol'
                      AND cv_id=(SELECT cv_id FROM chado.cv 
-                                WHERE name='feature_property'))";
+                                WHERE name='synonym_type'))";
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
   if ($row = $sth->fetchrow_hashref) {
