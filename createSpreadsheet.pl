@@ -9,9 +9,10 @@
 
   use strict;
   use DBI;
-  use Data::Dumper;
+  use Getopt::Std;
   use Encode;
   use feature 'unicode_strings';
+  use Data::Dumper;
 
   use Spreadsheet::WriteExcel;
 
@@ -24,19 +25,27 @@
   my $warn = <<EOS
     Usage:
       
-    $0 data-dir spreadsheet-name, publink-citation
-    data-dir         = where to write the output file
-    spreadsheet-name = the name of the output spreadsheet
-    publink-citation = datasets named by publication, uniquename or pub id
+    $0 [opts] data-dir spreadsheet-name, [dataset-identifier]
+    data-dir           = where to write the output file
+    spreadsheet-name   = the name of the output spreadsheet
+    dataset-identifier = uniquename or pub_id for dataset; 
+                         only needed for QTL download
+      -q download QTL dataset
+      -t download all traits
     
 EOS
 ;
-  if ($#ARGV < 2) {
+  my ($do_qtls, $do_traits);
+  my %cmd_opts = ();
+  getopts("qt", \%cmd_opts);
+  if (defined($cmd_opts{'q'})) {$do_qtls   = 1;}
+  if (defined($cmd_opts{'t'})) {$do_traits = 1;}
+
+  if ($#ARGV < 1 || $#ARGV < 2 && $do_qtls) {
     die $warn;
   }
   
   my ($data_dir, $filename, $dataset) = @ARGV;
-  print "\nWrite dataset '$dataset' to $data_dir/$filename.xls\n\n";
   
   # Get connected
   my $dbh = connectToDB;
@@ -44,44 +53,14 @@ EOS
   my $sth = $dbh->prepare($sql);
   $sth->execute();
 
-  # Start the spreadsheet
-  my $ss_name = "$filename.xls";
-  my $workbook  = Spreadsheet::WriteExcel->new($ss_name);
+  if ($do_qtls) {
+    WriteQTLSpreadsheet($dbh);
+  }
   
-  # Create a format for header rows
-  my $format = $workbook->add_format();
-  $format->set_bold();
-  $format->set_align('center');
-  $format->set_color('black');
-  $format->set_bg_color('gray');
-  
-  my $mnemonic = getSpeciesMnemonic($dataset, $dbh);
-print "Got species mnemonic $mnemonic\n";
-  
-  # Create publication spreadsheet
-  print "Writing PUB worksheet...\n";
-  writePubWorksheet($dataset, $workbook, $dbh);
+  if ($do_traits) {
+    WriteTraitSpreadsheet($dbh);
+  }
 
-  # Create QTL experiment spreadsheet
-  print "Writing QTL_EXPERIMENT worksheet...\n";
-  writeQTLExperimentWorksheet($dataset, $workbook, $dbh);
-
-  # Create map collection spreadsheet
-  print "Writing MAP_COLLECTION worksheet...\n";
-  writeMapCollectionWorksheet($dataset, $workbook, $dbh);
-
-  # Create map spreadsheet
-  print "Writing MAPS worksheet...\n";
-  writeMapWorksheet($dataset, $workbook, $dbh);
-  
-  # Create QTL spreadsheet
-  print "Writing QTL worksheet...\n";
-  writeQTLWorksheet($dataset, $workbook, $dbh);
-  
-  # Create map position spreadsheet
-  print "Writing MAP_POSITION worksheet...\n";
-  writeMapPositionWorksheet($dataset, $workbook, $dbh);
-  
   $dbh->disconnect();
   print "\n\nALL DONE\n\n";
   
@@ -91,7 +70,7 @@ print "Got species mnemonic $mnemonic\n";
 ###############################################################################
 
 sub writeMapCollectionWorksheet {
-  my ($dataset, $workbook, $dbh) = @_;
+  my ($dataset, $mnemonic, $format, $workbook, $dbh) = @_;
     
   my $worksheet = $workbook->add_worksheet('MAP_COLLECTION');
   
@@ -99,55 +78,99 @@ sub writeMapCollectionWorksheet {
                'description:25', 'parent1:15', 'parent2:15', 'pop_size:20', 
                'pop_type:25', 'analysis_method:22', 'publink_citation:22', 
                'unit:10');
-  writeHeader($worksheet, @heads);
+  writeHeader($format, $worksheet, @heads);
   my $results = getMapCollectionData($dataset, $mnemonic, $dbh);
   writeResults($results, $worksheet, @heads);
 }#writeMapCollectionWorksheet
 
 
 sub writeMapWorksheet {
-  my ($dataset, $workbook, $dbh) = @_;
+  my ($dataset, $mnemonic, $format, $workbook, $dbh) = @_;
     
   my $worksheet = $workbook->add_worksheet('MAPS');
   
   my @heads = ('#specieslink_abv:15', 'map_name:22', 'map_start:10', 
                'map_end:10');
-  writeHeader($worksheet, @heads);
+  writeHeader($format, $worksheet, @heads);
   my $results = getMapData($dataset, $mnemonic, $dbh);
   writeResults($results, $worksheet, @heads);
 }#writeMapWorksheet
 
 
 sub writeMapPositionWorksheet {
-  my ($dataset, $workbook, $dbh) = @_;
+  my ($dataset, $mnemonic, $format, $workbook, $dbh) = @_;
     
   my $worksheet = $workbook->add_worksheet('MAP_POSITION');
   
   my @heads = ('#map_name:22', 'qtl_symbol:20', 'lg:10', 'left_end:10', 
                'right_end:10', 'QTL_peak:10', 'interval_calc_method:20', 
                'comment:30');
-  writeHeader($worksheet, @heads);
+  writeHeader($format, $worksheet, @heads);
   my $results = getMapPositionData($dataset, $dbh);
   writeResults($results, $worksheet, @heads);
 }#writeMapPositionWorksheet
 
 
 sub writePubWorksheet {
-  my ($dataset, $workbook, $dbh) = @_;
+  my ($dataset, $mnemonic, $format, $workbook, $dbh) = @_;
     
   my $worksheet = $workbook->add_worksheet('PUB');
   
   my @heads = ('#publink_citation:22', 'species:15', 'ref_type:15', 'year:10', 
                'title:25', 'authors:25', 'journal:20', 'volume:10', 'issue:10', 
                'pages:10', 'doi:20', 'pmid:10', 'abstract:30');
-  writeHeader($worksheet, @heads);
+  writeHeader($format, $worksheet, @heads);
   my $results = getPubData($dataset, $mnemonic, $dbh);
   writeResults($results, $worksheet, @heads);
 }#WritePubWorksheet
 
 
+sub WriteQTLSpreadsheet {
+  my ($dbh) = @_;
+  
+  # Start the spreadsheet
+  my $ss_name = "$data_dir/$filename.QTL.xls";
+  my $workbook  = Spreadsheet::WriteExcel->new($ss_name);
+  print "\nWrite QTL dataset '$dataset' to $ss_name\n\n";
+  
+  # Create a format for header rows
+  my $format = $workbook->add_format();
+  $format->set_bold();
+  $format->set_align('center');
+  $format->set_color('black');
+  $format->set_bg_color('gray');
+  
+  my $mnemonic = getSpeciesMnemonic($dataset, $dbh);
+#print "Got species mnemonic $mnemonic\n";
+  
+  # Create publication spreadsheet
+  print "Writing PUB worksheet...\n";
+  writePubWorksheet($dataset, $mnemonic, $format, $workbook, $dbh);
+
+  # Create QTL experiment spreadsheet
+  print "Writing QTL_EXPERIMENT worksheet...\n";
+  writeQTLExperimentWorksheet($dataset, $mnemonic, $format, $workbook, $dbh);
+
+  # Create map collection spreadsheet
+  print "Writing MAP_COLLECTION worksheet...\n";
+  writeMapCollectionWorksheet($dataset, $mnemonic, $format, $workbook, $dbh);
+
+  # Create map spreadsheet
+  print "Writing MAPS worksheet...\n";
+  writeMapWorksheet($dataset, $mnemonic, $format, $workbook, $dbh);
+  
+  # Create QTL spreadsheet
+  print "Writing QTL worksheet...\n";
+  writeQTLWorksheet($dataset, $mnemonic, $format, $workbook, $dbh);
+  
+  # Create map position spreadsheet
+  print "Writing MAP_POSITION worksheet...\n";
+  writeMapPositionWorksheet($dataset, $mnemonic, $format, $workbook, $dbh);
+}#WriteQTLSpreadsheet
+
+
 sub writeQTLWorksheet {
-  my ($dataset, $workbook, $dbh) = @_;
+  my ($dataset, $mnemonic, $format, $workbook, $dbh) = @_;
     
   my $worksheet = $workbook->add_worksheet('QTL');
   
@@ -160,24 +183,49 @@ sub writeQTLWorksheet {
                'additivity:15', 'nearest_marker:15', 
                'flanking_marker_low:18', 'flanking_marker_high:18', 
                'comment:30');
-  writeHeader($worksheet, @heads);
+  writeHeader($format, $worksheet, @heads);
   my $results = getQTLData($dataset, $dbh);
   writeResults($results, $worksheet, @heads);
 }#WriteQTLWorksheet
 
 
 sub writeQTLExperimentWorksheet {
-  my ($dataset, $workbook, $dbh) = @_;
+  my ($dataset, $mnemonic, $format, $workbook, $dbh) = @_;
     
   my $worksheet = $workbook->add_worksheet('QTL_EXPERIMENT');
   
   my @heads = ('#specieslink_abv:15', 'publink_citation:25', 'title:30', 
                'name:23', 'description:30', 'geolocation:25', 'map_name:25', 
                'comment:30');
-  writeHeader($worksheet, @heads);
+  writeHeader($format, $worksheet, @heads);
   my $results = getQTLExperimentData($dataset, $mnemonic, $dbh);
   writeResults($results, $worksheet, @heads);
 }#writeQTLExperimentWorksheet
+
+
+sub WriteTraitSpreadsheet {
+  my ($dbh) = @_;
+  
+  # Start the spreadsheet
+  my $ss_name = "$data_dir/$filename.traits.xls";
+  my $workbook  = Spreadsheet::WriteExcel->new($ss_name);
+  print "\nWrite traits to $ss_name\n\n";
+  
+  # Create a format for header rows
+  my $format = $workbook->add_format();
+  $format->set_bold();
+  $format->set_align('center');
+  $format->set_color('black');
+  $format->set_bg_color('gray');
+  
+  my $worksheet = $workbook->add_worksheet('Traits');
+  
+  my @heads = ('qtl_symbol:20', 'trait_name:25', 'trait_class:15', 
+               'description:30');
+  writeHeader($format, $worksheet, @heads);
+  my $results = getTraitData($dataset, $dbh);
+  writeResults($results, $worksheet, @heads);
+}#WriteQTLSpreadsheet
 
 
 sub getMapCollectionData {
@@ -730,8 +778,47 @@ sub getSpeciesMnemonic {
 }#getSpeciesMnemonic
 
 
+sub getTraitData {
+  my ($dataset, $dbh) = @_;
+  
+  my $sql = "
+    SELECT t.name AS qtl_symbol, t.definition AS description,
+           tn.name AS trait_name, tc.name AS trait_class 
+    FROM chado.cvterm t
+      INNER JOIN chado.cvterm_relationship tnr 
+        ON tnr.subject_id=t.cvterm_id
+           AND tnr.type_id=(SELECT cvterm_id FROM chado.cvterm 
+                            WHERE name='Has Trait Name'
+                                  AND cv_id = (SELECT cv_id FROM chado.cv 
+                                               WHERE name='local'))
+      INNER JOIN chado.cvterm tn ON tn.cvterm_id=tnr.object_id
+      
+      INNER JOIN chado.cvterm_relationship tcr 
+        ON tcr.subject_id=t.cvterm_id
+           AND tcr.type_id=(SELECT cvterm_id FROM chado.cvterm 
+                            WHERE name='Has Trait Class'
+                                  AND cv_id = (SELECT cv_id FROM chado.cv 
+                                               WHERE name='local'))
+      INNER JOIN chado.cvterm tc ON tc.cvterm_id=tcr.object_id
+      
+    WHERE t.cv_id = (SELECT cv_id FROM chado.cv WHERE name='LegumeInfo:traits')
+    ORDER BY qtl_symbol";
+    
+  my $sth = $dbh->prepare($sql);
+  $sth->execute();
+
+  # build array of hashes
+  my @results = getResults($sth);
+  if ((scalar @results) == 0) {
+    die "\nUnable to find traits.\n\n";
+  }
+  
+  return \@results;
+}#getTraitData
+
+
 sub writeHeader {
-  my ($worksheet, @heads) = @_;
+  my ($format, $worksheet, @heads) = @_;
   
   for (my $i=0; $i<=$#heads; $i++) {
     my ($head, $width) = split ':', $heads[$i];

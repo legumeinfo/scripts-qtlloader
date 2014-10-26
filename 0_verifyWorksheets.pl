@@ -462,7 +462,7 @@ print "species: $species\n";
     
     # Make sure we've got all the marker table files
     if (!$files{'MARKERS.txt'}) {
-      $msg = "\nOne or more map tables is missing.\n";
+      $msg = "\nThe markers tables is missing.\n";
       $msg .= "MARKERS.txt is required.\n\n";
       reportError('', $msg);
       exit;

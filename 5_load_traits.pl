@@ -110,15 +110,11 @@ sub loadTraits {
   foreach $fields (@records) {
     $line_count++;
     
-#    my $trait_name = $fields->{$ti{'trait_name_fld'}};
-#    next if (!$trait_name || $trait_name eq '' || lc($trait_name) eq 'null');
-#print "\ntrait name: $trait_name\n";
     my $qtl_symbol = $fields->{$ti{'qtl_symbol_fld'}};
     next if (!$qtl_symbol || $qtl_symbol eq '' || lc($qtl_symbol) eq 'null');
 print "\nQTL symbol: $qtl_symbol\n";
 
     my $trait_id;
-#    if ($trait_id = getTraitRecord($dbh, $trait_name)) {
     if ($trait_id = getTraitRecord($dbh, $qtl_symbol)) {
 print "  exists\n";
       # trait exists

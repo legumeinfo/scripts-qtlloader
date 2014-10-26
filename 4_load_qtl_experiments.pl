@@ -162,7 +162,7 @@ sub loadQTLexperiments {
            (SELECT cvterm_id FROM chado.cvterm 
             WHERE name='Project Comment'
               AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='project_property')),
-           $comment)";
+           ".$dbh->quote($comment).")";
       logSQL($dataset_name, $sql);
       doQuery($dbh, $sql);
     }#there is a comment
@@ -189,7 +189,7 @@ sub attachDescription {
        (SELECT cvterm_id FROM chado.cvterm 
         WHERE name='Project Description'
           AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='project_property')),
-       '$desc')";
+       ".$dbh->quote($desc).")";
   logSQL($dataset_name, $sql);
   doQuery($dbh, $sql);
 }#attachDescription
@@ -344,7 +344,7 @@ sub setExperimentRec {
     $sql = "
       UPDATE chado.project SET
         name='$name',
-        description='$desc'
+        description=".$dbh->quote($desc)."
       WHERE project_id=$experiment_id
       RETURNING project_id";
   }
@@ -353,7 +353,7 @@ sub setExperimentRec {
       INSERT INTO chado.project
         (name, description)
       VALUES
-        ('$name', '$desc')
+        ('$name', ".$dbh->quote($desc).")
       RETURNING project_id";
   }
   
