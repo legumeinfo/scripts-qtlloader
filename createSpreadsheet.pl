@@ -231,89 +231,89 @@ sub WriteTraitSpreadsheet {
 sub getMapCollectionData {
   my ($dataset, $mnemonic, $dbh) = @_;
   
-  my $sql = "
-    SELECT pn.value AS publication_map_name, m.name AS map_name, m.description,
-           p1.name AS parent1, p2.name AS parent2, pop.value AS pop_size, 
-           pt.value AS pop_type, meth.value AS analysis_method, 
-           pub.uniquename AS publink_citation, u.name AS unit, 
-           '$mnemonic' AS specieslink_abv
-    FROM featuremap m
-      INNER JOIN cvterm u ON u.cvterm_id=m.unittype_id
-      
-      inner join featuremap_pub fp on fp.featuremap_id=m.featuremap_id
-      inner join pub on pub.pub_id = fp.pub_id
-      
-      inner join featuremap_stock fs on fs.featuremap_id=m.featuremap_id
-      inner join stock s on s.stock_id=fs.stock_id
-      
-      left join stock_relationship sr1 
-        on sr1.object_id=s.stock_id
-           and sr1.type_id=(select cvterm_id from cvterm 
-                        where name='Parent1'
-                          and cv_id=(select cv_id from chado.cv where name='stock_relationship'))
-      left join stock p1 on p1.stock_id=sr1.subject_id
-      
-      left join stock_relationship sr2 
-          on sr2.object_id=s.stock_id
-           and sr2.type_id=(select cvterm_id from cvterm 
-                        where name='Parent2'
-                          and cv_id=(select cv_id from chado.cv where name='stock_relationship'))
-      left join stock p2 on p2.stock_id=sr2.subject_id
+  my $sth = getMapCollectionNames($dataset, $dbh);
 
-      left join featuremapprop pn 
-        on pn.featuremap_id=m.featuremap_id
-           and pn.type_id=(select cvterm_id from cvterm
-                           where name='Publication Map Name'
-                                 and cv_id=(select cv_id from cv
-                                            where name='featuremap_property'))
-                                            
-      left join featuremapprop pop 
-        on pop.featuremap_id=m.featuremap_id
-           and pop.type_id=(select cvterm_id from cvterm
-                           where name='Population Size'
-                                 and cv_id=(select cv_id from cv
-                                            where name='featuremap_property'))
-                                            
-      left join featuremapprop pt 
-        on pt.featuremap_id=m.featuremap_id
-           and pt.type_id=(select cvterm_id from cvterm
-                           where name='Population Type'
-                                 and cv_id=(select cv_id from cv
-                                            where name='featuremap_property'))
-                                            
-      left join featuremapprop meth 
-        on meth.featuremap_id=m.featuremap_id
-           and meth.type_id=(select cvterm_id from cvterm
-                           where name='Methods'
-                                 and cv_id=(select cv_id from cv
-                                            where name='featuremap_property'))
-                                            
-      left join featuremapprop cm 
-        on cm.featuremap_id=m.featuremap_id
-           and cm.type_id=(select cvterm_id from cvterm
-                           where name='Featuremap Comment'
-                                 and cv_id=(select cv_id from cv
-                                            where name='featuremap_property'))
-                                            
-      left join featuremap_dbxref fx on fx.featuremap_id=m.featuremap_id
-      left join dbxref xref on xref.dbxref_id=fx.dbxref_id";
-  if ($dataset =~ /^\d+$/) {
-    $sql .= "
-    WHERE pub.pub_id=$dataset";
-  }
-  else {
-    $sql .= "
-    where pub.uniquename='$dataset'";
-  }
-  $sql .= "
-    order by m.name";
+  my @results;
+  while (my $row=$sth->fetchrow_hashref) {
+#print "Found map " . $row->{'value'} . "\n";
+    my $sql = "
+      SELECT pn.value AS publication_map_name, m.name AS map_name, m.description,
+             p1.name AS parent1, p2.name AS parent2, pop.value AS pop_size, 
+             pt.value AS pop_type, meth.value AS analysis_method, 
+             pub.uniquename AS publink_citation, u.name AS unit, 
+             '$mnemonic' AS specieslink_abv
+      FROM featuremap m
+        INNER JOIN cvterm u ON u.cvterm_id=m.unittype_id
+        
+        INNER JOIN featuremap_pub fp ON fp.featuremap_id=m.featuremap_id
+        INNER JOIN pub ON pub.pub_id = fp.pub_id
+        
+        INNER JOIN featuremap_stock fs ON fs.featuremap_id=m.featuremap_id
+        INNER JOIN stock s ON s.stock_id=fs.stock_id
+        
+        LEFT JOIN stock_relationship sr1 
+          ON sr1.object_id=s.stock_id
+             AND sr1.type_id=(SELECT cvterm_id FROM cvterm 
+                              WHERE name='Parent1'
+                                    AND cv_id=(SELECT cv_id FROM chado.cv 
+                                               WHERE name='stock_relationship'))
+        LEFT JOIN stock p1 ON p1.stock_id=sr1.subject_id
+        
+        LEFT JOIN stock_relationship sr2 
+            ON sr2.object_id=s.stock_id
+             AND sr2.type_id=(SELECT cvterm_id FROM cvterm 
+                              WHERE name='Parent2'
+                                    AND cv_id=(SELECT cv_id FROM chado.cv 
+                                               WHERE name='stock_relationship'))
+        LEFT JOIN stock p2 ON p2.stock_id=sr2.subject_id
+  
+        LEFT JOIN featuremapprop pn 
+          ON pn.featuremap_id=m.featuremap_id
+             AND pn.type_id=(SELECT cvterm_id FROM cvterm
+                             WHERE name='Publication Map Name'
+                                   AND cv_id=(SELECT cv_id FROM cv
+                                              WHERE name='featuremap_property'))
+                                              
+        LEFT JOIN featuremapprop pop 
+          ON pop.featuremap_id=m.featuremap_id
+             AND pop.type_id=(SELECT cvterm_id FROM cvterm
+                              WHERE name='Population Size'
+                                    AND cv_id=(SELECT cv_id FROM cv
+                                               WHERE name='featuremap_property'))
+                                              
+        LEFT JOIN featuremapprop pt 
+          ON pt.featuremap_id=m.featuremap_id
+             AND pt.type_id=(SELECT cvterm_id FROM cvterm
+                             WHERE name='Population Type'
+                                   AND cv_id=(SELECT cv_id FROM cv
+                                              WHERE name='featuremap_property'))
+                                              
+        LEFT JOIN featuremapprop meth 
+          ON meth.featuremap_id=m.featuremap_id
+             AND meth.type_id=(SELECT cvterm_id FROM cvterm
+                               WHERE name='Methods'
+                                     AND cv_id=(SELECT cv_id FROM cv
+                                                WHERE name='featuremap_property'))
+                                              
+        LEFT JOIN featuremapprop cm 
+          ON cm.featuremap_id=m.featuremap_id
+             AND cm.type_id=(SELECT cvterm_id FROM cvterm
+                             WHERE name='Featuremap Comment'
+                                   AND cv_id=(SELECT cv_id FROM cv
+                                              WHERE name='featuremap_property'))
+                                              
+        LEFT JOIN featuremap_dbxref fx ON fx.featuremap_id=m.featuremap_id
+        LEFT JOIN dbxref xref ON xref.dbxref_id=fx.dbxref_id
+      WHERE m.name='" . $row->{'value'} . "'";
 #print "$sql\n";
-
-  my $sth = $dbh->prepare($sql);
-  $sth->execute();
-
-  # build array of hashes
-  my @results = getResults($sth);
+    
+    logSQL('', $sql);
+    my $sth = doQuery($dbh, $sql);
+  
+    # build array of hashes
+    @results = (@results, getResults($sth));
+  }
+  
   if ((scalar @results) == 0) {
     die "\nNo map collection data found for $dataset.\n\n";
   }
@@ -322,46 +322,79 @@ sub getMapCollectionData {
 }#getMapCollectionData
 
 
+sub getMapCollectionNames {
+  my ($dataset, $dbh) = @_;
+  my $sql = "
+    SELECT DISTINCT(pp.value) FROM projectprop pp
+      INNER JOIN project p ON p.project_id=pp.project_id
+      INNER JOIN project_pub ppub ON ppub.project_id=pp.project_id
+      INNER JOIN pub ON pub.pub_id=ppub.pub_id
+    WHERE pp.type_id=(SELECT cvterm_id FROM cvterm WHERE name='Project Map Collection')";
+  if ($dataset =~ /^\d+$/) {
+    $sql .= "
+          AND pub.pub_id=$dataset";
+  }
+  else {
+    $sql .= "
+          AND pub.uniquename='$dataset'";
+  }
+  $sql .= "
+    ORDER BY pp.value";
+#print "$sql\n\n";
+  logSQL('', $sql);
+  return doQuery($dbh, $sql);
+}#getMapCollectionNames
+
+
 sub getMapData {
   my ($dataset, $mnemonic, $dbh) = @_;
   
-  my $sql = "
-    SELECT lg.name AS map_name, start.mappos AS map_start, 
-           stop.mappos AS map_end, xref.accession AS xref, 
-           '$mnemonic' AS specieslink_abv
-    FROM feature lg
-      INNER JOIN organism o ON o.organism_id=lg.organism_id
-      
-      INNER JOIN featurepos start ON start.feature_id=lg.feature_id
-      INNER JOIN featureposprop sp ON sp.featurepos_id=start.featurepos_id
-            AND sp.type_id=(SELECT cvterm_id FROM cvterm
-                            WHERE name='start'
-                                  AND cv_id=(SELECT cv_id FROM chado.cv 
-                                             WHERE name='featurepos_property'))
-                                               
-      inner join featurepos stop on stop.feature_id=lg.feature_id
-      inner join featureposprop ep 
-        on ep.featurepos_id=stop.featurepos_id
-           and ep.type_id=(select cvterm_id from cvterm
-                           where name='stop'
-                                 and cv_id=(select cv_id from chado.cv 
-                                            where name='featurepos_property'))
-                                               
-      left join feature_dbxref fx on fx.feature_id=lg.feature_id
-      left join dbxref xref on xref.dbxref_id=fx.dbxref_id
+  my $sth = getMapCollectionNames($dataset, $dbh);
 
-    where lg.type_id=(select cvterm_id from cvterm
-                      where name='linkage_group'
-                            and cv_id=(select cv_id from cv
-                                       where name='sequence'))
-    order by lg.name";
+  my @results;
+  while (my $row=$sth->fetchrow_hashref) {
+    my $sql = "
+      SELECT lg.name AS map_name, start.mappos AS map_start, 
+             stop.mappos AS map_end, xref.accession AS xref, 
+             '$mnemonic' AS specieslink_abv
+      FROM feature lg
+        INNER JOIN organism o ON o.organism_id=lg.organism_id
+        
+        INNER JOIN featurepos start ON start.feature_id=lg.feature_id
+        INNER JOIN featureposprop sp ON sp.featurepos_id=start.featurepos_id
+              AND sp.type_id=(SELECT cvterm_id FROM cvterm
+                              WHERE name='start'
+                                    AND cv_id=(SELECT cv_id FROM chado.cv 
+                                               WHERE name='featurepos_property'))
+        INNER JOIN featuremap m ON m.featuremap_id=start.featuremap_id
+                                                 
+        INNER JOIN featurepos stop ON stop.feature_id=lg.feature_id
+        INNER JOIN featureposprop ep 
+          ON ep.featurepos_id=stop.featurepos_id
+             and ep.type_id=(SELECT cvterm_id from cvterm
+                             WHERE name='stop'
+                                   AND cv_id=(SELECT cv_id FROM chado.cv 
+                                              WHERE name='featurepos_property'))
+                                                 
+        LEFT JOIN feature_dbxref fx ON fx.feature_id=lg.feature_id
+        LEFT JOIN dbxref xref ON xref.dbxref_id=fx.dbxref_id
+  
+      WHERE lg.type_id=(SELECT cvterm_id FROM cvterm
+                        WHERE name='linkage_group'
+                              AND cv_id=(select cv_id FROM cv
+                                         WHERE name='sequence'))
+            AND m.name='" . $row->{'value'} . "'
+      ORDER BY lg.name";
 #print "$sql\n";
 
-  my $sth = $dbh->prepare($sql);
-  $sth->execute();
-
-  # build array of hashes
-  my @results = getResults($sth);
+    logSQL('', $sql);
+    my $sth = doQuery($dbh, $sql);
+#print "Found " . $sth->rows . " records\n";
+  
+    # build array of hashes
+    @results = (@results, getResults($sth));
+  }
+  
   if ((scalar @results) == 0) {
     die "\nNo linkage group map data found for $dataset.\n\n";
   }
@@ -419,8 +452,8 @@ sub getMapPositionData {
     ORDER BY qtl_symbol";
 #print "$sql\n";
 
-  my $sth = $dbh->prepare($sql);
-  $sth->execute();
+  logSQL('', $sql);
+  my $sth = doQuery($dbh, $sql);
 
   # build array of hashes
   my @results = getResults($sth);
@@ -482,8 +515,8 @@ sub getPubData {
     ORDER BY publink_citation;";
 #print "$sql\n";
 
-  my $sth = $dbh->prepare($sql);
-  $sth->execute();
+  logSQL('', $sql);
+  my $sth = doQuery($dbh, $sql);
 
   # build array of hashes
   my @results = getResults($sth);
@@ -542,8 +575,8 @@ sub getQTLExperimentData {
   order by name";
 #print "$sql\n";
 
-  my $sth = $dbh->prepare($sql);
-  $sth->execute();
+  logSQL('', $sql);
+  my $sth = doQuery($dbh, $sql);
 
   # build array of hashes
   my @results = getResults($sth);
@@ -718,8 +751,8 @@ sub getQTLData {
   $sql .= "
     ORDER BY q.name";
 #print "$sql\n";
-  my $sth = $dbh->prepare($sql);
-  $sth->execute();
+  logSQL('', $sql);
+  my $sth = doQuery($dbh, $sql);
 
   # build array of hashes
   my @results = getResults($sth);
@@ -766,8 +799,8 @@ sub getSpeciesMnemonic {
           AND pub.uniquename='$dataset'";
   }
   
-  my $sth = $dbh->prepare($sql);
-  $sth->execute();
+  logSQL('', $sql);
+  my $sth = doQuery($dbh, $sql);
   
   if (my $row=$sth->fetchrow_hashref) {
     return $row->{'value'};
@@ -804,8 +837,8 @@ sub getTraitData {
     WHERE t.cv_id = (SELECT cv_id FROM chado.cv WHERE name='LegumeInfo:traits')
     ORDER BY qtl_symbol";
     
-  my $sth = $dbh->prepare($sql);
-  $sth->execute();
+  logSQL('', $sql);
+  my $sth = doQuery($dbh, $sql);
 
   # build array of hashes
   my @results = getResults($sth);
