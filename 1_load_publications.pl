@@ -384,12 +384,21 @@ sub setCitation {
   my ($dbh, $fields) = @_;
   
   my $publink_citation = $fields->{$pi{'pub_fld'}};
+  my $journal = $fields->{$pi{'journal_fld'}};
   
   if ($publink_citation && $publink_citation ne '' 
-        && $publink_citation ne 'NULL') {
-    my $citation = $publink_citation;
-    $citation =~ s/\w$//; 
-#print "citation will be [$citation]\n";
+        && $publink_citation ne 'NULL'
+        && lc($journal) != 'unpublished'
+        && lc($journal) != 'in preparation') {
+    my $citation = $fields->{$pi{'author_fld'}} 
+                 . '. (' . $fields->{$pi{'year_fld'}} . '). ' 
+                 . $fields->{$pi{'title_fld'}} .'. ' 
+                 . $fields->{$pi{'journal_fld'}} . '. ' 
+                 . $fields->{$pi{'volume_fld'}} . ':' 
+                 . $fields->{$pi{'issue_fld'}} . ' ' 
+                 . $fields->{$pi{'page_fld'}};
+print "citation will be [$citation]\n";
+exit;
     $sql = "
      INSERT INTO chado.pubprop
        (pub_id, type_id, value, rank)

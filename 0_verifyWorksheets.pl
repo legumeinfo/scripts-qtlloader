@@ -60,11 +60,12 @@ EOS
   my %files = map { s/$input_dir\/(.*)$/$1/; $_ => 1} @filepaths;
   
   # Used all over
-  my ($has_errors, $line_count, $msg, $wsfile, $sql, $sth, $row, %fields, 
-      @records, @fields, $cmd, $rv);
+  my ($has_errors, $has_warnings, $qtl_errors, $qtl_warnings, $line_count, 
+      $msg, $wsfile, $sql, $sth, $row, %fields, @records, @fields, $cmd, 
+      $rv);
   
   # Track data warnings for entire data set:
-  my $has_warnings = 0;
+  $has_warnings = 0;
   
   # Get connected to db
   my $dbh = connectToDB;
@@ -489,7 +490,8 @@ print "species: $species\n";
         $msg .= "in the spreadsheet.";
         reportError($line_count, $msg);
       }
-      my $uniq_marker_name = makeMarkerName('marker_name', $fields);
+      my $uniq_marker_name = makeMarkerName($fields->{'specieslink_abv'}, 
+                                            $fields->{'marker_name'});
       if (markerExists($dbh, $uniq_marker_name)) {
         $has_warnings++;
         $msg = "warning: This unique marker name ($uniq_marker_name) already exists ";
@@ -708,6 +710,7 @@ print "species: $species\n";
     
     $has_errors = 0;
     $line_count = 0;
+    
     foreach my $fields (@records) {
 #print Dumper($fields);
       $line_count++;
@@ -751,7 +754,8 @@ print "QTL symbol: $qtl_symbol\n";
       my $nearest_marker = $fields->{$qi{'nearest_mrkr_fld'}};
 print "Nearest marker: $nearest_marker\n";
       if ($nearest_marker ne '' && lc($nearest_marker) ne 'null') {
-        $uniq_marker_name = makeMarkerName('nearest_marker', $fields);
+        $uniq_marker_name = makeMarkerName($fields->{'specieslink_abv'}, 
+                                           $fields->{'nearest_marker'});
         if (!$markers{$nearest_marker} 
                 && !markerExists($dbh, $uniq_marker_name)) {
           $has_warnings++;
@@ -765,7 +769,8 @@ print "Nearest marker: $nearest_marker\n";
       my $flanking_marker_low = $fields->{$qi{'flank_mrkr_low_fld'}};
 print "Flanking marker low: $flanking_marker_low\n";
       if ($flanking_marker_low ne '' && lc($flanking_marker_low) ne 'null') {
-        $uniq_marker_name = makeMarkerName('flanking_marker_low', $fields);
+        $uniq_marker_name = makeMarkerName($fields->{'specieslink_abv'}, 
+                                           $fields->{'flanking_marker_low'});
         if (!$markers{$flanking_marker_low}
               && !markerExists($dbh, $uniq_marker_name)) {
           $has_warnings++;
@@ -779,7 +784,8 @@ print "Flanking marker low: $flanking_marker_low\n";
       my $flanking_marker_high = $fields->{$qi{'flanking_marker_high'}};
 print "Flanking marker high: $flanking_marker_high\n";
       if ($flanking_marker_high ne '' && lc($flanking_marker_high) ne 'null') {
-        $uniq_marker_name = makeMarkerName('flanking_marker_high', $fields);
+        $uniq_marker_name = makeMarkerName($fields->{'specieslink_abv'},
+                                           $fields->{'flanking_marker_high'});
         if (!$markers{$flanking_marker_high}
               && !markerExists($dbh, $uniq_marker_name)) {
           $has_warnings++;
@@ -801,8 +807,10 @@ print "species: $species\n";
       $qtls{$qtl_name} = 1;
     }#each record
   
+    $qtl_errors = $has_errors;
+    $qtl_warnings = $has_warnings;
     if ($has_errors) {
-      print "\n\nThe qtl table has $has_errors errors and $has_warnings warnings.\n\n";
+      print "\n\nThe QTL table has $has_errors errors and $has_warnings warnings.\n\n";
     }
     
     # MAP_POSITION.txt:
@@ -862,7 +870,14 @@ print "QTL coordinates: $left_end - $right_end\n";
     }#each record
   }#check QTL tables
   
+  if ($has_errors) {
+    print "\n\nThe Map Position table has $has_errors errors and $has_warnings warnings.\n\n";
+  }
+
   print "\n\n\nSpreadsheet verification is completed.\n";
+  if ($qtl_errors) {
+    print "There were $qtl_errors shown above in the QTL worksheet.\n";
+  }
   print "There were $has_warnings warnings that should be checked.\n\n\n";
 
 

@@ -121,7 +121,8 @@ VALUES
   ((SELECT db_id FROM db WHERE name='tripal'), 'qtl_analysis_method'),
   ((SELECT db_id FROM db WHERE name='tripal'), 'publication_linkage_group'),
   ((SELECT db_id FROM db WHERE name='tripal'), 'interval_calculation_method'),
-  ((SELECT db_id FROM db WHERE name='tripal'), 'assigned_linkage_group')
+  ((SELECT db_id FROM db WHERE name='tripal'), 'assigned_linkage_group'),
+  ((SELECT db_id FROM db WHERE name='tripal'), 'qtl_peak')
 ;
 
 INSERT INTO chado.cvterm
@@ -161,7 +162,11 @@ VALUES
    
   ((SELECT cv_id FROM cv WHERE name='feature_property'),
    'Assigned Linkage Group', 'Linkage group name assigned to a linkage group map (not its full formal name of map name + linkage group)', 
-   (SELECT dbxref_id FROM dbxref WHERE accession='assigned_linkage_group'))
+   (SELECT dbxref_id FROM dbxref WHERE accession='assigned_linkage_group')),
+   
+  ((SELECT cv_id FROM cv WHERE name='feature_property'),
+   'QTL Peak', 'Position of QTL peak)', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='qtl_peak'))
    
 ;
 

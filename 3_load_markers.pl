@@ -105,7 +105,8 @@ if ($userinput ne 'y') {
     $line_count++;
     
     my $marker_id;
-    my $uniq_marker_name = makeMarkerName('marker_name', $fields);
+    my $uniq_marker_name = makeMarkerName($fields->{'specieslink_abv'}, 
+                                          $fields->{'marker_name'});
 print "$line_count: handle marker $uniq_marker_name\n";
     
     if ($marker_id=markerExists($dbh, $uniq_marker_name)) {
@@ -257,7 +258,8 @@ sub setFeatureprop {
   
   if ($fields->{$fieldname} && $fields->{$fieldname} ne '' 
         && $fields->{$fieldname} ne 'NULL') {
-    my $uniq_marker_name = makeMarkerName('marker_name', $fields);
+    my $uniq_marker_name = makeMarkerName($fields->{'specieslink_abv'}, 
+                                          $fields->{'marker_name'});
     $sql = "
       INSERT INTO chado.featureprop
         (feature_id, type_id, value, rank)
@@ -277,7 +279,8 @@ sub setFeatureprop {
 sub setMarkerRec {
   my ($dbh, $marker_id, $primary_dbxref_id, $fields) = @_;
   
-  my $uniq_marker_name = makeMarkerName('marker_name', $fields);
+  my $uniq_marker_name = makeMarkerName($fields->{'specieslink_abv'}, 
+                                        $fields->{'marker_name'});
   my $organism_id = getOrganismID($dbh, $fields->{'specieslink_abv'}, $line_count);
   if ($existing_markers{$uniq_marker_name}) {
     $sql = "

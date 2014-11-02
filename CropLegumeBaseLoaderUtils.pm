@@ -645,8 +645,8 @@ sub makeMappingPopulationName {
 
 
 sub makeMarkerName {
-  my ($markerfield, $fields) = @_;
-  my $uniq_marker_name = "$fields->{$markerfield}-$fields->{'specieslink_abv'}";
+  my ($species, $marker) = @_;
+  my $uniq_marker_name = "$species.$marker";
   return $uniq_marker_name;
 }#makeMarkerName
 
