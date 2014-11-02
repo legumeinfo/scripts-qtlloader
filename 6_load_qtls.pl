@@ -246,12 +246,14 @@ print "\n$line_count: $qtl_name\n";
     }
 
 
-# NEW: QTL_peak
+    # QTL_peak
+    loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'pub_lg_fld'}}, 
+                    'Publication Linkage Group', 'feature_property', $fields);
 
 #print "  attach pub lg\n";
     # publication_lg
-    loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'pub_lg_fld'}}, 
-                    'Publication Linkage Group', 'feature_property', $fields);
+    loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'QTL_peak_fld'}}, 
+                    'QTL Peak', 'feature_property', $fields);
     
 #print "  attach lg\n";
 #    # lg (is this already in via the map and position?)
@@ -282,19 +284,20 @@ sub setQTLRecord {
   
   my $species     = $fields->{$qi{'species_fld'}};
 print "species: $species\n";
-  my $organism_id = getOrganismID($dbh, $species, $line_count);
+  my $organism_id    = getOrganismID($dbh, $species, $line_count);
   my $qtl_symbol     = $fields->{$qi{'qtl_symbol_fld'}};
   my $qtl_identifier = $fields->{$qi{'qtl_identifier_fld'}};
   my $qtl_name       = makeQTLName($qtl_symbol, $qtl_identifier);
 print "QTL name: $qtl_name\n";
   
+  my $uniquename = "$species.$qtl_name";
   if ($qtl_id) {
     $sql = "
       UPDATE chado.feature
       SET 
         organism_id=$organism_id,
         name = '$qtl_name',
-        uniquename = '$species:$qtl_name',
+        uniquename = '$uniquename',
         type_id = (SELECT cvterm_id FROM chado.cvterm 
                    WHERE name = 'QTL'
                          AND cv_id=(SELECT cv_id FROM chado.cv 
@@ -310,7 +313,7 @@ print "QTL name: $qtl_name\n";
       VALUES
         ($organism_id,
          '$qtl_name',
-         '$species:$qtl_name',
+         '$uniquename',
          (SELECT cvterm_id FROM chado.cvterm 
           WHERE name = 'QTL'
             AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='sequence')))
@@ -451,7 +454,7 @@ print "attach marker $markername\n";
   }
   
   my $species = $fields->{$qi{'species_fld'}};
-  my $unique_marker_name = "$markername-$species";
+  my $unique_marker_name = makeMarkerName($species, $markername);
   
   # check for existing marker
   my $marker_id = 0;
