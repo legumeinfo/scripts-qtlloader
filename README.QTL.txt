@@ -32,8 +32,11 @@ Recommended order:
   5. 3_load_markers.pl
   
   For the QTL spreadsheet itself:
-  6. 0_verifyWorksheet.pl (-p, -g, -e, -q)
+  6. 0_verifyWorksheet.pl -p to check publication worksheet
   7. 1_load_publications.pl
-  8. 2_load_maps.pl
-  7. 4_load_qtl_experiments.pl
-  8. 6_load_qtls.pl
+  8. 0_verifyWorksheet.pl -g to check map worksheets
+  9. 2_load_maps.pl
+  10. 0_verifyWorksheet.pl -e to check QTL experiment worksheet
+  11. 4_load_qtl_experiments.pl
+  12. 0_verifyWorksheet.pl -q to check QTL worksheets
+  13. 6_load_qtls.pl
