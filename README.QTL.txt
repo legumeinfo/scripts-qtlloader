@@ -23,7 +23,7 @@ Recommended order:
   
   1. dumpSpreadsheet.pl (to get tsv tables from the worksheets)
   
-  If you have traits to load:
+  If you have new traits to load:
   2. 0_verifyWorksheet.pl -t (to check trait table)
   3. 5_load_traits.pl
   
