@@ -198,13 +198,13 @@ sub loadMapCollection {
       $sth->execute();
     }#has mapping population
     
-    # map_name, publication_map_name, pop_size, pop_type, analysis_method, and comment
+    # map_name, publication_map_name, pop_size, pop_type, analysis_method
     insertFeaturemapprop($dbh, $map_id, $mi{'map_name_fld'}, 'Display Map Name', $fields);
     insertFeaturemapprop($dbh, $map_id, $mci{'pub_map_name_fld'}, 'Publication Map Name', $fields);
     insertFeaturemapprop($dbh, $map_id, $mci{'pop_size_fld'}, 'Population Size', $fields);
     insertFeaturemapprop($dbh, $map_id, $mci{'pop_type_fld'}, 'Population Type', $fields);
     insertFeaturemapprop($dbh, $map_id, $mci{'a_method_fld'}, 'Methods', $fields);
-    insertFeaturemapprop($dbh, $map_id, $mci{'comment_fld'}, 'Featuremap Comment', $fields);
+#    insertFeaturemapprop($dbh, $map_id, $mci{'comment_fld'}, 'Featuremap Comment', $fields);
           
     # attach map collection (featuremap) to publication
     foreach my $publink_citation (@publink_citations) {
