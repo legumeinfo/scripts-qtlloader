@@ -17,6 +17,13 @@ THE SCRIPTS
 Note: once upon a time the scripts needed to be executed in the order indicated
       by their names. This is no longer true, which complicates things, rather.
 
+Note: the steps below will only work if done in order. If you wish to only 
+      verify the worksheets and not load them, the options to 
+			0_verifyWorksheet.pl will need to be "stacked" (e.g. -t, then -tm, then
+			-tmp, et cetera). This is because when verifying a worksheet, the verify
+			script will need to check both the database and the contents of other
+			worksheets to ensure the data is correct.
+
 Recommended order:
   0. Load cvterms (QTL_cvterms.sql) and create tables (QTL_new_tables.sql)
        Do this by hand rather than executing the .sql files to catch any errors.
