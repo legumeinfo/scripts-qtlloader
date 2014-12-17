@@ -1,3 +1,11 @@
+# Fill in the appropiate strings for $connect_str, $user, and $pass.
+# The connect string will look like:
+#   DBI:Pg:dbname=drupal;host=<host>;port=<port>
+# Or
+#   DBI:Pg:dbname="drupal"
+# If you are working from a server with Nathan's Postgres authentication
+# settings (peanutbase & legumeinfo servers)
+
 sub connectToDB {
   my $connect_str = '';
   my $user        = '';
