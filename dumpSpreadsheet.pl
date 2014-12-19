@@ -116,8 +116,6 @@ sub exportWorksheet {
   my ($filename, $worksheet, $rowref, $colref) = @_;
   my @rows = @$rowref;
   my @cols = @$colref;
-#print "rows:\n" . Dumper(@rows);
-#print "cols:\n" . Dumper(@cols);
 
   open my $fh, ">$filename" or die "\nUnable to open $filename: $!\n\n";
   
