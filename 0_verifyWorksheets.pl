@@ -368,7 +368,7 @@ print "map name: $mapname\n";
       }
       elsif (mapSetExists($dbh, $mapname)) {
         $has_warnings++;
-        $msg = "WARNING: this map collection name ($mapname)";
+        $msg = "warning: this map collection name ($mapname)";
         $msg .= "is already in the database and will be updated.";
         reportError($line_count, $msg);
       }
