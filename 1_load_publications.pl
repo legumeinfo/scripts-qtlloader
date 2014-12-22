@@ -490,7 +490,7 @@ sub setPubRec {
         issue='$issue', pyear='$year', pages='$page', uniquename=?,
         type_id=(SELECT cvterm_id FROM chado.cvterm 
                  WHERE LOWER(name)=LOWER('$fields->{$pi{'ref_type_fld'}}')
-                   AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub'))
+                   AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='pub_type'))
       WHERE pub_id=$existing_citations{$publink_citation}";
   }
   else {
