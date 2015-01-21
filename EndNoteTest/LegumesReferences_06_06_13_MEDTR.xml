@@ -1,0 +1,1598 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xml>
+  <records>
+    <record>
+      <database name="LegumesReferences_06_06_13.enl" path="/Users/sc/Dropbox/lisqtl/EndNote/LegumesReferences/LegumesReferences_06_06_13.enl">LegumesReferences_06_06_13.enl</database>
+      <source-app name="EndNote" version="17.1">EndNote</source-app>
+      <rec-number>171</rec-number>
+      <foreign-keys>
+        <key app="EN" db-id="5dsawav2qxavwoeazsbvdtrytxt5529ww20s">171</key>
+      </foreign-keys>
+      <ref-type name="Journal Article">17</ref-type>
+      <contributors>
+        <authors>
+          <author>
+            <style face="normal" font="default" size="100%">Ben, C.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Debellé, F.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Berges, H.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Bellec, A.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Jardinaud, M. F.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Anson, P.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Huguet, T.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Gentzbittel, L.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Vailleau, F.</style>
+          </author>
+        </authors>
+      </contributors>
+      <auth-address>
+        <style face="normal" font="default" size="100%">INP, UPS, Laboratoire d'Ecologie Fonctionnelle et Environnement (Ecolab), ENSAT, Universite de Toulouse, 18 chemin de Borde Rouge, 31326, Castanet Tolosan, France; CNRS, Ecolab, 31326, Castanet Tolosan, France.</style>
+      </auth-address>
+      <titles>
+        <title>
+          <style face="normal" font="default" size="100%">MtQRRS1, an R-locus required for Medicago truncatula quantitative resistance to Ralstonia solanacearum</style>
+        </title>
+        <secondary-title>
+          <style face="normal" font="default" size="100%">The New Phytologist</style>
+        </secondary-title>
+        <alt-title>
+          <style face="normal" font="default" size="100%">New Phytol</style>
+        </alt-title>
+      </titles>
+      <periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">The New phytologist</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">New Phytol</style>
+        </abbr-1>
+      </periodical>
+      <alt-periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">The New phytologist</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">New Phytol</style>
+        </abbr-1>
+      </alt-periodical>
+      <edition>
+        <style face="normal" font="default" size="100%">2013/05/04</style>
+      </edition>
+      <keywords>
+        <keyword>
+          <style face="normal" font="default" size="100%">bacterial wilt, mapping, Medicago truncatula, quantitative trait locus (QTL), quantitative resistance, Ralstonia solanacearum, root pathogen</style>
+        </keyword>
+      </keywords>
+      <dates>
+        <year>
+          <style face="normal" font="default" size="100%">2013</style>
+        </year>
+        <pub-dates>
+          <date>
+            <style face="normal" font="default" size="100%">May 2</style>
+          </date>
+        </pub-dates>
+      </dates>
+      <isbn>
+        <style face="normal" font="default" size="100%">0028-646X (Print)
+1469-8137 (Electronic)</style>
+      </isbn>
+      <accession-num>
+        <style face="normal" font="default" size="100%">23638965</style>
+      </accession-num>
+      <abstract>
+        <style face="normal" font="default" size="100%">Ralstonia solanacearum is a major soilborne pathogen that attacks &gt; 200 plant species, including major crops. To characterize MtQRRS1, a major quantitative trait locus (QTL) for resistance towards this bacterium in the model legume Medicago truncatula, genetic and functional approaches were combined. QTL analyses together with disease scoring of heterogeneous inbred families were used to define the locus. The candidate region was studied by physical mapping using a bacterial artificial chromosome (BAC) library of the resistant line, and sequencing. In planta bacterial growth measurements, grafting experiments and gene expression analysis were performed to investigate the mechanisms by which this locus confers resistance to R. solanacearum. The MtQRRS1 locus was localized to the same position in two recombinant inbred line populations and was narrowed down to a 64 kb region. Comparison of parental line sequences revealed 15 candidate genes with sequence polymorphisms, but no evidence of differential gene expression upon infection. A role for the hypocotyl in resistance establishment was shown. These data indicate that the quantitative resistance to bacterial wilt conferred by MtQRRS1, which contains a cluster of seven R genes, is shared by different accessions and may act through intralocus interactions to promote resistance.</style>
+      </abstract>
+      <notes>
+        <style face="normal" font="default" size="100%">Ben, Cécile
+Debellé, Frédéric
+Berges, Hélène
+Bellec, Arnaud
+Jardinaud, Marie-Françoise
+Anson, Philippe
+Huguet, Thierry
+Gentzbittel, Laurent
+Vailleau, Fabienne
+New Phytol. 2013 May 2. doi: 10.1111/nph.12299.</style>
+      </notes>
+      <urls>
+        <related-urls>
+          <url>
+            <style face="normal" font="default" size="100%">http://www.ncbi.nlm.nih.gov/pubmed/23638965</style>
+          </url>
+        </related-urls>
+        <pdf-urls>
+          <url>internal-pdf://BenDebelle2013_MtQRRS1_Ralstonia_Resistance_QTL_Medicagotruncatula_NewPhytol-2131564032/BenDebelle2013_MtQRRS1_Ralstonia_Resistance_QTL_Medicagotruncatula_NewPhytol.pdf</url>
+        </pdf-urls>
+      </urls>
+      <custom1>
+        <style face="normal" font="default" size="100%">Ben, Debelle et al., 2013a</style>
+      </custom1>
+      <custom2>
+        <style face="normal" font="default" size="100%">23638965</style>
+      </custom2>
+      <custom3>
+        <style face="normal" font="default" size="100%">medtr</style>
+      </custom3>
+      <custom4>
+        <style face="normal" font="default" size="100%">not processed</style>
+      </custom4>
+      <electronic-resource-num>
+        <style face="normal" font="default" size="100%">10.1111/nph.12299</style>
+      </electronic-resource-num>
+      <language>
+        <style face="normal" font="default" size="100%">English</style>
+      </language>
+    </record>
+    <record>
+      <database name="LegumesReferences_06_06_13.enl" path="/Users/sc/Dropbox/lisqtl/EndNote/LegumesReferences/LegumesReferences_06_06_13.enl">LegumesReferences_06_06_13.enl</database>
+      <source-app name="EndNote" version="17.1">EndNote</source-app>
+      <rec-number>152</rec-number>
+      <foreign-keys>
+        <key app="EN" db-id="5dsawav2qxavwoeazsbvdtrytxt5529ww20s">152</key>
+      </foreign-keys>
+      <ref-type name="Journal Article">17</ref-type>
+      <contributors>
+        <authors>
+          <author>
+            <style face="normal" font="default" size="100%">Hougaard, B. K.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Madsen, L. H.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Sandal, N.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Moretzsohn, M. D.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Fredslund, J.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Schauser, L.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Nielsen, A. M.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Rohde, T.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Sato, S.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Tabata, S.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Bertioli, D. J.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Stougaard, J.</style>
+          </author>
+        </authors>
+      </contributors>
+      <auth-address>
+        <style face="normal" font="default" size="100%">Stougaard, J Univ Aarhus, Dept Mol Biol, Gene Express Lab, Gustav Wieds Vej 10, DK-8000 Aarhus C, Denmark Univ Aarhus, Dept Mol Biol, Gene Express Lab, Gustav Wieds Vej 10, DK-8000 Aarhus C, Denmark Univ Aarhus, Dept Mol Biol, Gene Express Lab, DK-8000 Aarhus C, Denmark Embrapa Recursos Genet &amp; Biotecnol, BR-70770900 Brasilia, DF, Brazil Univ Aarhus, Bioinformat Res Ctr, DK-8000 Aarhus C, Denmark Kazusa DNA Res Inst, Chiba 292, Japan Univ Catolica Brasilia, BR-70790160 Brasilia, DF, Brazil</style>
+      </auth-address>
+      <titles>
+        <title>
+          <style face="normal" font="default" size="100%">Legume anchor markers link syntenic regions between Phaseolus vulgaris, Lotus japonicus, Medicago truncatula and Arachis</style>
+        </title>
+        <secondary-title>
+          <style face="normal" font="default" size="100%">Genetics</style>
+        </secondary-title>
+        <alt-title>
+          <style face="normal" font="default" size="100%">Genetics</style>
+        </alt-title>
+      </titles>
+      <periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Genetics</style>
+        </abbr-1>
+      </periodical>
+      <alt-periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Genetics</style>
+        </abbr-1>
+      </alt-periodical>
+      <pages>
+        <style face="normal" font="default" size="100%">2299-2312</style>
+      </pages>
+      <volume>
+        <style face="normal" font="default" size="100%">179</style>
+      </volume>
+      <number>
+        <style face="normal" font="default" size="100%">4</style>
+      </number>
+      <keywords>
+        <keyword>
+          <style face="normal" font="default" size="100%">comparative genomics</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">structural-analysis</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">lens-culinaris</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">map</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">model</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">arabidopsis</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">evolution</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">l.</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">construction</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">conservation</style>
+        </keyword>
+      </keywords>
+      <dates>
+        <year>
+          <style face="normal" font="default" size="100%">2008</style>
+        </year>
+        <pub-dates>
+          <date>
+            <style face="normal" font="default" size="100%">Aug</style>
+          </date>
+        </pub-dates>
+      </dates>
+      <isbn>
+        <style face="normal" font="default" size="100%">0016-6731 (Print)
+1943-2631 (Electronic)</style>
+      </isbn>
+      <accession-num>
+        <style face="normal" font="default" size="100%">ISI:000258591200046</style>
+      </accession-num>
+      <abstract>
+        <style face="normal" font="default" size="100%">We have previously described a bioinformatics pipeline identifying comparative anchor-tagged sequence (CATS) loci, combined with design of intron-spanning primers. The derived anchor markers defining the linkage position of homologous genes are essential for evaluating genome conservation among related species and facilitate transfer of genetic and genome information between species. Here we validate this global approach in the common bean and in the AA genome complement of the allotetraploid peanut. We present the successful conversion of similar to 50% of the bioinformatics-defined primers into legume anchor markers in bean and diploid Arachis species. One hundred and four new loci representing single-copy genes were added to the existing bean map. These new legume anchor-marker loci enabled the alignment of genetic linkage maps through corresponding genes and provided an estimate of the extent of synteny and collinearity. Extensive macrosynteny between Lotus and bean was uncovered on 8 of the 11 bean chromosomes and large blocks of macrosynteny were also found between bean and Medicago. This suggests that anchor markers can facilitate a better understanding of the genes and genetics of important traits in crops with largely uncharacterized genomes using genetic and genome information from related model plants.</style>
+      </abstract>
+      <notes>
+        <style face="normal" font="default" size="100%">339QD Times Cited:41 Cited References Count:39</style>
+      </notes>
+      <urls>
+        <related-urls>
+          <url>
+            <style face="normal" font="default" size="100%">&lt;Go to ISI&gt;://000258591200046</style>
+          </url>
+        </related-urls>
+        <pdf-urls>
+          <url>internal-pdf://HougaardMadsen2008...Stougaard_AnchorMarkerSynteny_Genetics-3423852032/HougaardMadsen2008...Stougaard_AnchorMarkerSynteny_Genetics.pdf</url>
+        </pdf-urls>
+      </urls>
+      <custom1>
+        <style face="normal" font="default" size="100%">Hougaard, Madsen et al., 2008a</style>
+      </custom1>
+      <custom2>
+        <style face="normal" font="default" size="100%">18689902</style>
+      </custom2>
+      <custom3>
+        <style face="normal" font="default" size="100%">phavu lotja medtr arahy</style>
+      </custom3>
+      <electronic-resource-num>
+        <style face="normal" font="default" size="100%">Doi 10.1534/Genetics.108.090084</style>
+      </electronic-resource-num>
+      <language>
+        <style face="normal" font="default" size="100%">English</style>
+      </language>
+    </record>
+    <record>
+      <database name="LegumesReferences_06_06_13.enl" path="/Users/sc/Dropbox/lisqtl/EndNote/LegumesReferences/LegumesReferences_06_06_13.enl">LegumesReferences_06_06_13.enl</database>
+      <source-app name="EndNote" version="17.1">EndNote</source-app>
+      <rec-number>49</rec-number>
+      <foreign-keys>
+        <key app="EN" db-id="5dsawav2qxavwoeazsbvdtrytxt5529ww20s">49</key>
+      </foreign-keys>
+      <ref-type name="Journal Article">17</ref-type>
+      <contributors>
+        <authors>
+          <author>
+            <style face="normal" font="default" size="100%">Julier, B.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Huguet, T.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Chardon, F.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Ayadi, R.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Pierre, J. B.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Prosperi, J. M.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Barre, P.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Huyghe, C.</style>
+          </author>
+        </authors>
+      </contributors>
+      <auth-address>
+        <style face="normal" font="default" size="100%">INRA, Unite de Genetique et d'Amelioration des Plantes Fourrageres, BP6, 86600, Lusignan, France. bjulier@lusignan.inra.fr</style>
+      </auth-address>
+      <titles>
+        <title>
+          <style face="normal" font="default" size="100%">Identification of quantitative trait loci influencing aerial morphogenesis in the model legume Medicago truncatula</style>
+        </title>
+        <secondary-title>
+          <style face="normal" font="default" size="100%">Theoretical and Applied Genetics</style>
+        </secondary-title>
+        <alt-title>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </alt-title>
+      </titles>
+      <periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">Theoretical and Applied Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </abbr-1>
+      </periodical>
+      <alt-periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">TAG. Theoretical and Applied Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </abbr-1>
+      </alt-periodical>
+      <pages>
+        <style face="normal" font="default" size="100%">1391-406</style>
+      </pages>
+      <volume>
+        <style face="normal" font="default" size="100%">114</style>
+      </volume>
+      <number>
+        <style face="normal" font="default" size="100%">8</style>
+      </number>
+      <edition>
+        <style face="normal" font="default" size="100%">2007/03/22</style>
+      </edition>
+      <keywords>
+        <keyword>
+          <style face="normal" font="default" size="100%">Chromosome Mapping</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Chromosomes, Plant/genetics</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Flowering Tops/genetics/growth &amp; development</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Medicago truncatula/anatomy &amp; histology/*genetics/*growth &amp; development</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Plant Components, Aerial/*genetics/*growth &amp; development</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Plant Leaves/genetics/growth &amp; development</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Plant Stems/genetics/growth &amp; development</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">*Quantitative Trait Loci</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">*Quantitative Trait, Heritable</style>
+        </keyword>
+      </keywords>
+      <dates>
+        <year>
+          <style face="normal" font="default" size="100%">2007</style>
+        </year>
+        <pub-dates>
+          <date>
+            <style face="normal" font="default" size="100%">May</style>
+          </date>
+        </pub-dates>
+      </dates>
+      <isbn>
+        <style face="normal" font="default" size="100%">0040-5752 (Print)
+1432-2242 (Electronic)</style>
+      </isbn>
+      <accession-num>
+        <style face="normal" font="default" size="100%">17375280</style>
+      </accession-num>
+      <abstract>
+        <style face="normal" font="default" size="100%">In many legume crops, especially in forage legumes, aerial morphogenesis defined as growth and development of plant organs, is an essential trait as it determines plant and seed biomass as well as forage quality (protein concentration, dry matter digestibility). Medicago truncatula is a model species for legume crops. A set of 29 accessions of M. truncatula was evaluated for aerial morphogenetic traits. A recombinant inbred lines (RILs) mapping population was used for analysing quantitative variation in aerial morphogenetic traits and QTL detection. Genes described to be involved in aerial morphogenetic traits in other species were mapped to analyse co-location between QTLs and genes. A large variation was found for flowering date, morphology and dynamics of branch elongation among the 29 accessions and within the RILs population. Flowering date was negatively correlated to main stem and branch length. QTLs were detected for all traits, and each QTL explained from 5.2 to 59.2% of the phenotypic variation. A QTL explaining a large part of genetic variation for flowering date and branch growth was found on chromosome 7. The other chromosomes were also involved in the variation detected in several traits. Mapping of candidate genes indicates a co-location between a homologue of Constans gene or a flowering locus T (FT) gene and the QTL of flowering date on chromosome 7. Other candidate genes for several QTLs are described.</style>
+      </abstract>
+      <notes>
+        <style face="normal" font="default" size="100%">Julier, Bernadette
+ Huguet, Thierry
+ Chardon, Fabien
+ Ayadi, Radia
+ Pierre, Jean-Baptiste
+ Prosperi, Jean-Marie
+ Barre, Philippe
+ Huyghe, Christian
+ Germany
+ Theor Appl Genet. 2007 May;114(8):1391-406. Epub 2007 Mar 21.</style>
+      </notes>
+      <work-type>
+        <style face="normal" font="default" size="100%">Research Support, Non-U.S. Gov't</style>
+      </work-type>
+      <urls>
+        <related-urls>
+          <url>
+            <style face="normal" font="default" size="100%">http://www.ncbi.nlm.nih.gov/pubmed/17375280</style>
+          </url>
+          <url>
+            <style face="normal" font="default" size="100%">http://link.springer.com.proxy.lib.iastate.edu/article/10.1007/s00122-007-0525-1/fulltext.html</style>
+          </url>
+        </related-urls>
+        <pdf-urls>
+          <url>internal-pdf://JulierHuguet2007_QTLAerialMorphogenesisMedicagotruncatula_TheorApplGenet-0605320192/JulierHuguet2007_QTLAerialMorphogenesisMedicagotruncatula_TheorApplGenet.pdf</url>
+        </pdf-urls>
+      </urls>
+      <custom1>
+        <style face="normal" font="default" size="100%">Julier, Huguet et al., 2007a</style>
+      </custom1>
+      <custom2>
+        <style face="normal" font="default" size="100%">17375280</style>
+      </custom2>
+      <custom3>
+        <style face="normal" font="default" size="100%">medtr</style>
+      </custom3>
+      <custom4>
+        <style face="normal" font="default" size="100%">not processed</style>
+      </custom4>
+      <electronic-resource-num>
+        <style face="normal" font="default" size="100%">10.1007/s00122-007-0525-1</style>
+      </electronic-resource-num>
+      <language>
+        <style face="normal" font="default" size="100%">english</style>
+      </language>
+    </record>
+    <record>
+      <database name="LegumesReferences_06_06_13.enl" path="/Users/sc/Dropbox/lisqtl/EndNote/LegumesReferences/LegumesReferences_06_06_13.enl">LegumesReferences_06_06_13.enl</database>
+      <source-app name="EndNote" version="17.1">EndNote</source-app>
+      <rec-number>60</rec-number>
+      <foreign-keys>
+        <key app="EN" db-id="5dsawav2qxavwoeazsbvdtrytxt5529ww20s">60</key>
+      </foreign-keys>
+      <ref-type name="Journal Article">17</ref-type>
+      <contributors>
+        <authors>
+          <author>
+            <style face="normal" font="default" size="100%">Lagunes-Espinoza, L. D. C.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Huguet, T.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Julier, B.</style>
+          </author>
+        </authors>
+      </contributors>
+      <titles>
+        <title>
+          <style face="normal" font="default" size="100%">Multi-population QTL detection for aerial morphogenetic traits in the model legume Medicago truncatula</style>
+        </title>
+        <secondary-title>
+          <style face="normal" font="default" size="100%">Theoretical and Applied Genetics</style>
+        </secondary-title>
+        <alt-title>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </alt-title>
+      </titles>
+      <periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">Theoretical and Applied Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </abbr-1>
+      </periodical>
+      <alt-periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">TAG. Theoretical and Applied Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </abbr-1>
+      </alt-periodical>
+      <pages>
+        <style face="normal" font="default" size="100%">739-754</style>
+      </pages>
+      <volume>
+        <style face="normal" font="default" size="100%">124</style>
+      </volume>
+      <number>
+        <style face="normal" font="default" size="100%">4</style>
+      </number>
+      <dates>
+        <year>
+          <style face="normal" font="default" size="100%">2012</style>
+        </year>
+      </dates>
+      <isbn>
+        <style face="normal" font="default" size="100%">0040-5752 (Print)
+1432-2242 (Electronic)</style>
+      </isbn>
+      <abstract>
+        <style face="normal" font="default" size="100%">Medicago truncatula, as a model species, is useful to study the genetic control of traits of agronomic interest in legumes species. Aerial morphogenesis is a key component of forage and seed yield. It was measured in four mapping populations originating from five parental lines. Single and multi-population quantitative trait locus (QTL) detections were carried out. A large variation was observed within populations and transgressive segregation was noted. Most traits showed high heritabilities in all seasons. Length of primary branches (LPB, cm) was positively correlated to branch elongation rate (BER, cm day−1) and aerial dry matter (ADM, g). Flowering time (FT, °C day−1) showed negative correlations with length of main stem (LMS, cm) and BER. One hundred and forty-one QTLs for BER, LMS, FT, LPB, diameter of primary branches (DPB), number of primary branches (NPB), number of nodes (NI) and ADM were identified and localized over all eight chromosomes. Single and multi-population analyses showed that the most important regions for aerial morphogenetic traits were chromosomes 1, 2, 7 and 8. Multi-population analysis revealed three regions of major QTLs affecting aerial morphogenetic traits (LPB, LMS, NPB, BER and FT). A region involved in flowering time variation was revealed on chromosome 6 on a single population. These results were used to identify candidate genes that could control variation for aerial morphogenesis traits in this species and in related crop legume species.</style>
+      </abstract>
+      <notes>
+        <style face="normal" font="default" size="100%">Lagunes Espinoza, Luz del Carmen
+ Huguet, Thierry
+ Julier, Bernadette</style>
+      </notes>
+      <urls>
+        <related-urls>
+          <url>
+            <style face="normal" font="default" size="100%">http://www.springerlink.com/content/2776w5135473132n/</style>
+          </url>
+        </related-urls>
+        <pdf-urls>
+          <url>internal-pdf://Lagunes-EspinozaHuguet2012_MedicagotruncatulaAerialMorphoTraits_TheorApplGenet-0587259136/Lagunes-EspinozaHuguet2012_MedicagotruncatulaAerialMorphoTraits_TheorApplGenet.pdf</url>
+        </pdf-urls>
+      </urls>
+      <custom1>
+        <style face="normal" font="default" size="100%">Lagunes-Espinoza, Huguet et al., 2012a</style>
+      </custom1>
+      <custom2>
+        <style face="normal" font="default" size="100%">22075808</style>
+      </custom2>
+      <custom3>
+        <style face="normal" font="default" size="100%">medtr</style>
+      </custom3>
+      <custom4>
+        <style face="normal" font="default" size="100%">not processed</style>
+      </custom4>
+      <electronic-resource-num>
+        <style face="normal" font="default" size="100%">10.1007/s00122-011-1743-0</style>
+      </electronic-resource-num>
+      <language>
+        <style face="normal" font="default" size="100%">english</style>
+      </language>
+    </record>
+    <record>
+      <database name="LegumesReferences_06_06_13.enl" path="/Users/sc/Dropbox/lisqtl/EndNote/LegumesReferences/LegumesReferences_06_06_13.enl">LegumesReferences_06_06_13.enl</database>
+      <source-app name="EndNote" version="17.1">EndNote</source-app>
+      <rec-number>61</rec-number>
+      <foreign-keys>
+        <key app="EN" db-id="5dsawav2qxavwoeazsbvdtrytxt5529ww20s">61</key>
+      </foreign-keys>
+      <ref-type name="Journal Article">17</ref-type>
+      <contributors>
+        <authors>
+          <author>
+            <style face="normal" font="default" size="100%">Lagunes-Espinoza, L. D. C.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Julier, B.</style>
+          </author>
+        </authors>
+      </contributors>
+      <auth-address>
+        <style face="normal" font="default" size="100%">INRA, UR 4, Unite de Recherche Pluridisciplinaire Prairies et Plantes Fourrageres, Le Chene, RD 150, BP 80006, 86600, Lusignan, France.</style>
+      </auth-address>
+      <titles>
+        <title>
+          <style face="normal" font="default" size="100%">QTL detection for forage quality and stem histology in four connected mapping populations of the model legume Medicago truncatula</style>
+        </title>
+        <secondary-title>
+          <style face="normal" font="default" size="100%">Theoretical and Applied Genetics</style>
+        </secondary-title>
+        <alt-title>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </alt-title>
+      </titles>
+      <periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">Theoretical and Applied Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </abbr-1>
+      </periodical>
+      <alt-periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">TAG. Theoretical and Applied Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </abbr-1>
+      </alt-periodical>
+      <pages>
+        <style face="normal" font="default" size="100%">497-509</style>
+      </pages>
+      <volume>
+        <style face="normal" font="default" size="100%">126</style>
+      </volume>
+      <number>
+        <style face="normal" font="default" size="100%">2</style>
+      </number>
+      <edition>
+        <style face="normal" font="default" size="100%">2012/10/27</style>
+      </edition>
+      <dates>
+        <year>
+          <style face="normal" font="default" size="100%">2013</style>
+        </year>
+        <pub-dates>
+          <date>
+            <style face="normal" font="default" size="100%">Feb</style>
+          </date>
+        </pub-dates>
+      </dates>
+      <isbn>
+        <style face="normal" font="default" size="100%">0040-5752 (Print)
+1432-2242 (Electronic)</style>
+      </isbn>
+      <accession-num>
+        <style face="normal" font="default" size="100%">23099818</style>
+      </accession-num>
+      <abstract>
+        <style face="normal" font="default" size="100%">Forage quality combines traits related to protein content and energy value. High-quality forages contribute to increase farm autonomy by reducing the use of energy or protein-rich supplements. Genetic analyses in forage legume species are complex because of their tetraploidy and allogamy. Indeed, no genetic studies of quality have been published at the molecular level on these species. Nonetheless, mapping populations of the model species M. truncatula can be used to detect QTL for forage quality. Here, we studied a crossing design involving four connected populations of M. truncatula. Each population was composed of ca. 200 recombinant inbred lines (RIL). We sought population-specific QTL and QTL explaining the whole design variation. We grew parents and RIL in a greenhouse for 2 or 3 seasons and analysed plants for chemical composition of vegetative organs (protein content, digestibility, leaf-to-stem ratio) and stem histology (stem cross-section area, tissue proportions). Over the four populations and all the traits, QTL were found on all chromosomes. Among these QTL, only four genomic regions, on chromosomes 1, 3, 7 and 8, contributed to explaining the variations in the whole crossing design. Surprisingly, we found that quality QTL were located in the same genomic regions as morphological QTL. We thus confirmed the quantitative inheritance of quality traits and tight relationships between quality and morphology. Our findings could be explained by a co-location of genes involved in quality and morphology. This study will help to detect candidate genes involved in quantitative variation for quality in forage legume species.</style>
+      </abstract>
+      <notes>
+        <style face="normal" font="default" size="100%">Lagunes Espinoza, Luz Del Carmen
+ Julier, Bernadette
+ Germany
+ Theor Appl Genet. 2013 Feb;126(2):497-509. doi: 10.1007/s00122-012-1996-2. Epub 2012 Oct 26.</style>
+      </notes>
+      <urls>
+        <related-urls>
+          <url>
+            <style face="normal" font="default" size="100%">http://www.ncbi.nlm.nih.gov/pubmed/23099818</style>
+          </url>
+          <url>
+            <style face="normal" font="default" size="100%">http://link.springer.com/article/10.1007/s00122-012-1996-2</style>
+          </url>
+        </related-urls>
+        <pdf-urls>
+          <url>internal-pdf://Lagunes-EspinozaJulier2013_ForageStemQTLMedicagotruncatula_TheorApplGenet-3053514240/Lagunes-EspinozaJulier2013_ForageStemQTLMedicagotruncatula_TheorApplGenet.pdf</url>
+        </pdf-urls>
+      </urls>
+      <custom1>
+        <style face="normal" font="default" size="100%">Lagunes-Espinoza and Julier, 2013a</style>
+      </custom1>
+      <custom2>
+        <style face="normal" font="default" size="100%">23099818</style>
+      </custom2>
+      <custom3>
+        <style face="normal" font="default" size="100%">medtr</style>
+      </custom3>
+      <custom4>
+        <style face="normal" font="default" size="100%">not processed</style>
+      </custom4>
+      <electronic-resource-num>
+        <style face="normal" font="default" size="100%">10.1007/s00122-012-1996-2</style>
+      </electronic-resource-num>
+      <language>
+        <style face="normal" font="default" size="100%">english</style>
+      </language>
+    </record>
+    <record>
+      <database name="LegumesReferences_06_06_13.enl" path="/Users/sc/Dropbox/lisqtl/EndNote/LegumesReferences/LegumesReferences_06_06_13.enl">LegumesReferences_06_06_13.enl</database>
+      <source-app name="EndNote" version="17.1">EndNote</source-app>
+      <rec-number>223</rec-number>
+      <foreign-keys>
+        <key app="EN" db-id="5dsawav2qxavwoeazsbvdtrytxt5529ww20s">223</key>
+      </foreign-keys>
+      <ref-type name="Journal Article">17</ref-type>
+      <contributors>
+        <authors>
+          <author>
+            <style face="normal" font="default" size="100%">Li, X.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Yang, H.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Yan, G.</style>
+          </author>
+        </authors>
+      </contributors>
+      <titles>
+        <title>
+          <style face="normal" font="default" size="100%">Development of a co-dominant DNA marker linked to the gene lentus conferring reduced pod shattering for marker-assisted selection in narrow-leafed lupin (Lupinus angustifolius) breeding.</style>
+        </title>
+        <secondary-title>
+          <style face="normal" font="default" size="100%">Plant Breeding</style>
+        </secondary-title>
+        <alt-title>
+          <style face="normal" font="default" size="100%">Plant Breeding</style>
+        </alt-title>
+      </titles>
+      <periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">Plant Breeding</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Plant Breeding</style>
+        </abbr-1>
+      </periodical>
+      <alt-periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">Plant Breeding</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Plant Breeding</style>
+        </abbr-1>
+      </alt-periodical>
+      <pages>
+        <style face="normal" font="default" size="100%">540-544</style>
+      </pages>
+      <volume>
+        <style face="normal" font="default" size="100%">131</style>
+      </volume>
+      <dates>
+        <year>
+          <style face="normal" font="default" size="100%">2012</style>
+        </year>
+      </dates>
+      <urls></urls>
+      <custom1>
+        <style face="normal" font="default" size="100%">Li, Yang et al., 2012a</style>
+      </custom1>
+      <custom2>
+        <style face="normal" font="default" size="100%">none</style>
+      </custom2>
+      <custom3>
+        <style face="normal" font="default" size="100%">lupan</style>
+      </custom3>
+      <custom4>
+        <style face="normal" font="default" size="100%">not processed</style>
+      </custom4>
+    </record>
+    <record>
+      <database name="LegumesReferences_06_06_13.enl" path="/Users/sc/Dropbox/lisqtl/EndNote/LegumesReferences/LegumesReferences_06_06_13.enl">LegumesReferences_06_06_13.enl</database>
+      <source-app name="EndNote" version="17.1">EndNote</source-app>
+      <rec-number>158</rec-number>
+      <foreign-keys>
+        <key app="EN" db-id="5dsawav2qxavwoeazsbvdtrytxt5529ww20s">158</key>
+      </foreign-keys>
+      <ref-type name="Journal Article">17</ref-type>
+      <contributors>
+        <authors>
+          <author>
+            <style face="normal" font="default" size="100%">McConnell, M.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Mamidi, S.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Lee, R.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Chikara, S.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Rossi, M.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Papa, R.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">McClean, P.</style>
+          </author>
+        </authors>
+      </contributors>
+      <auth-address>
+        <style face="normal" font="default" size="100%">McClean, P N Dakota State Univ, Genom &amp; Bioinformat Program, Fargo, ND 58105 USA N Dakota State Univ, Genom &amp; Bioinformat Program, Fargo, ND 58105 USA N Dakota State Univ, Genom &amp; Bioinformat Program, Fargo, ND 58105 USA N Dakota State Univ, Dept Plant Sci, Fargo, ND 58105 USA Univ Politecn Marche, Dipartimento Sci Ambientali &amp; Prod Vegetali, I-60131 Ancona, Italy</style>
+      </auth-address>
+      <titles>
+        <title>
+          <style face="normal" font="default" size="100%">Syntenic relationships among legumes revealed using a gene-based genetic linkage map of common bean (Phaseolus vulgaris L.)</style>
+        </title>
+        <secondary-title>
+          <style face="normal" font="default" size="100%">Theoretical and Applied Genetics</style>
+        </secondary-title>
+        <alt-title>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </alt-title>
+      </titles>
+      <periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">Theoretical and Applied Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </abbr-1>
+      </periodical>
+      <alt-periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">TAG. Theoretical and Applied Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </abbr-1>
+      </alt-periodical>
+      <pages>
+        <style face="normal" font="default" size="100%">1103-1116</style>
+      </pages>
+      <volume>
+        <style face="normal" font="default" size="100%">121</style>
+      </volume>
+      <number>
+        <style face="normal" font="default" size="100%">6</style>
+      </number>
+      <keywords>
+        <keyword>
+          <style face="normal" font="default" size="100%">nucleotide polymorphism analysis</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">quantitative trait loci</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">fusarium root-rot</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">medicago-truncatula</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">arabidopsis-thaliana</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">white mold</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">conditioning resistance</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">artificial selection</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">genome organization</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">lotus-japonicus</style>
+        </keyword>
+      </keywords>
+      <dates>
+        <year>
+          <style face="normal" font="default" size="100%">2010</style>
+        </year>
+        <pub-dates>
+          <date>
+            <style face="normal" font="default" size="100%">Oct</style>
+          </date>
+        </pub-dates>
+      </dates>
+      <isbn>
+        <style face="normal" font="default" size="100%">0040-5752 (Print)
+1432-2242 (Electronic)</style>
+      </isbn>
+      <accession-num>
+        <style face="normal" font="default" size="100%">ISI:000281794100009</style>
+      </accession-num>
+      <abstract>
+        <style face="normal" font="default" size="100%">Molecular linkage maps are an important tool for gene discovery and cloning, crop improvement, further genetic studies, studies on diversity and evolutionary history, and cross-species comparisons. Linkage maps differ in both the type of marker and type of population used. In this study, gene-based markers were used for mapping in a recombinant inbred (RI) population of Phaseolus vulgaris L. P. vulgaris, common dry bean, is an important food source, economic product, and model organism for the legumes. Gene-based markers were developed that corresponded to genes controlling mutant phenotypes in Arabidopsis thaliana, genes undergoing selection during domestication in maize, and genes that function in a biochemical pathway in A. thaliana. Sequence information, including introns and 3' UTR, was generated for over 550 genes in the two genotypes of P. vulgaris. Over 1,800 single nucleotide polymorphisms and indels were found, 300 of which were screened in the RI population. The resulting LOD 2.0 map is 1,545 cM in length and consists of 275 gene-based and previously mapped core markers. An additional 153 markers that mapped at LOD &lt; 1.0 were placed in genetic bins. By screening the parents of other mapping populations, it was determined that the markers were useful for other common Mesoamerican x Andean mapping populations. The location of the mapped genes relative to their homologs in Arabidopsis thaliana (At), Medicago truncatula (Mt), and Lotus japonicus (Lj) were determine by using a tblastx analysis with the current pseduochromosome builds for each of the species. While only short blocks of synteny were observed with At, large-scale macrosyntenic blocks were observed with Mt and Lj. By using Mt and Lj as bridging species, the syntenic relationship between the common bean and peanut was inferred.</style>
+      </abstract>
+      <notes>
+        <style face="normal" font="default" size="100%">649SQ Times Cited:16 Cited References Count:87</style>
+      </notes>
+      <urls>
+        <related-urls>
+          <url>
+            <style face="normal" font="default" size="100%">&lt;Go to ISI&gt;://000281794100009</style>
+          </url>
+        </related-urls>
+        <pdf-urls>
+          <url>internal-pdf://McConnellMamidi2010_SyntenicLegumesPhaseolusMap_TheorApplGenet-3556987136/McConnellMamidi2010_SyntenicLegumesPhaseolusMap_TheorApplGenet.pdf</url>
+        </pdf-urls>
+      </urls>
+      <custom1>
+        <style face="normal" font="default" size="100%">McConnell, Mamidi et al., 2010a</style>
+      </custom1>
+      <custom2>
+        <style face="normal" font="default" size="100%">20607211</style>
+      </custom2>
+      <custom3>
+        <style face="normal" font="default" size="100%">arahy lotja medtr phavu</style>
+      </custom3>
+      <electronic-resource-num>
+        <style face="normal" font="default" size="100%">Doi 10.1007/S00122-010-1375-9</style>
+      </electronic-resource-num>
+      <language>
+        <style face="normal" font="default" size="100%">English</style>
+      </language>
+    </record>
+    <record>
+      <database name="LegumesReferences_06_06_13.enl" path="/Users/sc/Dropbox/lisqtl/EndNote/LegumesReferences/LegumesReferences_06_06_13.enl">LegumesReferences_06_06_13.enl</database>
+      <source-app name="EndNote" version="17.1">EndNote</source-app>
+      <rec-number>78</rec-number>
+      <foreign-keys>
+        <key app="EN" db-id="5dsawav2qxavwoeazsbvdtrytxt5529ww20s">78</key>
+      </foreign-keys>
+      <ref-type name="Journal Article">17</ref-type>
+      <contributors>
+        <authors>
+          <author>
+            <style face="normal" font="default" size="100%">Moreau, D.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Burstin, J.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Aubert, G.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Huguet, T.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Ben, C.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Prosperi, J. M.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Salon, C.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Munier-Jolain, N.</style>
+          </author>
+        </authors>
+      </contributors>
+      <auth-address>
+        <style face="normal" font="default" size="100%">INRA, UMR 102 Genetique et Ecophysiologie des Legumineuses, 17 rue Sully, BP 86510, 21065, Dijon cedex, France. delphine.moreau@dijon.inra.fr</style>
+      </auth-address>
+      <titles>
+        <title>
+          <style face="normal" font="default" size="100%">Using a physiological framework for improving the detection of quantitative trait loci related to nitrogen nutrition in Medicago truncatula</style>
+        </title>
+        <secondary-title>
+          <style face="normal" font="default" size="100%">Theoretical and Applied Genetics</style>
+        </secondary-title>
+        <alt-title>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </alt-title>
+      </titles>
+      <periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">Theoretical and Applied Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </abbr-1>
+      </periodical>
+      <alt-periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">TAG. Theoretical and Applied Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </abbr-1>
+      </alt-periodical>
+      <pages>
+        <style face="normal" font="default" size="100%">755-68</style>
+      </pages>
+      <volume>
+        <style face="normal" font="default" size="100%">124</style>
+      </volume>
+      <number>
+        <style face="normal" font="default" size="100%">4</style>
+      </number>
+      <edition>
+        <style face="normal" font="default" size="100%">2011/11/25</style>
+      </edition>
+      <keywords>
+        <keyword>
+          <style face="normal" font="default" size="100%">Chromosome Mapping</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Chromosomes, Plant/genetics</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Genes, Plant</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Genetic Linkage</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Medicago truncatula/*genetics/growth &amp; development</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Nitrogen/*metabolism</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Phenotype</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Plant Leaves/*genetics</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">*Quantitative Trait Loci</style>
+        </keyword>
+      </keywords>
+      <dates>
+        <year>
+          <style face="normal" font="default" size="100%">2012</style>
+        </year>
+        <pub-dates>
+          <date>
+            <style face="normal" font="default" size="100%">Mar</style>
+          </date>
+        </pub-dates>
+      </dates>
+      <isbn>
+        <style face="normal" font="default" size="100%">0040-5752 (Print)
+1432-2242 (Electronic)</style>
+      </isbn>
+      <accession-num>
+        <style face="normal" font="default" size="100%">22113590</style>
+      </accession-num>
+      <abstract>
+        <style face="normal" font="default" size="100%">Medicago truncatula is used as a model plant for exploring the genetic and molecular determinants of nitrogen (N) nutrition in legumes. In this study, our aim was to detect quantitative trait loci (QTL) controlling plant N nutrition using a simple framework of carbon/N plant functioning stemming from crop physiology. This framework was based on efficiency variables which delineated the plant's efficiency to take up and process carbon and N resources. A recombinant inbred line population (LR4) was grown in a glasshouse experiment under two contrasting nitrate concentrations. At low nitrate, symbiotic N(2) fixation was the main N source for plant growth and a QTL with a large effect located on linkage group (LG) 8 affected all the traits. Significantly, efficiency variables were necessary both to precisely localize a second QTL on LG5 and to detect a third QTL involved in epistatic interactions on LG2. At high nitrate, nitrate assimilation was the main N source and a larger number of QTL with weaker effects were identified compared to low nitrate. Only two QTL were common to both nitrate treatments: a QTL of belowground biomass located at the bottom of LG3 and another one on LG6 related to three different variables (leaf area, specific N uptake and aboveground:belowground biomass ratio). Possible functions of several candidate genes underlying QTL of efficiency variables could be proposed. Altogether, our results provided new insights into the genetic control of N nutrition in M. truncatula. For instance, a novel result for M. truncatula was identification of two epistatic interactions in controlling plant N(2) fixation. As such this study showed the value of a simple conceptual framework based on efficiency variables for studying genetic determinants of complex traits and particularly epistatic interactions.</style>
+      </abstract>
+      <notes>
+        <style face="normal" font="default" size="100%">Moreau, Delphine
+ Burstin, Judith
+ Aubert, Grégoire
+ Huguet, Thierry
+ Ben, Cécile
+ Prosperi, Jean-Marie
+ Salon, Christophe
+ Munier-Jolain, Nathalie
+ Germany
+ Theor Appl Genet. 2012 Mar;124(4):755-68. doi: 10.1007/s00122-011-1744-z. Epub 2011 Nov 24.</style>
+      </notes>
+      <work-type>
+        <style face="normal" font="default" size="100%">Research Support, Non-U.S. Gov't</style>
+      </work-type>
+      <urls>
+        <related-urls>
+          <url>
+            <style face="normal" font="default" size="100%">http://www.ncbi.nlm.nih.gov/pubmed/22113590</style>
+          </url>
+          <url>
+            <style face="normal" font="default" size="100%">http://link.springer.com.proxy.lib.iastate.edu/article/10.1007/s00122-011-1744-z/fulltext.html</style>
+          </url>
+        </related-urls>
+        <pdf-urls>
+          <url>internal-pdf://MoreauBurstin2012_QTLNitrogenMedicagotruncatula_TheorApplGenet-4094750976/MoreauBurstin2012_QTLNitrogenMedicagotruncatula_TheorApplGenet.pdf</url>
+        </pdf-urls>
+      </urls>
+      <custom1>
+        <style face="normal" font="default" size="100%">Moreau, Burstin et al., 2012a</style>
+      </custom1>
+      <custom2>
+        <style face="normal" font="default" size="100%">22113590</style>
+      </custom2>
+      <custom3>
+        <style face="normal" font="default" size="100%">medtr</style>
+      </custom3>
+      <custom4>
+        <style face="normal" font="default" size="100%">not processed</style>
+      </custom4>
+      <electronic-resource-num>
+        <style face="normal" font="default" size="100%">10.1007/s00122-011-1744-z</style>
+      </electronic-resource-num>
+      <language>
+        <style face="normal" font="default" size="100%">english</style>
+      </language>
+    </record>
+    <record>
+      <database name="LegumesReferences_06_06_13.enl" path="/Users/sc/Dropbox/lisqtl/EndNote/LegumesReferences/LegumesReferences_06_06_13.enl">LegumesReferences_06_06_13.enl</database>
+      <source-app name="EndNote" version="17.1">EndNote</source-app>
+      <rec-number>91</rec-number>
+      <foreign-keys>
+        <key app="EN" db-id="5dsawav2qxavwoeazsbvdtrytxt5529ww20s">91</key>
+      </foreign-keys>
+      <ref-type name="Journal Article">17</ref-type>
+      <contributors>
+        <authors>
+          <author>
+            <style face="normal" font="default" size="100%">Pierre, J. B.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Huguet, T.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Barre, P.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Huyghe, C.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Julier, B.</style>
+          </author>
+        </authors>
+      </contributors>
+      <auth-address>
+        <style face="normal" font="default" size="100%">INRA, UR4, Unite de Recherche Pluridisciplinaire Prairies et Plantes Fourrageres, BP 6, 86600 Lusignan, France.</style>
+      </auth-address>
+      <titles>
+        <title>
+          <style face="normal" font="default" size="100%">Detection of QTLs for flowering date in three mapping populations of the model legume species Medicago truncatula</style>
+        </title>
+        <secondary-title>
+          <style face="normal" font="default" size="100%">Theoretical and Applied Genetics</style>
+        </secondary-title>
+        <alt-title>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </alt-title>
+      </titles>
+      <periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">Theoretical and Applied Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </abbr-1>
+      </periodical>
+      <alt-periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">TAG. Theoretical and Applied Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </abbr-1>
+      </alt-periodical>
+      <pages>
+        <style face="normal" font="default" size="100%">609-20</style>
+      </pages>
+      <volume>
+        <style face="normal" font="default" size="100%">117</style>
+      </volume>
+      <number>
+        <style face="normal" font="default" size="100%">4</style>
+      </number>
+      <edition>
+        <style face="normal" font="default" size="100%">2008/06/17</style>
+      </edition>
+      <keywords>
+        <keyword>
+          <style face="normal" font="default" size="100%">Chromosome Mapping</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Chromosomes, Plant/genetics</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Flowers/growth &amp; development</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Genes, Plant</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Medicago truncatula/*genetics/*growth &amp; development</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Models, Genetic</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Photoperiod</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Quantitative Trait Loci</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Seasons</style>
+        </keyword>
+      </keywords>
+      <dates>
+        <year>
+          <style face="normal" font="default" size="100%">2008</style>
+        </year>
+        <pub-dates>
+          <date>
+            <style face="normal" font="default" size="100%">Aug</style>
+          </date>
+        </pub-dates>
+      </dates>
+      <isbn>
+        <style face="normal" font="default" size="100%">0040-5752 (Print)
+1432-2242 (Electronic)</style>
+      </isbn>
+      <accession-num>
+        <style face="normal" font="default" size="100%">18553068</style>
+      </accession-num>
+      <abstract>
+        <style face="normal" font="default" size="100%">Adaptation to the environment and reproduction are dependent on the date of flowering in the season. The objectives of this paper were to evaluate the effect of photoperiod on flowering date of the model species for legume crops, Medicago truncatula and to describe genetic architecture of this trait in multiple mapping populations. The effect of photoperiod (12 and 18 h) was analysed on eight lines. Quantitative variation in three recombinant inbred lines (RILs) populations involving four parental lines was evaluated, and QTL detection was carried out. Flowering occurred earlier in long than in short photoperiods. Modelling the rate of progression to flowering with temperature and photoperiod gave high R2, with line-specific parameters that indicated differential responses of the lines to both photoperiod and temperature. QTL detection showed a QTL on chromosome 7 that was common to all populations and seasons. Taking advantage of the multiple mapping populations, it was condensed into a single QTL with a support interval of only 0.9 cM. In a bioanalysis, six candidate genes were identified in this interval. This design also indicated other genomic regions that were involved in flowering date variation more specifically in one population or one season. The analysis on three different mapping populations detected more QTLs than on a single population, revealed more alleles and gave a more precise position of the QTLs that were common to several populations and/or seasons. Identification of candidate genes was a result of integration of QTL analysis and genomics in M. truncatula.</style>
+      </abstract>
+      <notes>
+        <style face="normal" font="default" size="100%">Pierre, Jean-Baptiste
+ Huguet, Thierry
+ Barre, Philippe
+ Huyghe, Christian
+ Julier, Bernadette
+ Germany
+ Theor Appl Genet. 2008 Aug;117(4):609-20. doi: 10.1007/s00122-008-0805-4. Epub 2008 Jun 14.</style>
+      </notes>
+      <work-type>
+        <style face="normal" font="default" size="100%">Research Support, Non-U.S. Gov't</style>
+      </work-type>
+      <urls>
+        <related-urls>
+          <url>
+            <style face="normal" font="default" size="100%">http://www.ncbi.nlm.nih.gov/pubmed/18553068</style>
+          </url>
+          <url>
+            <style face="normal" font="default" size="100%">http://link.springer.com.proxy.lib.iastate.edu/article/10.1007/s00122-008-0805-4/fulltext.html</style>
+          </url>
+        </related-urls>
+        <pdf-urls>
+          <url>internal-pdf://PierreHuguet2008_QTLFloweringDateMedicagotruncatula_TheorApplGenet-2198962176/PierreHuguet2008_QTLFloweringDateMedicagotruncatula_TheorApplGenet.pdf</url>
+        </pdf-urls>
+      </urls>
+      <custom1>
+        <style face="normal" font="default" size="100%">Pierre, Huguet et al., 2008a</style>
+      </custom1>
+      <custom2>
+        <style face="normal" font="default" size="100%">18553068</style>
+      </custom2>
+      <custom3>
+        <style face="normal" font="default" size="100%">medtr</style>
+      </custom3>
+      <custom4>
+        <style face="normal" font="default" size="100%">not processed</style>
+      </custom4>
+      <electronic-resource-num>
+        <style face="normal" font="default" size="100%">10.1007/s00122-008-0805-4</style>
+      </electronic-resource-num>
+      <language>
+        <style face="normal" font="default" size="100%">eng</style>
+      </language>
+    </record>
+    <record>
+      <database name="LegumesReferences_06_06_13.enl" path="/Users/sc/Dropbox/lisqtl/EndNote/LegumesReferences/LegumesReferences_06_06_13.enl">LegumesReferences_06_06_13.enl</database>
+      <source-app name="EndNote" version="17.1">EndNote</source-app>
+      <rec-number>100</rec-number>
+      <foreign-keys>
+        <key app="EN" db-id="5dsawav2qxavwoeazsbvdtrytxt5529ww20s">100</key>
+      </foreign-keys>
+      <ref-type name="Journal Article">17</ref-type>
+      <contributors>
+        <authors>
+          <author>
+            <style face="normal" font="default" size="100%">Sankaran, R. P.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Huguet, T.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Grusak, M. A.</style>
+          </author>
+        </authors>
+      </contributors>
+      <auth-address>
+        <style face="normal" font="default" size="100%">USDA-ARS Children's Nutrition Research Center, Department of Pediatrics, Baylor College of Medicine, Houston, TX 77030, USA.</style>
+      </auth-address>
+      <titles>
+        <title>
+          <style face="normal" font="default" size="100%">Identification of QTL affecting seed mineral concentrations and content in the model legume Medicago truncatula</style>
+        </title>
+        <secondary-title>
+          <style face="normal" font="default" size="100%">Theoretical and Applied Genetics</style>
+        </secondary-title>
+        <alt-title>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </alt-title>
+      </titles>
+      <periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">Theoretical and Applied Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </abbr-1>
+      </periodical>
+      <alt-periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">TAG. Theoretical and Applied Genetics</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">Theor Appl Genet</style>
+        </abbr-1>
+      </alt-periodical>
+      <pages>
+        <style face="normal" font="default" size="100%">241-53</style>
+      </pages>
+      <volume>
+        <style face="normal" font="default" size="100%">119</style>
+      </volume>
+      <number>
+        <style face="normal" font="default" size="100%">2</style>
+      </number>
+      <edition>
+        <style face="normal" font="default" size="100%">2009/04/28</style>
+      </edition>
+      <keywords>
+        <keyword>
+          <style face="normal" font="default" size="100%">Biomass</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Breeding</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Chromosome Mapping</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Genes, Plant</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Genetic Linkage</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Medicago truncatula/*genetics/*metabolism</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Minerals/*metabolism</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">*Models, Biological</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Quantitative Trait Loci/*genetics</style>
+        </keyword>
+        <keyword>
+          <style face="normal" font="default" size="100%">Seeds/*genetics/*metabolism</style>
+        </keyword>
+      </keywords>
+      <dates>
+        <year>
+          <style face="normal" font="default" size="100%">2009</style>
+        </year>
+        <pub-dates>
+          <date>
+            <style face="normal" font="default" size="100%">Jul</style>
+          </date>
+        </pub-dates>
+      </dates>
+      <isbn>
+        <style face="normal" font="default" size="100%">0040-5752 (Print)
+1432-2242 (Electronic)</style>
+      </isbn>
+      <accession-num>
+        <style face="normal" font="default" size="100%">19396421</style>
+      </accession-num>
+      <abstract>
+        <style face="normal" font="default" size="100%">Increasing the amount of bioavailable micronutrients such as iron and zinc in plant foods for human consumption is an international goal, intended especially for developing countries where micronutrient deficiencies are an ongoing health risk. Legume seeds have the potential to provide the essential nutrients required by humans, but concentrations of several minerals are low when compared to other foods. In order to increase seed mineral concentrations, it is important to understand the genes and processes involved in mineral distribution within the plant. The main objectives of this study were to use a Medicago truncatula recombinant inbred population (Jemalong-6 x DZA 315.16) to determine loci governing seed mineral concentrations, seed mineral content, and average seed weight, and to use these loci to propose candidate genes whose expression might contribute to these traits. Ninety-three lines in 2004 and 169 lines in 2006 were grown for seed harvest and subsequent analysis of seed Ca, Cu, Fe, K, Mg, Mn, P, and Zn concentrations and content. Quantitative trait loci (QTL) cartographer was used to identify QTL using composite interval mapping (CIM). CIM identified 46 QTL for seed mineral concentration, 26 for seed mineral content, and 3 for average seed weight. At least one QTL was detected for each mineral trait, and colocation of QTL for several minerals was found in both years. Results comparing seed weight with seed mineral concentration and content QTL demonstrate that seed size can be an important determinant of seed mineral concentration. The identification, in this model legume, of transgressive segregation for nearly all the minerals suggests that allelic recombination of relevant mineral-related genes in agronomic legumes could be a successful strategy to increase seed mineral concentrations above current levels.</style>
+      </abstract>
+      <notes>
+        <style face="normal" font="default" size="100%">Sankaran, Renuka P
+ Huguet, Thierry
+ Grusak, Michael A
+ Germany
+ Theor Appl Genet. 2009 Jul;119(2):241-53. doi: 10.1007/s00122-009-1033-2. Epub 2009 Apr 25.</style>
+      </notes>
+      <work-type>
+        <style face="normal" font="default" size="100%">Research Support, U.S. Gov't, Non-P.H.S.</style>
+      </work-type>
+      <urls>
+        <related-urls>
+          <url>
+            <style face="normal" font="default" size="100%">http://www.ncbi.nlm.nih.gov/pubmed/19396421</style>
+          </url>
+          <url>
+            <style face="normal" font="default" size="100%">http://link.springer.com.proxy.lib.iastate.edu/article/10.1007/s00122-009-1033-2/fulltext.html</style>
+          </url>
+        </related-urls>
+        <pdf-urls>
+          <url>internal-pdf://SankaranHuguet2009_QTLSeedMineralsMedicagotruncatula_TheorApplGenet-2618413312/SankaranHuguet2009_QTLSeedMineralsMedicagotruncatula_TheorApplGenet.pdf</url>
+        </pdf-urls>
+      </urls>
+      <custom1>
+        <style face="normal" font="default" size="100%">Sankaran, Huguet et al., 2009a</style>
+      </custom1>
+      <custom2>
+        <style face="normal" font="default" size="100%">19396421</style>
+      </custom2>
+      <custom3>
+        <style face="normal" font="default" size="100%">medtr</style>
+      </custom3>
+      <custom4>
+        <style face="normal" font="default" size="100%">not processed</style>
+      </custom4>
+      <electronic-resource-num>
+        <style face="normal" font="default" size="100%">10.1007/s00122-009-1033-2</style>
+      </electronic-resource-num>
+      <language>
+        <style face="normal" font="default" size="100%">english</style>
+      </language>
+    </record>
+    <record>
+      <database name="LegumesReferences_06_06_13.enl" path="/Users/sc/Dropbox/lisqtl/EndNote/LegumesReferences/LegumesReferences_06_06_13.enl">LegumesReferences_06_06_13.enl</database>
+      <source-app name="EndNote" version="17.1">EndNote</source-app>
+      <rec-number>170</rec-number>
+      <foreign-keys>
+        <key app="EN" db-id="5dsawav2qxavwoeazsbvdtrytxt5529ww20s">170</key>
+      </foreign-keys>
+      <ref-type name="Journal Article">17</ref-type>
+      <contributors>
+        <authors>
+          <author>
+            <style face="normal" font="default" size="100%">Shirasawa, K.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Bertioli, D. J.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Varshney, R. K.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Moretzsohn, M. C.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Leal-Bertioli, S. C.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Thudi, M.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Pandey, M. K.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Rami, J. F.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Foncéka, D.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Gowda, M. V. C.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Qin, H.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Guo, B.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Hong, Y.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Liang, X.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Hirakawa, H.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Tabata, S.</style>
+          </author>
+          <author>
+            <style face="normal" font="default" size="100%">Isobe, S.</style>
+          </author>
+        </authors>
+      </contributors>
+      <auth-address>
+        <style face="normal" font="default" size="100%">Kazusa DNA Research Institute, Kisarazu, Chiba, Japan. shirasaw@kazusa.or.jp</style>
+      </auth-address>
+      <titles>
+        <title>
+          <style face="normal" font="default" size="100%">Integrated consensus map of cultivated peanut and wild relatives reveals structures of the A and B genomes of Arachis and divergence of the legume genomes</style>
+        </title>
+        <secondary-title>
+          <style face="normal" font="default" size="100%">DNA Research</style>
+        </secondary-title>
+        <alt-title>
+          <style face="normal" font="default" size="100%">DNA Res</style>
+        </alt-title>
+      </titles>
+      <alt-periodical>
+        <full-title>
+          <style face="normal" font="default" size="100%">DNA research : an international journal for rapid publication of reports on genes and genomes</style>
+        </full-title>
+        <abbr-1>
+          <style face="normal" font="default" size="100%">DNA Res</style>
+        </abbr-1>
+      </alt-periodical>
+      <pages>
+        <style face="normal" font="default" size="100%">173-84</style>
+      </pages>
+      <volume>
+        <style face="normal" font="default" size="100%">20</style>
+      </volume>
+      <number>
+        <style face="normal" font="default" size="100%">2</style>
+      </number>
+      <edition>
+        <style face="normal" font="default" size="100%">2013/01/15</style>
+      </edition>
+      <dates>
+        <year>
+          <style face="normal" font="default" size="100%">2013</style>
+        </year>
+        <pub-dates>
+          <date>
+            <style face="normal" font="default" size="100%">Apr</style>
+          </date>
+        </pub-dates>
+      </dates>
+      <isbn>
+        <style face="normal" font="default" size="100%">1340-2838 (Print)
+1756-1663 (Electronic)</style>
+      </isbn>
+      <accession-num>
+        <style face="normal" font="default" size="100%">23315685</style>
+      </accession-num>
+      <abstract>
+        <style face="normal" font="default" size="100%">The complex, tetraploid genome structure of peanut (Arachis hypogaea) has obstructed advances in genetics and genomics in the species. The aim of this study is to understand the genome structure of Arachis by developing a high-density integrated consensus map. Three recombinant inbred line populations derived from crosses between the A genome diploid species, Arachis duranensis and Arachis stenosperma; the B genome diploid species, Arachis ipaensis and Arachis magna; and between the AB genome tetraploids, A. hypogaea and an artificial amphidiploid (A. ipaensis x A. duranensis)(4x), were used to construct genetic linkage maps: 10 linkage groups (LGs) of 544 cM with 597 loci for the A genome; 10 LGs of 461 cM with 798 loci for the B genome; and 20 LGs of 1442 cM with 1469 loci for the AB genome. The resultant maps plus 13 published maps were integrated into a consensus map covering 2651 cM with 3693 marker loci which was anchored to 20 consensus LGs corresponding to the A and B genomes. The comparative genomics with genome sequences of Cajanus cajan, Glycine max, Lotus japonicus, and Medicago truncatula revealed that the Arachis genome has segmented synteny relationship to the other legumes. The comparative maps in legumes, integrated tetraploid consensus maps, and genome-specific diploid maps will increase the genetic and genomic understanding of Arachis and should facilitate molecular breeding.</style>
+      </abstract>
+      <notes>
+        <style face="normal" font="default" size="100%">Shirasawa, Kenta
+Bertioli, David J
+Varshney, Rajeev K
+Moretzsohn, Marcio C
+Leal-Bertioli, Soraya C M
+Thudi, Mahendar
+Pandey, Manish K
+Rami, Jean-Francois
+Foncéka, Daniel
+Gowda, Makanahally V C
+Qin, Hongde
+Guo, Baozhu
+Hong, Yanbin
+Liang, Xuanqiang
+Hirakawa, Hideki
+Tabata, Satoshi
+Isobe, Sachiko
+England
+DNA Res. 2013 Apr;20(2):173-84. doi: 10.1093/dnares/dss042. Epub 2013 Jan 12.</style>
+      </notes>
+      <work-type>
+        <style face="normal" font="default" size="100%">Research Support, Non-U.S. Gov't</style>
+      </work-type>
+      <urls>
+        <related-urls>
+          <url>
+            <style face="normal" font="default" size="100%">http://www.ncbi.nlm.nih.gov/pubmed/23315685</style>
+          </url>
+          <url>
+            <style face="normal" font="default" size="100%">http://dnaresearch.oxfordjournals.org/content/20/2/173.abstract</style>
+          </url>
+        </related-urls>
+        <pdf-urls>
+          <url>internal-pdf://ShirasawaBertioli2013_peanut_AB_genomes_DNARes-2752696064/ShirasawaBertioli2013_peanut_AB_genomes_DNARes.pdf</url>
+        </pdf-urls>
+      </urls>
+      <custom1>
+        <style face="normal" font="default" size="100%">Shirasawa, Bertioli et al., 2013a</style>
+      </custom1>
+      <custom2>
+        <style face="normal" font="default" size="100%">3628447</style>
+      </custom2>
+      <custom3>
+        <style face="normal" font="default" size="100%">arahy cajca glyma lotja medtr</style>
+      </custom3>
+      <custom4>
+        <style face="normal" font="default" size="100%">not processed</style>
+      </custom4>
+      <electronic-resource-num>
+        <style face="normal" font="default" size="100%">10.1093/dnares/dss042</style>
+      </electronic-resource-num>
+      <language>
+        <style face="normal" font="default" size="100%">english</style>
+      </language>
+    </record>
+  </records>
+</xml>

@@ -1,0 +1,21 @@
+
+
+../EndNote_xml_to_table_v13.pl -out test LegumesReferences_06_06_13_MEDTR.xml 
+
+publink_citation
+species
+ref_type
+year
+title
+authors
+journal
+volume
+issue
+pages
+doi
+isbn
+pmid
+abstract
+keywords
+URL
+

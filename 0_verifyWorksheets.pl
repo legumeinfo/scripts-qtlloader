@@ -124,7 +124,8 @@ EOS
         }
         
         # make sure citation is unique
-        if ($citations{publink_citation}) {
+        my $enc_citation = encode("UTF-8", $publink_citation);
+        if ($citations{$enc_citation}) {
           $has_errors++;
           $msg = "ERROR: citation has already been used in this spreadsheet: $publink_citation";
           reportError($line_count, $msg);
@@ -135,7 +136,7 @@ EOS
           reportError($line_count, $msg);
         }
         else {
-          $citations{$publink_citation} = 1;
+          $citations{$enc_citation} = 1;
         }
         
         # make sure PMID is a number
@@ -216,6 +217,7 @@ EOS
       
       my $publink_citation = $fields->{$qei{'pub_fld'}};
 #print "\ncitation: $publink_citation\n";
+print "\nCheck for [$publink_citation] in:\n" . Dumper(%citations) . "\n\n";
  
       if (!$publink_citation || $publink_citation eq ''
             || $publink_citation eq 'NULL') {
@@ -223,17 +225,23 @@ EOS
         $msg = "ERROR: citation is missing";
         reportError($line_count, $msg);
       }
-      if ($citations{$publink_citation}
-            && !publicationExists($dbh, $publink_citation)) {
-        $has_errors++;
-        $msg = "ERROR: citation ($publink_citation) doesn't match ";
-        $msg .= "any citations in spreadsheet or database.";
-        reportError($line_count, $msg);
+      else {
+print "\nencode citation: $publink_citation";
+        my $enc_citation = encode("UTF-8", $publink_citation);
+print " = $enc_citation ($publink_citation)\n";
+        if (!$citations{$enc_citation}
+              && !publicationExists($dbh, $publink_citation)) {
+          $has_errors++;
+          $msg = "ERROR: citation ($publink_citation) doesn't match ";
+          $msg .= "any citations in spreadsheet or database.";
+          reportError($line_count, $msg);
+        }
       }
       
       my $name = $fields->{$qei{'name_fld'}};
 #print "experiment name: $name\n";
-      if ($experiments{$name}) {
+      my $enc_name = encode("UTF-8", $name);
+      if ($experiments{$enc_name}) {
         $has_errors++;
         $msg = "ERROR: experiment name ($name) is not unique ";
         $msg .= "within spreadsheet";
@@ -245,7 +253,7 @@ EOS
         $msg .= "database";
         reportError($line_count, $msg);
       }
-      $experiments{$name} = 1;
+      $experiments{$enc_name} = 1;
       
       my $species = $fields->{$qei{'species_fld'}};
 #print "species: $species\n";
@@ -324,13 +332,15 @@ print "Publication(s):\n" . Dumper(@publink_citations);
       foreach my $publink_citation (@publink_citations) {
         $publink_citation =~ s/^\s//;
         $publink_citation =~ s/\s+$//;
+print "Check for [$publink_citation] in\n" . Dumper(%citations);
         if (!$publink_citation || $publink_citation eq ''
               || $publink_citation eq 'NULL') {
           $has_errors++;
           $msg = "ERROR: citation is missing";
           reportError($line_count, $msg);
         }
-        if (!$citations{$publink_citation}
+        my $enc_citation = encode("UTF-8", $publink_citation);
+        if (!$citations{$enc_citation}
               && !publicationExists($dbh, $publink_citation)) {
           $has_errors++;
           $msg = "ERROR: citation ($publink_citation) doesn't match any ";
@@ -368,7 +378,7 @@ print "map name: $mapname\n";
       }
       elsif (mapSetExists($dbh, $mapname)) {
         $has_warnings++;
-        $msg = "WARNING: this map collection name ($mapname)";
+        $msg = "warning: this map collection name ($mapname)";
         $msg .= "is already in the database and will be updated.";
         reportError($line_count, $msg);
       }
@@ -516,11 +526,13 @@ print "species: $species\n";
         reportError($line_count, $msg);
       }
       
-      if ($fields->{'publink_citation'} && $fields->{'publink_citation'} ne ''
-            && $fields->{'publink_citation'} ne 'NULL'
-            && $fields->{'publink_citation'} ne 'N/A') {
-        if (!$citations{$fields->{'publink_citation'}} 
-              && !publicationExists($dbh, $fields->{'publink_citation'})) {
+      my $publink_citation = $fields->{'publink_citation'};
+      if ($publink_citation && $publink_citation ne ''
+            && $publink_citation ne 'NULL'
+            && $publink_citation ne 'N/A') {
+        my $enc_citation = encode("UTF-8", $publink_citation);
+        if (!$citations{$fields->{'enc_citation'}} 
+              && !publicationExists($dbh, $publink_citation)) {
 #print "citation ($fields->{'publink_citation'}) not in spreadsheet:\n" . Dumper(%citations);
           $has_errors++;
           $msg = "ERROR: Publication is not in spreadsheet or database ";
@@ -639,16 +651,18 @@ print "species: $species\n";
     $line_count = 0;
     foreach my $fields (@records) {
       $line_count++;
-      if ($fields->{'publink_citation'} eq '' 
-            || $fields->{'publink_citation'} eq 'NULL') {
+      my $publink_citation = $fields->{'publink_citation'};
+      my $enc_citation = encode("UTF-8", $publink_citation);
+print "\nCheck for [$publink_citation] in\n" . Dumper(%citations) . "\n\n";
+      if ($publink_citation eq '' || $publink_citation eq 'NULL') {
         $has_warnings++;
         $msg = "warning: citation is missing";
         reportError($line_count, $msg);
       }
-      elsif (!$citations{$fields->{'publink_citation'}}
-                && !publicationExists($dbh, $fields->{'publink_citation'})) {
+      elsif (!$citations{$enc_citation}
+                && !publicationExists($dbh, $publink_citation)) {
         $has_errors++;
-        $msg = "ERROR: citation ($fields->{'publink_citation'}) doesn't match any ";
+        $msg = "ERROR: citation ($publink_citation) doesn't match any ";
         $msg .= "citation in spreadsheet or database.";
         reportError($line_count, $msg);
       }
