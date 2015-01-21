@@ -16,6 +16,7 @@
   use Spreadsheet::ParseXLSX;
   use Spreadsheet::ParseExcel::FmtUnicode;
   use Data::Dumper;
+  use Text::Unidecode qw(unidecode);
 
   use Getopt::Std;
   
@@ -142,6 +143,7 @@ print "$filename: Dump " . (scalar @cols) . " cols\n";
       my $value = 'NULL';
       if ($cell) {
         $value = $cell->value();
+        unidecode($value); # convert the Unicode characters to respective english ASCII values.
         $value =~ s/^\s+//; # remove non-printing chars in empty cell
         $value =~ s/\s+$//;
         $value =~ s/�/�/;
