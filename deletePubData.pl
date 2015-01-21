@@ -12,14 +12,17 @@
   use DBI;
   
   my $warn =<<EOS
-  Usage:  Below is an example scenario--
+  Usage:
   
-  Please Enter the name of Citation:
-  Galeano, Fernandez et al., 2011b
+  perl deletePubData.pl "<citation name>"
+  
+  Below is an example scenario--
+  
+  perl deletePubData.pl "Galeano, Fernandez et al., 2011b"
   
 EOS
 ;
-  my $citation=$ENV{"citation"}; #Exporting the Citation name from shell to Perl
+  my $citation=$ARGV[0]; #Exporting the Citation name from shell to Perl
   chomp $citation;
   if (length $citation==0) {
 	print "You haven't given any Citation name. Please enter the valid Citation name\n";
