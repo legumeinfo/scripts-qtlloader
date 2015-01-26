@@ -249,6 +249,10 @@ EOS
   $dbh->do("DELETE from projectprop where project_id='$experiment_id'");
   $dbh->do("DELETE from nd_experiment_project where project_id='$experiment_id'");
   $dbh->do("DELETE from project_pub where project_id='$experiment_id'");
+#eksc: need to delete project record too
+    $sql = "DELETE FROM project WHERE project_id=$experiment_id";
+    print "$sql\n";
+    $dbh->do($sql);
   }; #Transaction Ends
   
   #Error Handling & Rolling Back entire transaction if any error in the above SQL statements
