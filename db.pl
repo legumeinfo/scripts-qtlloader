@@ -7,7 +7,7 @@
 # settings (peanutbase & legumeinfo servers)
 
 sub connectToDB {
-  my $connect_str = '';
+  my $connect_str = 'DBI:Pg:dbname="drupal"';
   my $user        = '';
   my $pass        = '';
 
