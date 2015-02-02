@@ -355,6 +355,11 @@ sub clearMapLGDependencies {
     DELETE FROM chado.feature_dbxref WHERE feature_id = $map_id";
   logSQL('', $sql);
   doQuery($dbh, $sql);
+  $sql = "DELETE FROM chado.featureprop WHERE feature_id = $map_id
+          AND type_id =
+          (SELECT cvterm_id FROM cvterm where name='Assigned Linkage Group')";
+  logSQL('', $sql);
+  doQuery($dbh, $sql);
 }#clearMapLGDependencies
 
 
