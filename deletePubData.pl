@@ -160,8 +160,8 @@ EOS
   $sth->execute();
   
   #For each featuremap_id, Loop through the following Delete Statements
-  while(@row=$sth->fetchrow_array){
-    my $map_set_id=$row[0]; #Storing featuremap_id as $map_set_id every time
+  while(my $row=$sth->fetchrow_hashref()){
+    my $map_set_id=$row->{'featuremap_id'}; #Storing featuremap_id as $map_set_id every time
     print "\nDeleting data for map set $map_set_id\n";
     
     # Keeping a count of records in the Stock table corresponding to the above featuremap_id(map_set_id)
@@ -256,8 +256,8 @@ EOS
   
 #eksc: please indent nested statements
   #For each project_id, Loop through the following Delete Statements   
-  while(@row=$sth->fetchrow_array){
-        my $experiment_id = $row[0]; #Storing project_id as $experiment_id every time
+  while(my $row=$sth->fetchrow_hashref()){
+        my $experiment_id = $row->{'project_id'}; #Storing project_id as $experiment_id every time
         print "Delete experiment $experiment_id\n";
 	
         #Transaction Begins
@@ -320,7 +320,7 @@ EOS
   $sth->execute();
 
   $sth->finish();
-  #$dbh->commit;
+  $dbh->commit;
   $dbh->disconnect();
 
 ############################################################################################################################################
