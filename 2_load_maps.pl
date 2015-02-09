@@ -521,7 +521,7 @@ sub makeLgDbxref {
   
   # WARNING! THIS IS SPECIFIC TO LIS CMAP URLS!
   # "accession" here is the completion of db URL.
-  my $lis_mapname = $lis_map_sets{$fields->{$mi{'map_name_fld'}}};
+  my $lis_mapname = $lis_map_sets{$fields->{$mci{'map_name_fld'}}};
   my $accession = "?ref_map_set_acc=$lis_mapname;ref_map_accs=" . $fields->{$fieldname};
   print "create dbxref for $accession\n";
 
