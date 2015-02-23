@@ -835,7 +835,6 @@ print "species: $species\n";
     $wsfile = "$input_dir/$mpfile";
     print "\nReading map position records from $wsfile\n";
     @records = readFile($wsfile);
-    
     $has_errors = 0;
     $line_count = 0;
     foreach my $fields (@records) {
@@ -876,7 +875,7 @@ print "QTL coordinates: $left_end - $right_end\n";
       }
       elsif ($left_end > $right_end) {
         $has_errors++;
-        $msg = "ERROR: right coordinate is larger than left coordinate for QTL.";
+        $msg = "ERROR: left coordinate is larger than right coordinate for QTL.";
         reportError($line_count, $msg);
       }
       
@@ -890,7 +889,7 @@ print "QTL coordinates: $left_end - $right_end\n";
 
   print "\n\n\nSpreadsheet verification is completed.\n";
   if ($qtl_errors) {
-    print "There were $qtl_errors shown above in the QTL worksheet.\n";
+    print "There were $qtl_errors errors shown above in the QTL worksheet.\n";
   }
   print "There were $has_warnings warnings that should be checked.\n\n\n";
 
