@@ -304,7 +304,13 @@ sub clearMapSetDependencies {
   
   # delete mapping population record
   my $stockname = $fields->{$mi{'map_name_fld'}};
-  
+
+  $sql = "DELETE FROM chado.stock_pub 
+          WHERE stock_id IN (SELECT stock_id FROM stock
+                             WHERE uniquename='$stockname')";
+  logSQL('', $sql);
+  doQuery($dbh, $sql); 
+
   # this will also delete dependancies, including featuremap_stock and 
   #    stock_relationship
   $sql = "DELETE FROM chado.stock WHERE uniquename='$stockname'";
@@ -515,8 +521,9 @@ sub makeLgDbxref {
   
   # WARNING! THIS IS SPECIFIC TO LIS CMAP URLS!
   # "accession" here is the completion of db URL.
-  my $lis_mapname = $lis_map_sets{$fields->{$mi{'map_name_fld'}}};
+  my $lis_mapname = $lis_map_sets{$fields->{$mci{'map_name_fld'}}};
   my $accession = "?ref_map_set_acc=$lis_mapname;ref_map_accs=" . $fields->{$fieldname};
+  print "create dbxref for $accession\n";
 
   my $sql = "
     INSERT INTO dbxref

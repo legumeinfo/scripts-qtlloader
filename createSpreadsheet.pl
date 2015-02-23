@@ -129,7 +129,7 @@ sub WriteQTLSpreadsheet {
   my ($dbh) = @_;
   
   # Start the spreadsheet
-  my $ss_name = "$data_dir/$filename.QTL.xls";
+  my $ss_name = "$data_dir/$filename.xls";
   my $workbook  = Spreadsheet::WriteExcel->new($ss_name);
   print "\nWrite QTL dataset '$dataset' to $ss_name\n\n";
   
@@ -207,7 +207,7 @@ sub WriteTraitSpreadsheet {
   my ($dbh) = @_;
   
   # Start the spreadsheet
-  my $ss_name = "$data_dir/$filename.traits.xls";
+  my $ss_name = "$data_dir/$filename.xls";
   my $workbook  = Spreadsheet::WriteExcel->new($ss_name);
   print "\nWrite traits to $ss_name\n\n";
   

@@ -300,7 +300,7 @@ print " = $enc_citation ($publink_citation)\n";
     # Get spreadsheet constants
     my %mci = getSSInfo('MAP_COLLECTIONS');
     my %mi  = getSSInfo('MAPS');
-    
+
     # Make sure we've got all the map table files
     my $mcfile = $mci{'worksheet'} . '.txt';
     my $mfile  = $mi{'worksheet'} . '.txt';
@@ -729,7 +729,8 @@ print "\nCheck for [$publink_citation] in\n" . Dumper(%citations) . "\n\n";
 #print Dumper($fields);
       $line_count++;
 
-      my $qtl_name = makeQTLname($fields->{$qi{'qtl_symbol_fld'}}, 
+      my $qtl_name = $fields->{$qi{'species_fld'}} . '.'
+                   . makeQTLName($fields->{$qi{'qtl_symbol_fld'}}, 
                                  $fields->{$qi{'qtl_identifier_fld'}});
 print "\nQTL name: $qtl_name\n";
       if ($qtls{$qtl_name}) {
@@ -840,7 +841,7 @@ print "species: $species\n";
     foreach my $fields (@records) {
       $line_count++;
 
-      my $qtl_name = makeQTLname($fields->{$mpi{'qtl_symbol_fld'}},
+      my $qtl_name = makeQTLName($fields->{$mpi{'qtl_symbol_fld'}},
                                  $fields->{$mpi{'qtl_identifier_fld'}});
 print "\nQTL name: $qtl_name\n";
       
@@ -949,13 +950,6 @@ sub linkageMapExists {
   
   return 0;
 }#linkageMapExists
-
-
-sub makeQTLname {
-  my ($symbol, $id) = @_;
-  my $qtl_name = "$symbol+$id";
-  return $qtl_name;
-}#makeQTLname
 
 
 sub unitExists {
