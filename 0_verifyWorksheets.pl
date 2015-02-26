@@ -302,11 +302,20 @@ print " = $enc_citation ($publink_citation)\n";
     my %mi  = getSSInfo('MAPS');
 
     # Make sure we've got all the map table files
+=cut the map worksheet may go away
     my $mcfile = $mci{'worksheet'} . '.txt';
     my $mfile  = $mi{'worksheet'} . '.txt';
     if (!$files{$mcfile} || !$files{$mfile}) {
       $msg = "\nOne or more required map tables is missing.\n";
       $msg .= "$mcfile and $mfile are required .\n\n";
+      reportError('', $msg);
+      exit;
+    }
+=cut
+    my $mcfile = $mci{'worksheet'} . '.txt';
+    if (!$files{$mcfile}) {
+      $msg = "\nOne or more required map tables is missing.\n";
+      $msg .= "$mcfile is required .\n\n";
       reportError('', $msg);
       exit;
     }
@@ -320,7 +329,7 @@ print " = $enc_citation ($publink_citation)\n";
     $wsfile = "$input_dir/$mcfile";
     print "\nReading map collection records from $wsfile\n";
     @records = readFile($wsfile);
-    
+#print "Map collection record:\n" . Dumper(@records);    
     $has_errors = 0;
     $line_count = 0;
     foreach my $fields (@records) {
@@ -328,11 +337,11 @@ print " = $enc_citation ($publink_citation)\n";
       
       # check citation
       my @publink_citations = split ';', $fields->{$mci{'pub_fld'}};
-print "Publication(s):\n" . Dumper(@publink_citations);
+#print "Publication(s):\n" . Dumper(@publink_citations);
       foreach my $publink_citation (@publink_citations) {
         $publink_citation =~ s/^\s//;
         $publink_citation =~ s/\s+$//;
-print "Check for [$publink_citation] in\n" . Dumper(%citations);
+#print "Check for [$publink_citation] in\n" . Dumper(%citations);
         if (!$publink_citation || $publink_citation eq ''
               || $publink_citation eq 'NULL') {
           $has_errors++;
@@ -351,7 +360,7 @@ print "Check for [$publink_citation] in\n" . Dumper(%citations);
       
       # check species
       my $species = $fields->{$mci{'species_fld'}};
-print "species: $species\n";
+#print "species: $species\n";
       if (!getOrganismID($dbh, $species)) {
         $has_errors++;
         $msg = "ERROR: species name ($species) doesn't exist";
@@ -360,7 +369,7 @@ print "species: $species\n";
       
       # check map unit
       my $unit = $fields->{$mci{'unit_fld'}};
-print "unit: $unit\n";
+#print "unit: $unit\n";
       if (!unitExists($dbh, $unit)) {
         $has_errors++;
         $msg = "ERROR: map unit [$unit] is not set or doesn't exist in the ";
@@ -370,7 +379,7 @@ print "unit: $unit\n";
       
       # check map name
       my $mapname = $fields->{$mci{'map_name_fld'}};
-print "map name: $mapname\n";
+#print "map name: $mapname\n";
       if ($mapsets{$mapname}) {
         $has_errors++;
         $msg = "ERROR: map collection name ($mapname) already exists in spreadsheet";
@@ -390,7 +399,8 @@ print "map name: $mapname\n";
       print "\n\nThe map collection table $mcfile has $has_errors errors.\n\n";
       exit;
     }
-  
+
+=cut this worksheet may go away  
     # MAPs.txt:
     # 1. map name must be unique in db and spreadsheet
     # 2. must be a map set record
@@ -460,6 +470,7 @@ print "species: $species\n";
       print "\n\nThe map table has $has_errors errors. Unable to continue.\n\n";
       exit;
     }
+=cut
     
   }#do genetic maps
 
@@ -480,10 +491,18 @@ print "species: $species\n";
     }
   
     # marker.txt:
-    # 1. marker name must be unique in spreadsheet and data table
-    # 2. chromosome must match an existing chromosome
-    # 3. sequence_source must be in db table
-    # 4. publication, if indicated, must exist in db or spreadsheet
+    # 1. error: marker_type, marker_name, species, map_name, linkage_group, postion required
+    # 2. error: marker name must be unique within map collection (check 
+    #      spreadsheet and database)
+    # 3. warning: if marker name appears in another map collection, curator 
+    #      must verify that it is the same marker or give it a different name
+    # 4. error: map collection must exist in spreadsheet or database
+    # 5. error: linkage group must exist in spreadsheet or database
+    # 6. error: organism record must exist
+    # 7. error: if given, physical chromosome record must exist
+    # 8. warning: no QTL marker types will be loaded as markers
+
+    my %mki = getSSInfo('MARKERS');
     
     $wsfile = "$input_dir/MARKERS.txt";
     print "\nReading marker records from $wsfile\n";
@@ -493,55 +512,121 @@ print "species: $species\n";
     $line_count = 0;
     foreach my $fields (@records) {
       $line_count++;
+#print "$line_count: " . Dumper($fields);
       
-      if ($markers{$fields->{'marker_name'}}) {
+      # 1. error: marker_name, species, map_name, linkage_group, postion, marker_type required
+      if (!isFieldSet($fields, $mki{'marker_name_fld'})) {
         $has_errors++;
-        $msg = "ERROR: This marker ($fields->{'marker_name'}) already exists ";
+        $msg = "ERROR: marker name is missing";
+        reportError($line_count, $msg);
+      }
+      if (!isFieldSet($fields, $mki{'species_fld'})) {
+        $has_errors++;
+        $msg = "ERROR: species abbreviation is missing";
+        reportError($line_count, $msg);
+      }
+      if (!isFieldSet($fields, $mki{'map_name_fld'})) {
+        $has_errors++;
+        $msg = "ERROR: map name is missing";
+        reportError($line_count, $msg);
+      }
+      if (!isFieldSet($fields, $mki{'lg_fld'})) {
+        $has_errors++;
+        $msg = "ERROR: linkage group is missing";
+        reportError($line_count, $msg);
+      }
+      if (!isFieldSet($fields, $mki{'position_fld'}, 1)) {
+        $has_errors++;
+        $msg = "ERROR: genetic position is missing";
+        reportError($line_count, $msg);
+      }
+      if (!isFieldSet($fields, $mki{'marker_type_fld'})) {
+        $has_errors++;
+        $msg = "ERROR: marker type is missing";
+        reportError($line_count, $msg);
+      }
+
+      # convenience:
+      my $marker_name = $fields->{$mki{'marker_name_fld'}};
+#print "Got $marker_name from field " . $mki{'marker_name_fld'} . "\n";
+      my $mapname    = $fields->{$mki{'map_name_fld'}};
+
+      # 2. error: marker name must be unique within map collection (check 
+      #      spreadsheet and database)
+      if ($markers{$marker_name}) {
+        $has_errors++;
+        $msg = "ERROR: This marker ($marker_name) already exists ";
         $msg .= "in the spreadsheet.";
         reportError($line_count, $msg);
       }
-      my $uniq_marker_name = makeMarkerName($fields->{'specieslink_abv'}, 
-                                            $fields->{'marker_name'});
-      if (markerExists($dbh, $uniq_marker_name)) {
+      else {
+        if (markerExists($dbh, $marker_name, $mapname)) {
+          $has_warnings++;
+          $msg = "warning: this marker_name ($marker_name)"
+               . " has already been loaded for the map $mapname"
+               . " and will be updated.";
+           reportError($line_count, $msg);
+        }
+      }
+
+      # 3. warning: if marker name appears in another map collection, curator 
+      #      must verify that it is the same marker or give it a different name
+      if (my $other_maps = markerExistsOnOtherMap($dbh, $marker_name, $mapname)) {
         $has_warnings++;
-        $msg = "warning: This unique marker name ($uniq_marker_name) already exists ";
-        $msg .= "in the database.";
+        $msg = "warning: This marker ($marker_name) already exists ";
+        $msg .= "in the maps, $other_maps.";
+        reportError($line_count, $msg);
+      }
+
+      # 4. error: map collection must exist in spreadsheet or database
+      if (!$mapsets{$mapname} && !mapSetExists($dbh, $mapname)) {
+        $has_errors++;
+        $msg = "ERROR: The map set $mapname does not exist in the spreadsheet"
+             . " or database.";
+        reportError($line_count, $msg);
+      }
+
+=cut this check will not be needed if we create lgs from markers
+      # 5. error: linkage group must exist in spreadsheet or database
+      my $lg = makeLinkageMapName($mapname, $fields->{$mki{'lg_fld'}});
+      if (!$linkagemaps{$lg} && !linkageMapExists($dbh, $lg)) {
+        $has_errors++;
+        $msg = "ERROR: The linkage group $lg does not exist in the spreadsheet"
+             . " or database.";
+        reportError($line_count, $msg);
+      }
+=cut
+          
+      # 6. error: organism record must exist
+      if (!getOrganismID($dbh, $fields->{$mki{'species_fld'}}, $line_count)) {
+        $has_errors++;
+        $msg = "ERROR: The organism " . $fields->{$mki{'species_fld'}} 
+             . " does not exist in the database.";
         reportError($line_count, $msg);
       }
       
-      if (!getChromosomeID($dbh, $fields->{'phys_chr'}, $fields->{'assembly_ver'})
-            && !scaffoldExists($fields->{'phys_chr'})) {
+      # 7. error: if given, physical chromosome record must exist
+      if ($fields->{'phys_chr'} && $fields->{$mki{'phys_chr'}} ne ''
+            && !getChromosomeID($dbh, $fields->{$mki{'phys_chr'}}, 
+                                $fields->{$mki{'assembly_ver'}})
+            && !scaffoldExists($fields->{$mki{'phys_chr'}})) {
         $has_errors++;
         $msg = "ERROR: Chromosome doesn't exist ($fields->{'phys_chr'}, ";
         $msg .= "v $fields->{'assembly_ver'})";
         reportError($line_count, $msg);
       }
       
-      if ($fields->{'sequence_source'} && $fields->{'sequence_source'} ne ''
-            && $fields->{'sequence_source'} ne 'NULL'
-            && !dbExists($fields->{'sequence_source'})) {
-        $has_errors++;
-        $msg = "ERROR: Sequence source ($fields->{'sequence_source'}) ";
-        $msg .= "is not in the database.";
+      # 8. warning: no QTL marker types will be loaded as markers
+      my $line = join ' ', $fields;
+      if (lc($line) =~ /qtl/) {
+        # guess that this is a QTL, not a marker
+        $has_warnings++;
+        $msg = "This record appears to be a QTL, not a marker. It will not be loaded.";
         reportError($line_count, $msg);
       }
       
-      my $publink_citation = $fields->{'publink_citation'};
-      if ($publink_citation && $publink_citation ne ''
-            && $publink_citation ne 'NULL'
-            && $publink_citation ne 'N/A') {
-        my $enc_citation = encode("UTF-8", $publink_citation);
-        if (!$citations{$fields->{'enc_citation'}} 
-              && !publicationExists($dbh, $publink_citation)) {
-#print "citation ($fields->{'publink_citation'}) not in spreadsheet:\n" . Dumper(%citations);
-          $has_errors++;
-          $msg = "ERROR: Publication is not in spreadsheet or database ";
-          $msg .= "($fields->{'publink_citation'})";
-          reportError($line_count, $msg);
-        }
-      }#publication indicated
-      
-      $markers{$fields->{'marker_name'}} = 1;
+      $markers{$marker_name} = 1;
+#last;
     }#each record
 
     if ($has_errors) {
@@ -933,14 +1018,30 @@ sub dbExists {
 }#dbExists
 
 
+sub isFieldSet {
+  my ($fields, $fld, $allow_zero) = @_;
+#print "look for '$fld' in " . Dumper($fields);
+#print " ... looks like '" . $fields->{$fld} . "'\n";
+  if ((!$allow_zero && !$fields->{$fld}) 
+        || $fields->{$fld} eq '' 
+        || $fields->{$fld} eq 'null' 
+        || $fields->{$fld} eq 'NULL') {
+    return 0;
+  }
+  else {
+    return 1;
+  }
+}#isFieldSet
+
+
 sub linkageMapExists {
-  my ($mapname) = @_;
-  if ($linkagemaps{$mapname}) {
+  my ($lg_mapname) = @_;
+  if ($linkagemaps{$lg_mapname}) {
     return 1;
   }
   else {
     my ($sql, $sth, $row);
-    $sql = "SELECT * FROM chado.feature WHERE name='$mapname'";
+    $sql = "SELECT * FROM chado.feature WHERE name='$lg_mapname'";
     logSQL('', "$line_count:$sql");
     $sth = doQuery($dbh, $sql);
     if ($row=$sth->fetchrow_hashref) {

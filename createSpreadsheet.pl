@@ -330,6 +330,7 @@ sub getMapCollectionNames {
       INNER JOIN project_pub ppub ON ppub.project_id=pp.project_id
       INNER JOIN pub ON pub.pub_id=ppub.pub_id
     WHERE pp.type_id=(SELECT cvterm_id FROM cvterm WHERE name='Project Map Collection')";
+#print "$sql\n";
   if ($dataset =~ /^\d+$/) {
     $sql .= "
           AND pub.pub_id=$dataset";
@@ -394,6 +395,7 @@ sub getMapData {
     # build array of hashes
     @results = (@results, getResults($sth));
   }
+#print Dumper(@results);
   
   if ((scalar @results) == 0) {
     die "\nNo linkage group map data found for $dataset.\n\n";

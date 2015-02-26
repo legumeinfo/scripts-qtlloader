@@ -33,6 +33,7 @@ our @EXPORT      = (
                     qw(makeQTLName),
                     qw(mapSetExists),
                     qw(markerExists),
+                    qw(markerExistsOnOtherMap),
                     qw(publicationExists),
                     qw(qtlExists),
                     qw(readFile), 
@@ -122,6 +123,28 @@ sub getSSInfo {
       'map_start_fld' => 'map_start',
       'map_end_fld'   => 'map_end',
       'LIS_lg_fld'    => 'LIS_lg_map_name',
+    );
+  }
+  elsif ($ss eq 'MARKERS') {
+    return (
+      'worksheet'           => 'MARKERS',
+      'marker_name_fld'     => 'marker_name',
+      'genbank_acc_fld'     => 'Genbank_accession',
+      'cmap_acc_fld'        => 'Cmap_accession',
+      'species_fld'         => 'species',
+      'map_name_fld'        => 'map_name',
+      'lg_fld'              => 'linkage_group',
+      'position_fld'        => 'position',
+      'phys_ver_fld'        => 'phys_ver',	
+      'phys_chr_fld'        => 'phys_chr',
+      'phys_start_fld'      => 'phys_start',
+      'phys_end_fld'        => 'phys_end',
+      'marker_type_fld'     => 'marker_type',
+      'primer_pair_fld'     => 'primer_pair_name',
+      'fwd_primer_seq_fld'  => 'forward_primer_seq',
+      'bkwd_primer_seq_fld' => 'backward_primer_seq',
+      'sequence_fld'        => 'sequence',
+      'comment_fld'         => 'comment',
     );
   }
   elsif ($ss eq 'TRAITS') {
@@ -644,6 +667,7 @@ sub makeMappingPopulationName {
 }#makeMappingPopulationName
 
 
+#NOTE: UNUSED
 sub makeMarkerName {
   my ($species, $marker) = @_;
   my $uniq_marker_name = "$species.$marker";
@@ -677,19 +701,22 @@ sub mapSetExists {
 
 
 sub markerExists {
-  my ($dbh, $marker) = @_;
+  my ($dbh, $marker, $mapname) = @_;
   my ($sql, $sth, $row);
 
   my ($sql, $sth, $row);
   $sql = "
-    SELECT * 
-    FROM chado.feature
+    SELECT f.name 
+    FROM chado.feature f
+      INNER JOIN chado.featurepos lg ON lg.feature_id=f.feature_id
+      INNER JOIN chado.featuremap map ON map.featuremap_id=lg.featuremap_id
     WHERE uniquename='$marker' 
       AND type_id = (SELECT cvterm_id FROM chado.cvterm 
                      WHERE name='genetic_marker' 
                        AND cv_id=(SELECT cv_id FROM chado.cv 
                                   WHERE name='sequence')
-                     )";
+                     )
+      AND map.name='$mapname'";
   logSQL('', $sql);
   $sth = doQuery($dbh, $sql);
   if (($row = $sth->fetchrow_hashref)) {
@@ -698,6 +725,36 @@ sub markerExists {
   
   return 0;
 }#makerExists
+
+
+sub markerExistsOnOtherMap {
+  my ($dbh, $marker_name, $mapname) = @_;
+  my ($sql, $sth, $row);
+
+  my ($sql, $sth, $row);
+  my @matches;
+  
+  $sql = "
+    SELECT f.name 
+    FROM chado.feature f
+      INNER JOIN chado.featurepos lg ON lg.feature_id=f.feature_id
+      INNER JOIN chado.featuremap map ON map.featuremap_id=lg.featuremap_id
+    WHERE uniquename='$marker_name' 
+      AND type_id = (SELECT cvterm_id FROM chado.cvterm 
+                     WHERE name='genetic_marker' 
+                       AND cv_id=(SELECT cv_id FROM chado.cv 
+                                  WHERE name='sequence')
+                     )
+      AND map.name != '$mapname'";
+  logSQL('', $sql);
+  $sth = doQuery($dbh, $sql);
+  while (($row = $sth->fetchrow_hashref)) {
+    push @matches, $row-{'name'};
+  }
+  
+  my $ret = ((scalar @matches) > 0) ? join ', ', @matches : 0;
+  return $ret;
+}#markerExistsOnOtherMap
 
 
 sub publicationExists {
@@ -744,19 +801,15 @@ sub readFile {
   use Encode;
 
   my $table_file = $_[0];
-#print "read file $table_file\n";
 
   # execute perl one-liner to fix line endings
   my $cmd = "perl -pi -e 's/(?:\\015\\012?|\\012)/\\n/g' $table_file";
   `$cmd`;
-#print "cleaned-up table file\n";
 
   open IN, "<:utf8", $table_file
       or die "\n\nUnable to open $table_file: $!\n\n";
   my @records = <IN>;
   close IN;
-#print "Read all " . (scalar @records) . " records.\n\n";
-#print "\nFirst record:\n" . $records[0] . "\n\n";
 
   my @hash_records;
   my (@cols, @field_names, $field_count);
@@ -768,7 +821,6 @@ sub readFile {
     chomp $records[$header_rows];chomp $records[$header_rows];
     if ($records[$header_rows] =~ /^#/ && (scalar @field_names) == 0) {
       # First column that starts with #, so must be the header row
-#print "Found header row: " . $records[$header_rows] . "\n";
       $records[$header_rows] =~ s/#//;
       @cols = split "\t", $records[$header_rows];
       foreach my $col (@cols) {
@@ -795,7 +847,6 @@ sub readFile {
     if ((scalar @fields) < $field_count) {
       my $msg = "Insufficient columns. Expected $field_count, found " . (scalar @fields);
       reportError($i, $msg);
-#      next;
     }
     my %hash_record;
     for (my $j=0; $j<(scalar @field_names); $j++) {
@@ -863,8 +914,12 @@ sub uniqueID {
 
 sub _allNULL {
   my $all_null = 1;
-  foreach my $t (@_) {
-    if ($t ne '' && $t ne 'NULL') { $all_null = 0; }
+  foreach my $f (@_) {
+    my $t = $f;
+    $t =~ s/\s//;
+    if ($t ne '' && $t ne 'NULL' && $t ne 'null') { 
+      $all_null = 0; 
+    }
   }
   return $all_null;
 }#_allNULL
