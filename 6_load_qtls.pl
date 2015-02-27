@@ -564,27 +564,6 @@ sub getPubFromExperiment {
 }#getPubFromExperiment
 
 
-sub getSynonym {
-  my ($dbh, $synonym) = @_;
-  my ($sql, $sth, $row);
-  $sql = "
-    SELECT synonym_id FROM chado.synonym 
-    WHERE name='$synonym' 
-      AND type_id=(SELECT cvterm_id FROM chado.cvterm
-                   WHERE name='Symbol'
-                     AND cv_id=(SELECT cv_id FROM chado.cv 
-                                WHERE name='synonym_type'))";
-  logSQL($dataset_name, "$line_count: $sql");
-  $sth = doQuery($dbh, $sql);
-  if ($row = $sth->fetchrow_hashref) {
-    return $row->{'synonym_id'};
-  }
-  else {
-    return 0;
-  }
-}#getSynonym
-
-
 sub insertGeneticCoordinates {
   my ($dbh, $qtl_id, $qtl_name, $mapset, $lg_mapname, $fields) = @_;
   my ($sql, $sth, $row);
@@ -710,7 +689,7 @@ sub setSynonym {
     return;
   }
   
-  my $synonym_id = getSynonym($dbh, $synonym);
+  my $synonym_id = getSynonym($dbh, $synonym, 'Symbol');
   if (!$synonym_id) {
     $sql = "
       INSERT INTO chado.synonym
