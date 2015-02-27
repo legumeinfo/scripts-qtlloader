@@ -301,23 +301,24 @@ print " = $enc_citation ($publink_citation)\n";
     my %mci = getSSInfo('MAP_COLLECTIONS');
     my %mi  = getSSInfo('MAPS');
 
-    # Make sure we've got all the map table files
-=cut the map worksheet may go away
+    $has_warnings = 0;
+    $has_errors   = 0;
+    $line_count   = 0;
+
+    # Make sure we've got all the map table files: 
+    #   MAP_COLLECTIONS required, MAPS optional
     my $mcfile = $mci{'worksheet'} . '.txt';
     my $mfile  = $mi{'worksheet'} . '.txt';
-    if (!$files{$mcfile} || !$files{$mfile}) {
-      $msg = "\nOne or more required map tables is missing.\n";
-      $msg .= "$mcfile and $mfile are required .\n\n";
-      reportError('', $msg);
-      exit;
-    }
-=cut
-    my $mcfile = $mci{'worksheet'} . '.txt';
     if (!$files{$mcfile}) {
       $msg = "\nOne or more required map tables is missing.\n";
       $msg .= "$mcfile is required .\n\n";
       reportError('', $msg);
       exit;
+    }
+    if (!$files{$mfile}) {
+      $has_warnings++;
+      $msg = "\nwarning: $mfile is missing but optional.\n";
+      reportError('', $msg);
     }
   
     # map_collection.txt:
@@ -329,19 +330,14 @@ print " = $enc_citation ($publink_citation)\n";
     $wsfile = "$input_dir/$mcfile";
     print "\nReading map collection records from $wsfile\n";
     @records = readFile($wsfile);
-#print "Map collection record:\n" . Dumper(@records);    
-    $has_errors = 0;
-    $line_count = 0;
     foreach my $fields (@records) {
       $line_count++;
       
       # check citation
       my @publink_citations = split ';', $fields->{$mci{'pub_fld'}};
-#print "Publication(s):\n" . Dumper(@publink_citations);
       foreach my $publink_citation (@publink_citations) {
         $publink_citation =~ s/^\s//;
         $publink_citation =~ s/\s+$//;
-#print "Check for [$publink_citation] in\n" . Dumper(%citations);
         if (!$publink_citation || $publink_citation eq ''
               || $publink_citation eq 'NULL') {
           $has_errors++;
@@ -360,7 +356,6 @@ print " = $enc_citation ($publink_citation)\n";
       
       # check species
       my $species = $fields->{$mci{'species_fld'}};
-#print "species: $species\n";
       if (!getOrganismID($dbh, $species)) {
         $has_errors++;
         $msg = "ERROR: species name ($species) doesn't exist";
@@ -369,7 +364,6 @@ print " = $enc_citation ($publink_citation)\n";
       
       # check map unit
       my $unit = $fields->{$mci{'unit_fld'}};
-#print "unit: $unit\n";
       if (!unitExists($dbh, $unit)) {
         $has_errors++;
         $msg = "ERROR: map unit [$unit] is not set or doesn't exist in the ";
@@ -379,7 +373,6 @@ print " = $enc_citation ($publink_citation)\n";
       
       # check map name
       my $mapname = $fields->{$mci{'map_name_fld'}};
-#print "map name: $mapname\n";
       if ($mapsets{$mapname}) {
         $has_errors++;
         $msg = "ERROR: map collection name ($mapname) already exists in spreadsheet";
@@ -388,7 +381,7 @@ print " = $enc_citation ($publink_citation)\n";
       elsif (mapSetExists($dbh, $mapname)) {
         $has_warnings++;
         $msg = "warning: this map collection name ($mapname)";
-        $msg .= "is already in the database and will be updated.";
+        $msg .= " is already in the database and will be updated.";
         reportError($line_count, $msg);
       }
       
@@ -400,7 +393,6 @@ print " = $enc_citation ($publink_citation)\n";
       exit;
     }
 
-=cut this worksheet may go away  
     # MAPs.txt:
     # 1. map name must be unique in db and spreadsheet
     # 2. must be a map set record
@@ -409,69 +401,67 @@ print " = $enc_citation ($publink_citation)\n";
     # 5. species name must exist
     
     $wsfile = "$input_dir/$mfile";
-    print "\nReading map records from $wsfile\n";
-    @records = readFile($wsfile);
-      
-    $has_errors = 0;
-    $line_count = 0;
-    foreach my $fields (@records) {
-      $line_count++;
-
-      my $ms_name = $fields->{$mi{'map_name_fld'}};
-      my $lg      = $fields->{$mi{'lg_fld'}};
-      my $mapname = makeLinkageMapName($ms_name, $lg);
-print "\nlinkage map name: $mapname ($ms_name, $lg)\n";
-      next if (linkageMapExists($mapname));
-          
-      # check for unique name
-      if ($linkagemaps{$mapname}) {
-        $has_errors++;
-        $msg = "ERROR: linkage map name ($mapname) is not unique within spreadsheet";
-        reportError($line_count, $msg);
-      }
+    if (-e $wsfile) {
+      print "\nReading map records from $wsfile\n";
+      @records = readFile($wsfile);
         
-      # make sure there is an associated map collection record
-      if (!$mapsets{$ms_name} && !mapSetExists($dbh, $ms_name)) {
-        $has_errors++;
-        $msg = "ERROR: Map set record (map_collection) for ";
-        $msg .= "$ms_name does not exist in spreadsheet or database.";
-        reportError($line_count, $msg);
-      }
-        
-      # map_start and map_end must be set
-      my $map_start = $fields->{$mi{'map_start_fld'}};
-      my $map_end   = $fields->{$mi{'map_end_fld'}};
-      if ($map_start eq '' || lc($map_start) eq 'null') {
-        $has_errors++;
-        reportError($line_count, "ERROR: map_start is missing");
-      }
-      if (!$map_end || $map_end eq '' || lc($map_end) eq 'null') {
-        $has_errors++;
-        reportError($line_count, "ERROR: map_end is missing");
-      }
-      if ($map_end < $map_start) {
-        $has_errors++;
-        reportError($line_count, "ERROR: map end is < map start");
-      }
-      
-      # species must exist
-      my $species = $fields->{$mi{'species_fld'}};
-print "species: $species\n";
-      if (!getOrganismID($dbh, $species)) {
-        $has_errors++;
-        $msg = "ERROR: species name ($species) doesn't exist";
-        reportError($line_count, $msg);
-      }
-        
-      $linkagemaps{$mapname} = 1;
-    }#each record
+      $has_errors = 0;
+      $line_count = 0;
+      foreach my $fields (@records) {
+        $line_count++;
   
-    if ($has_errors) {
-      print "\n\nThe map table has $has_errors errors. Unable to continue.\n\n";
-      exit;
-    }
-=cut
+        my $ms_name = $fields->{$mi{'map_name_fld'}};
+        my $lg      = $fields->{$mi{'lg_fld'}};
+        my $mapname = makeLinkageMapName($ms_name, $lg);
+        next if (linkageMapExists($mapname));
+            
+        # check for unique name
+        if ($linkagemaps{$mapname}) {
+          $has_errors++;
+          $msg = "ERROR: linkage map name ($mapname) is not unique within spreadsheet";
+          reportError($line_count, $msg);
+        }
+          
+        # make sure there is an associated map collection record
+        if (!$mapsets{$ms_name} && !mapSetExists($dbh, $ms_name)) {
+          $has_errors++;
+          $msg = "ERROR: Map set record (map_collection) for ";
+          $msg .= "$ms_name does not exist in spreadsheet or database.";
+          reportError($line_count, $msg);
+        }
+          
+        # map_start and map_end must be set
+        my $map_start = $fields->{$mi{'map_start_fld'}};
+        my $map_end   = $fields->{$mi{'map_end_fld'}};
+        if ($map_start eq '' || lc($map_start) eq 'null') {
+          $has_errors++;
+          reportError($line_count, "ERROR: map_start is missing");
+        }
+        if (!$map_end || $map_end eq '' || lc($map_end) eq 'null') {
+          $has_errors++;
+          reportError($line_count, "ERROR: map_end is missing");
+        }
+        if ($map_end < $map_start) {
+          $has_errors++;
+          reportError($line_count, "ERROR: map end is < map start");
+        }
+        
+        # species must exist
+        my $species = $fields->{$mi{'species_fld'}};
+        if (!getOrganismID($dbh, $species)) {
+          $has_errors++;
+          $msg = "ERROR: species name ($species) doesn't exist";
+          reportError($line_count, $msg);
+        }
+          
+        $linkagemaps{$mapname} = 1;
+      }#each record
     
+      if ($has_errors) {
+        print "\n\nThe map table has $has_errors errors. Unable to continue.\n\n";
+        exit;
+      }
+    }
   }#do genetic maps
 
 
@@ -491,16 +481,24 @@ print "species: $species\n";
     }
   
     # marker.txt:
-    # 1. error: marker_type, marker_name, species, map_name, linkage_group, postion required
-    # 2. error: marker name must be unique within map collection (check 
+    # error: marker_type, marker_name, species, map_name, linkage_group, postion required
+    # error: marker name must be unique within map collection (check 
     #      spreadsheet and database)
-    # 3. warning: if marker name appears in another map collection, curator 
+    # warning: if marker name appears in another map collection, curator 
     #      must verify that it is the same marker or give it a different name
-    # 4. error: map collection must exist in spreadsheet or database
-    # 5. error: linkage group must exist in spreadsheet or database
-    # 6. error: organism record must exist
-    # 7. error: if given, physical chromosome record must exist
-    # 8. warning: no QTL marker types will be loaded as markers
+    # error: map collection must exist in spreadsheet or database
+    # warning: linkage groups already exist but there are markers that
+    #   exceed the linkage groups min and max.
+    # error: organism record must exist
+    # error: if given, physical chromosome record must exist
+    # warning: no QTL marker types will be loaded as markers
+    # error: verify that alt_marker_names aren't already used
+    # warning: check if primers already exist. If so, issue warning and
+    #   report what features they are attached to.
+    # error: if physical position indicated, assembly version, chromosome,
+    #   start and stop positions are all provided
+    # error: if physical position indicated, analysis record for assembly version exists
+    # error: if physical position indicated start < end.
 
     my %mki = getSSInfo('MARKERS');
     
@@ -512,9 +510,8 @@ print "species: $species\n";
     $line_count = 0;
     foreach my $fields (@records) {
       $line_count++;
-#print "$line_count: " . Dumper($fields);
       
-      # 1. error: marker_name, species, map_name, linkage_group, postion, marker_type required
+      # error: marker_name, species, map_name, linkage_group, postion, marker_type required
       if (!isFieldSet($fields, $mki{'marker_name_fld'})) {
         $has_errors++;
         $msg = "ERROR: marker name is missing";
@@ -548,10 +545,9 @@ print "species: $species\n";
 
       # convenience:
       my $marker_name = $fields->{$mki{'marker_name_fld'}};
-#print "Got $marker_name from field " . $mki{'marker_name_fld'} . "\n";
       my $mapname    = $fields->{$mki{'map_name_fld'}};
 
-      # 2. error: marker name must be unique within map collection (check 
+      # error: marker name must be unique within map collection (check 
       #      spreadsheet and database)
       if ($markers{$marker_name}) {
         $has_errors++;
@@ -561,6 +557,8 @@ print "species: $species\n";
       }
       else {
         if (markerExists($dbh, $marker_name, $mapname)) {
+          # TODO: check primer pairs for new and existing marker to see 
+          #       if they are the same.
           $has_warnings++;
           $msg = "warning: this marker_name ($marker_name)"
                . " has already been loaded for the map $mapname"
@@ -569,7 +567,7 @@ print "species: $species\n";
         }
       }
 
-      # 3. warning: if marker name appears in another map collection, curator 
+      # warning: if marker name appears in another map collection, curator 
       #      must verify that it is the same marker or give it a different name
       if (my $other_maps = markerExistsOnOtherMap($dbh, $marker_name, $mapname)) {
         $has_warnings++;
@@ -578,7 +576,7 @@ print "species: $species\n";
         reportError($line_count, $msg);
       }
 
-      # 4. error: map collection must exist in spreadsheet or database
+      # error: map collection must exist in spreadsheet or database
       if (!$mapsets{$mapname} && !mapSetExists($dbh, $mapname)) {
         $has_errors++;
         $msg = "ERROR: The map set $mapname does not exist in the spreadsheet"
@@ -586,18 +584,7 @@ print "species: $species\n";
         reportError($line_count, $msg);
       }
 
-=cut this check will not be needed if we create lgs from markers
-      # 5. error: linkage group must exist in spreadsheet or database
-      my $lg = makeLinkageMapName($mapname, $fields->{$mki{'lg_fld'}});
-      if (!$linkagemaps{$lg} && !linkageMapExists($dbh, $lg)) {
-        $has_errors++;
-        $msg = "ERROR: The linkage group $lg does not exist in the spreadsheet"
-             . " or database.";
-        reportError($line_count, $msg);
-      }
-=cut
-          
-      # 6. error: organism record must exist
+      # error: organism record must exist
       if (!getOrganismID($dbh, $fields->{$mki{'species_fld'}}, $line_count)) {
         $has_errors++;
         $msg = "ERROR: The organism " . $fields->{$mki{'species_fld'}} 
@@ -605,7 +592,7 @@ print "species: $species\n";
         reportError($line_count, $msg);
       }
       
-      # 7. error: if given, physical chromosome record must exist
+      # error: if given, physical chromosome record must exist
       if ($fields->{'phys_chr'} && $fields->{$mki{'phys_chr'}} ne ''
             && !getChromosomeID($dbh, $fields->{$mki{'phys_chr'}}, 
                                 $fields->{$mki{'assembly_ver'}})
@@ -616,7 +603,7 @@ print "species: $species\n";
         reportError($line_count, $msg);
       }
       
-      # 8. warning: no QTL marker types will be loaded as markers
+      # warning: no QTL marker types will be loaded as markers
       my $line = join ' ', $fields;
       if (lc($line) =~ /qtl/) {
         # guess that this is a QTL, not a marker
@@ -625,6 +612,33 @@ print "species: $species\n";
         reportError($line_count, $msg);
       }
       
+
+      # TODO: if linkage groups already exist in spreadsheet or database,
+      #   make sure the lengths match min and max marker positions. Report lg
+      #   and the min/max position that is out of bounds. 
+      #   See CropLegumeBaseLoaderUtils.pm.createLinkageGroups()
+      # warning: linkage groups already exist but there are markers that
+      #   exceed the linkage groups min and max.
+      
+      # TODO: verify that alt_marker_names aren't already used
+      #   see 3_load_markers.pl:attachSynonyms()
+      # error: verify that alt_marker_names aren't already used
+      
+      # TODO: check if primers already exist. If so, issue warning and
+      #   report what features they are attached to.
+      # warning: check if primers already exist. If so, issue warning and
+      #   report what features they are attached to.
+      
+      # TODO: if physical position indicated, make sure version, chromosome,
+      #   start and stop position fields are all provided and start < end.
+      #   verify that the assembly analysis record exists.
+      #   See 3_load_markers.pl:setPhysicalPosition()    
+      # error: if physical position indicated, assembly version, chromosome,
+      #   start and stop positions are all provided
+      # error: if physical position indicated, analysis record for assembly 
+      #   version exists
+      # error: if physical position indicated start < end.
+
       $markers{$marker_name} = 1;
 #last;
     }#each record
@@ -1016,22 +1030,6 @@ sub dbExists {
   
   return 0;
 }#dbExists
-
-
-sub isFieldSet {
-  my ($fields, $fld, $allow_zero) = @_;
-#print "look for '$fld' in " . Dumper($fields);
-#print " ... looks like '" . $fields->{$fld} . "'\n";
-  if ((!$allow_zero && !$fields->{$fld}) 
-        || $fields->{$fld} eq '' 
-        || $fields->{$fld} eq 'null' 
-        || $fields->{$fld} eq 'NULL') {
-    return 0;
-  }
-  else {
-    return 1;
-  }
-}#isFieldSet
 
 
 sub linkageMapExists {

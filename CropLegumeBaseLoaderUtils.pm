@@ -9,6 +9,7 @@ our @ISA         = qw(Exporter);
 our @EXPORT      = (
                     qw(checkUpdate),
                     qw(connectToDB), 
+                    qw(createLinkageGroups),
                     qw(dbxrefExists),
                     qw(doQuery), 
                     qw(experimentExists),
@@ -24,7 +25,9 @@ our @EXPORT      = (
                     qw(getQTLid),
                     qw(getScaffoldID),
                     qw(getSSInfo),
-                    qw(getTrait), 
+                    qw(getSynonym),
+                    qw(getTrait),
+                    qw(isFieldSet),
                     qw(isNull),
                     qw(logSQL),
                     qw(makeLinkageMapName),
@@ -129,6 +132,7 @@ sub getSSInfo {
     return (
       'worksheet'           => 'MARKERS',
       'marker_name_fld'     => 'marker_name',
+      'alt_name_fld'        => 'alt_marker_name',
       'genbank_acc_fld'     => 'Genbank_accession',
       'cmap_acc_fld'        => 'Cmap_accession',
       'species_fld'         => 'species',
@@ -232,6 +236,30 @@ sub checkUpdate {
 }
 
 
+sub createLinkageGroups {
+  my @records = @_;
+  
+  my %lgs;
+  my %mki = getSSInfo('MARKERS');
+  
+  foreach my $r (@records) {
+    my $lg_map_name = makeLinkageMapName($r->{$mki{'map_name_fld'}}, $r->{$mki{'lg_fld'}});
+    if (!$lgs{$lg_map_name}) {
+      $lgs{$lg_map_name} = {'map_start' => 99999, 'map_end' => -99999};
+    }
+    if ($r->{$mki{'position_fld'}} < $lgs{$lg_map_name}{'map_start'}) {
+      $lgs{$lg_map_name}{'map_start'} = $r->{$mki{'position_fld'}};
+    }
+    if ($r->{$mki{'position_fld'}} > $lgs{$lg_map_name}{'map_end'}) {
+      $lgs{$lg_map_name}{'map_end'} = $r->{$mki{'position_fld'}};
+    }
+    $lgs{$lg_map_name}{'species'} = $r->{$mki{'species_fld'}};
+  }#each record
+  
+  return %lgs;
+}#createLinkageGroups
+
+
 sub dbxrefExists {
   my ($dbh, $db, $acc) = @_;
   my ($sql, $sth, $row);
@@ -328,6 +356,22 @@ sub getCvtermID {
 }#getCvtermID
 
 
+sub getAssemblyID {
+  my ($dbh, $assembly) = @_;
+  my ($row, $sql, $sth);
+  
+  $sql = "
+    SELECT analysis_id FROM analysis
+    WHERE name='$assembly'";
+  $sth = doQuery($dbh, $sql);
+  if ($row=$sth->fetchrow_hashrec) {
+    return $row-{'analysis_id'};
+  }
+  
+  return 0;
+}#getAssemblyID
+
+
 sub getChromosomeID {
   my ($dbh, $chromosome, $version) = @_;
   my ($sql, $sth, $row);
@@ -363,6 +407,8 @@ sub getChromosomeID {
 }#getChromosomeID
 
 
+#TODO: this should also include type and species because the unique constraint
+#      on the table feature is (uniquename, type_id, organism_id.
 sub getFeatureID {
   my ($dbh, $uniquename) = @_;
   my ($sql, $sth, $row);
@@ -598,6 +644,27 @@ sub getScaffoldID {
 }#getScaffoldID
 
 
+sub getSynonym {
+  my ($dbh, $synonym, $type) = @_;
+  my ($sql, $sth, $row);
+  $sql = "
+    SELECT synonym_id FROM chado.synonym 
+    WHERE name='$synonym' 
+      AND type_id=(SELECT cvterm_id FROM chado.cvterm
+                   WHERE name='$type'
+                     AND cv_id=(SELECT cv_id FROM chado.cv 
+                                WHERE name='synonym_type'))";
+  logSQL('', "$sql");
+  $sth = doQuery($dbh, $sql);
+  if ($row = $sth->fetchrow_hashref) {
+    return $row->{'synonym_id'};
+  }
+  else {
+    return 0;
+  }
+}#getSynonym
+
+
 sub getTrait {
   my ($dbh, $trait) = @_;
   
@@ -620,6 +687,20 @@ sub getTrait {
   
   return $trait_id;
 }#getTrait
+
+
+sub isFieldSet {
+  my ($fields, $fld, $allow_zero) = @_;
+  if ((!$allow_zero && !$fields->{$fld}) 
+        || $fields->{$fld} eq '' 
+        || $fields->{$fld} eq 'null' 
+        || $fields->{$fld} eq 'NULL') {
+    return 0;
+  }
+  else {
+    return 1;
+  }
+}#isFieldSet
 
 
 sub isNull {
@@ -873,7 +954,12 @@ sub readFile {
 
 sub reportError {
   my ($line_count, $msg) = @_;
-  print "  $line_count: $msg\n";
+  if (!$line_count) {
+    print "$msg\n";
+  }
+  else {
+    print "  $line_count: $msg\n";
+  }
 }#reportError
 
 
