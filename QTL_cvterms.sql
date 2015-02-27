@@ -122,7 +122,8 @@ VALUES
   ((SELECT db_id FROM db WHERE name='tripal'), 'publication_linkage_group'),
   ((SELECT db_id FROM db WHERE name='tripal'), 'interval_calculation_method'),
   ((SELECT db_id FROM db WHERE name='tripal'), 'assigned_linkage_group'),
-  ((SELECT db_id FROM db WHERE name='tripal'), 'qtl_peak')
+  ((SELECT db_id FROM db WHERE name='tripal'), 'qtl_peak'),
+  ((SELECT db_id FROM db WHERE name='tripal'), 'marker_type')
 ;
 
 INSERT INTO chado.cvterm
@@ -165,9 +166,15 @@ VALUES
    (SELECT dbxref_id FROM dbxref WHERE accession='assigned_linkage_group')),
    
   ((SELECT cv_id FROM cv WHERE name='feature_property'),
-   'QTL Peak', 'Position of QTL peak)', 
-   (SELECT dbxref_id FROM dbxref WHERE accession='qtl_peak'))
+   'QTL Peak', 'Position of QTL peak', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='qtl_peak')),
    
+  ((SELECT cv_id FROM cv WHERE name='feature_property'),
+   'Marker Type', 'Type of marker, e.g. SSR, STS, CAPS', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='marker_type')),
+  ((SELECT cv_id FROM cv WHERE name='feature_property'),
+   'Primer Pair Name', 'Name of the primer pair used to for a marker.', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='qtl_peak'))
 ;
 
 
@@ -363,19 +370,26 @@ VALUES
 INSERT INTO chado.dbxref
   (db_id, accession)
 VALUES
-  ((SELECT db_id FROM db WHERE name='tripal'), 'symbol')
+  ((SELECT db_id FROM db WHERE name='tripal'), 'symbol'),
+  ((SELECT db_id FROM db WHERE name='tripal'), 'marker_synonym')
 ;
 
 INSERT INTO chado.cvterm
   (cv_id, name, definition, dbxref_id)
 VALUES
   ((SELECT cv_id FROM cv WHERE name='synonym_type'),
-   'Symbol', '', 
+   'Symbol', 'QTL symbol synonym', 
    (SELECT dbxref_id FROM dbxref 
     WHERE accession='symbol'
           AND db_id = (SELECT db_id FROM db 
-                       WHERE name='tripal')))
+                       WHERE name='tripal'))),
    
+  ((SELECT cv_id FROM cv WHERE name='synonym_type'),
+   'Marker Synonym', 'QTL symbol synonym', 
+   (SELECT dbxref_id FROM dbxref 
+    WHERE accession='marker_synonym'
+          AND db_id = (SELECT db_id FROM db 
+                       WHERE name='tripal')))
 ;
 
 
