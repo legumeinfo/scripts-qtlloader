@@ -492,7 +492,7 @@ print " = $enc_citation ($publink_citation)\n";
     # error: organism record must exist
     # error: if given, physical chromosome record must exist
     # warning: no QTL marker types will be loaded as markers
-    # error: verify that alt_marker_names aren't already used
+    # REVISIT: error: verify that alt_marker_names aren't already used
     # warning: check if primers already exist. If so, issue warning and
     #   report what features they are attached to.
     # error: if physical position indicated, assembly version, chromosome,
@@ -620,14 +620,12 @@ print " = $enc_citation ($publink_citation)\n";
       # warning: linkage groups already exist but there are markers that
       #   exceed the linkage groups min and max.
       
-      # TODO: verify that alt_marker_names aren't already used
+      # REVISIT: TODO: verify that alt_marker_names aren't already used
       #   see 3_load_markers.pl:attachSynonyms()
       # error: verify that alt_marker_names aren't already used
       
-      # TODO: check if primers already exist. If so, issue warning and
-      #   report what features they are attached to.
-      # warning: check if primers already exist. If so, issue warning and
-      #   report what features they are attached to.
+      # TODO: check if primers already exist (look for matching sequence). 
+      #   If so, issue warning and report what features they are attached to.
       
       # TODO: if physical position indicated, make sure version, chromosome,
       #   start and stop position fields are all provided and start < end.
