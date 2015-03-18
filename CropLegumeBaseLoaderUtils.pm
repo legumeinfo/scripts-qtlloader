@@ -771,7 +771,12 @@ sub makeMappingPopulationName {
 #NOTE: UNUSED
 sub makeMarkerName {
   my ($species, $marker) = @_;
-  my $uniq_marker_name = "$species.$marker";
+# Don't need to append species mnemonic because the unique constraint in the
+#   feature table is (uniquename, type_id, organism_id).
+# Also, what species name to use may not be clear if marker was developed in
+#   an interspecific cross.
+#  my $uniq_marker_name = "$species.$marker";
+  my $uniq_marker_name = "$marker";
   return $uniq_marker_name;
 }#makeMarkerName
 
