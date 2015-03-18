@@ -802,25 +802,31 @@ sub mapSetExists {
 
 
 sub markerExists {
-  my ($dbh, $marker, $mapname) = @_;
+  my ($dbh, $marker, $species) = @_;
   my ($sql, $sth, $row);
 
   my ($sql, $sth, $row);
   $sql = "
-    SELECT f.name 
+    SELECT f.feature_id
     FROM chado.feature f
-      INNER JOIN chado.featurepos lg ON lg.feature_id=f.feature_id
-      INNER JOIN chado.featuremap map ON map.featuremap_id=lg.featuremap_id
-    WHERE uniquename='$marker' 
-      AND type_id = (SELECT cvterm_id FROM chado.cvterm 
-                     WHERE name='genetic_marker' 
-                       AND cv_id=(SELECT cv_id FROM chado.cv 
-                                  WHERE name='sequence')
-                     )
-      AND map.name='$mapname'";
+    WHERE uniquename='$marker'
+          AND organism_id = (SELECT O.organism_id 
+                             FROM chado.organism O 
+                               INNER JOIN chado.organism_dbxref OD ON OD.organism_id=O.organism_id 
+                               INNER JOIN chado.dbxref D on D.dbxref_id=OD.dbxref_id 
+                             WHERE D.accession='$species'
+                            )
+          AND type_id = (SELECT cvterm_id FROM chado.cvterm 
+                         WHERE name='genetic_marker' 
+                               AND cv_id=(SELECT cv_id FROM chado.cv 
+                                          WHERE name='sequence')
+                        )";
+                        
   logSQL('', $sql);
+print "$sql\n";
   $sth = doQuery($dbh, $sql);
   if (($row = $sth->fetchrow_hashref)) {
+print "marker exists: " . $row->{'feature_id'} . "\n";
     return $row->{'feature_id'};
   }
   
