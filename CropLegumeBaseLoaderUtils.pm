@@ -101,7 +101,7 @@ sub getSSInfo {
   # MAP_COLLECTIONS
   elsif ($ss eq 'MAP_COLLECTIONS') {
     return (
-      'worksheet'        => 'MAP_COLLECTIONS',
+      'worksheet'        => 'MAP_COLLECTION',
       'species_fld'      => 'specieslink_abv',
       'pub_map_name_fld' => 'publication_map_name',
       'map_name_fld'     => 'map_name',
@@ -119,7 +119,7 @@ sub getSSInfo {
   }
   elsif ($ss eq 'MAPS') {
     return (
-      'worksheet'     => 'MAPS',
+      'worksheet'     => 'MAP',
       'species_fld'   => 'specieslink_abv',
       'map_name_fld'  => 'map_name',
       'lg_fld'        => 'lg',
@@ -130,27 +130,47 @@ sub getSSInfo {
   }
   elsif ($ss eq 'MARKERS') {
     return (
-      'worksheet'           => 'MARKERS',
+      'worksheet'           => 'MARKER',
+      'species_fld'         => 'specieslink_abv',
+      'marker_citation_fld' => 'marker_citation',
       'marker_name_fld'     => 'marker_name',
-      'alt_name_fld'        => 'alt_marker_name',
-      'genbank_acc_fld'     => 'Genbank_accession',
-      'cmap_acc_fld'        => 'Cmap_accession',
-      'species_fld'         => 'species',
-      'map_name_fld'        => 'map_name',
-      'lg_fld'              => 'linkage_group',
-      'position_fld'        => 'position',
-      'phys_ver_fld'        => 'phys_ver',	
+      'marker_synonym_fld'  => 'marker_synonym',
+      'marker_type_fld'     => 'marker_type',
+      'assembly_name_fld'   => 'assembly_name',
       'phys_chr_fld'        => 'phys_chr',
       'phys_start_fld'      => 'phys_start',
       'phys_end_fld'        => 'phys_end',
-      'marker_type_fld'     => 'marker_type',
-      'primer_pair_fld'     => 'primer_pair_name',
-      'fwd_primer_seq_fld'  => 'forward_primer_seq',
-      'bkwd_primer_seq_fld' => 'backward_primer_seq',
-      'sequence_fld'        => 'sequence',
       'comment_fld'         => 'comment',
     );
   }
+  elsif($ss eq 'MARKER_POSITION'){
+    return(
+      'worksheet'           => 'MARKER_POSITION',
+      'species_fld'         => 'specieslink_abv',
+      'marker_name_fld'     => 'marker_name',
+      'cmap_acc_fld'        => 'Cmap_accession',
+      'map_name_fld'        => 'map_name',
+      'lg_fld'              => 'lg',
+      'position_fld'        => 'position',
+      'comment_fld'         => 'comment',
+    );
+  }
+  elsif($ss eq 'MARKER_SEQUENCE'){
+    return(
+        'worksheet'               =>  'MARKER_SEQUENCE',
+        'species_fld'             =>  'specieslink_abv',
+        'marker_name_fld'         =>  'marker_name',
+        'sequence_type_fld'       =>  'sequence_type',
+        'genbank_acc_fld'         =>  'Genbank_accession',
+        'sequence_name_fld'       =>  'sequence_name',
+        'marker_sequence_fld'     =>  'marker_sequence',
+        'forward_primer_name_fld' =>  'forward_primer_name',
+        'reverse_primer_name_fld' =>  'reverse_primer_name',
+        'forward_primer_seq_fld'  =>  'forward_primer_seq',
+        'reverse_primer_seq_fld'  =>  'reverse_primer_seq',
+        'comment_fld'             =>  'comment',        
+    );
+    }
   elsif ($ss eq 'TRAITS') {
     return (
       'worksheet'       => 'Traits',
