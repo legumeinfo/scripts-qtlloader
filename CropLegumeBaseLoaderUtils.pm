@@ -823,10 +823,10 @@ sub markerExists {
                         )";
                         
   logSQL('', $sql);
-print "$sql\n";
+#print "$sql\n";
   $sth = doQuery($dbh, $sql);
   if (($row = $sth->fetchrow_hashref)) {
-print "marker exists: " . $row->{'feature_id'} . "\n";
+#print "marker exists: " . $row->{'feature_id'} . "\n";
     return $row->{'feature_id'};
   }
   
