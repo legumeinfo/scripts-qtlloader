@@ -259,21 +259,22 @@ sub checkUpdate {
 sub createLinkageGroups {
   my @records = @_;
   
+  # a hash describing the linkage groups represented by an array of marker 
   my %lgs;
-  my %mki = getSSInfo('MARKERS');
+  my %mpi = getSSInfo('MARKER_POSITION');
   
   foreach my $r (@records) {
-    my $lg_map_name = makeLinkageMapName($r->{$mki{'map_name_fld'}}, $r->{$mki{'lg_fld'}});
+    my $lg_map_name = makeLinkageMapName($r->{$mpi{'map_name_fld'}}, $r->{$mpi{'lg_fld'}});
     if (!$lgs{$lg_map_name}) {
       $lgs{$lg_map_name} = {'map_start' => 99999, 'map_end' => -99999};
     }
-    if ($r->{$mki{'position_fld'}} < $lgs{$lg_map_name}{'map_start'}) {
-      $lgs{$lg_map_name}{'map_start'} = $r->{$mki{'position_fld'}};
+    if ($r->{$mpi{'position_fld'}} < $lgs{$lg_map_name}{'map_start'}) {
+      $lgs{$lg_map_name}{'map_start'} = $r->{$mpi{'position_fld'}};
     }
-    if ($r->{$mki{'position_fld'}} > $lgs{$lg_map_name}{'map_end'}) {
-      $lgs{$lg_map_name}{'map_end'} = $r->{$mki{'position_fld'}};
+    if ($r->{$mpi{'position_fld'}} > $lgs{$lg_map_name}{'map_end'}) {
+      $lgs{$lg_map_name}{'map_end'} = $r->{$mpi{'position_fld'}};
     }
-    $lgs{$lg_map_name}{'species'} = $r->{$mki{'species_fld'}};
+    $lgs{$lg_map_name}{'species'} = $r->{$mpi{'species_fld'}};
   }#each record
   
   return %lgs;
@@ -308,20 +309,15 @@ sub doQuery {
   if (!@vals) { @vals = (); }
   
   # Translate any UniCode characters in sql statment
-#print "start with: $sql\n";
   $sql = decode("iso-8859-1", $sql);
-#print "end with: $sql\n";
   
   # Translate any UniCode chararcters in values array
   if (@vals && (scalar @vals) > 0) {
-#print "start with:\n" . Dumper(@vals);
     my @tr_vals = map{ decode("iso-8859-1", $_) } @vals;
-#print "translate:\n" . Dumper(@tr_vals);
     @vals = @tr_vals;
   }
   
   my $sth = $dbh->prepare($sql);
-#print "end with:\n" . Dumper(@vals);
   $sth->execute(@vals);
   return $sth;
 }#doQuery
@@ -768,7 +764,6 @@ sub makeMappingPopulationName {
 }#makeMappingPopulationName
 
 
-#NOTE: UNUSED
 sub makeMarkerName {
   my ($species, $marker) = @_;
 # Don't need to append species mnemonic because the unique constraint in the
