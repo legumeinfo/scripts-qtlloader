@@ -1,6 +1,12 @@
 # file: load_markers.pl
 #
-# purpose: Load spreadsheet marker data into a chado database
+# purpose: Load spreadsheet marker data into a chado database.
+#          
+#          This loading script operates differently than the others because
+#          marker data can come from multiple sources. When an existing marker
+#          is found, it is not cleared and reloaded, but all fields and 
+#          associated data are updated. Existing fields and associated data  
+#          are not deleted if no data for them exists in the spreadsheet.
 #
 #          It is assumed that the .txt files have been verified.
 #
@@ -35,12 +41,11 @@ EOS
   
   #######################################################################################
   # IMPORTANT NOTE: as functionality is added, make sure it is reflected in 
-  #                 cleanDependants(), and the scripts 0_verifyWorksheets.pl, 
-  #                 deletePubData.pl, dumpSpreadsheet.pl.
+  #                 the scripts 0_verifyWorksheets.pl, deletePubData.pl, 
+  #                 and dumpSpreadsheet.pl.
   
   print "warning: this script has not been fully implemented and/or tested to handle:\n";
   print "  > physicial positions\n";
-  print "  > primers\n";
   print "  > updating existing records\n";
 #  my $userinput =  <STDIN>;
 
@@ -53,6 +58,8 @@ EOS
   
   # get worksheet contants
   my %mki  = getSSInfo('MARKERS');
+  my %mpi  = getSSInfo('MARKER_POSITION');
+  my %msi  = getSSInfo('MARKER_SEQUENCE');
 
   # Used all over
   my ($table_file, $sql, $sth, $row, $count, @records, @fields, $cmd, $rv);
@@ -74,7 +81,10 @@ EOS
   # Use a transaction so that it can be rolled back if there are any errors
   eval {
     loadMarkers($dbh);
-    $dbh->commit;   # commit the changes if we get this far
+    loadMarkerSequence($dbh);
+  
+# commented-out until script is working properly  
+#    $dbh->commit;   # commit the changes if we get this far
   };
   if ($@) {
     print "\n\nTransaction aborted because $@\n\n";
@@ -93,25 +103,19 @@ EOS
 ################################################################################
 ####### Major functions                                                #########
 ################################################################################
-
 sub loadMarkers {
   my $dbh = $_[0];
-  my ($fields, $sql, $sth, $row);
+  
+  my ($fields, $sql, $sth, $row, $msg);
   my ($skip, $skip_all, $update, $update_all);
 
-  $table_file = "$input_dir/MARKERS.txt";
+  $table_file = "$input_dir/MARKER.txt";
   print "Loading/verifying $table_file...\n";
   
   @records = readFile($table_file);
-  
-  # build linkage groups from the markers
-  my %lgs = createLinkageGroups(@records);
-  loadLGs($dbh, %lgs);
-
-  $line_count = 0;
-  
   print "\nLoading " . (scalar @records) . " markers...\n";
   
+  $line_count = 0;
   foreach $fields (@records) {
     $line_count++;
     
@@ -125,60 +129,108 @@ sub loadMarkers {
     }
     
     my $marker_id;
-    my $marker_name = $fields->{'marker_name'};
-print "$line_count: handle marker $marker_name\n";
+    my $species = $fields->{$mki{'species_fld'}};
+    my $marker_name = $fields->{$mki{'marker_name_fld'}};
+    my $unique_marker_name = makeMarkerName($species, $marker_name);
+#print "$line_count: handle marker $marker_name\n";
     
-    if ($marker_id=markerExists($dbh, $marker_name, $fields->{'specieslink_abv'})) {
+    # likely to be duplicates that haven't been cleaned out of the spreadsheet
+    if ($existing_markers{$marker_name}) {
+# for expediency, just skip all of these for now.
+#      print "$line_count: The marker $marker_name has already been "
+#            . "loaded from this spreadsheet. Skip or update? (u/s/q)\n";
+#      my $userinput =  <STDIN>;
+#      chomp ($userinput);
+#      if ($userinput eq 's') {
+        next;
+#     }
+#     elsif ($userinput eq 'q') {
+#       exit;
+#     }
+    }#already loaded from spreadsheet
+    
+    elsif ($marker_id=markerExists($dbh, $unique_marker_name, $species)) {
+      
+      # need this here (it already exists)
+      $existing_markers{$marker_name} = $species;
+
       if ($skip_all) {
         next;
       }
-      if ($update_all) {
-        cleanDependants($dbh, $marker_id);
-      }
-      else {
+      if (!$update_all) {
         my $prompt =  "$line_count: This marker ($marker_name)";
         ($skip, $skip_all, $update, $update_all) = checkUpdate($prompt);
         if ($skip || $skip_all) {
           next;
         }
-        if ($update || $update_all) {
-          cleanDependants($dbh, $marker_id);
-        }
       }
-    }#marker exists
+    }#marker already exists
 
-    # Genbank_accession
+    # Genbank_accession (if any)
     my $primary_dbxref_id = setPrimaryDbxref($dbh, $fields, 'genbank:nuccore');
-    if (!$primary_dbxref_id) {
-      $primary_dbxref_id = 'NULL';
-    }
 
     # specieslink_abv, marker_name, source_sequence: feature
     $marker_id = setMarkerRec($dbh, $marker_id, $primary_dbxref_id, $fields);
     
-    # CMap link
-    setSecondaryDbxref($dbh, $marker_id, $mki{'cmap_acc_fld'}, 'LIS:cmap', $fields);
-    
     # Synonyms
     attachSynonyms($dbh, $marker_id, $mki{'alt_name_fld'}, $fields);
     
-    # Place on linkage group
-    placeMarkerOnLG($dbh, $marker_id, $fields);
-    
-    # forward_primer, reverse_primer
-    loadPrimers($dbh, $marker_id, $fields);
-
-    # assembly_ver, phys_chr, phys_start: featureloc
+    # assembly_name, phys_chr, phys_start: featureloc
     setPhysicalPosition($dbh, $marker_id, $fields);
     
-    # marker_type and comment
+    # marker_type and comment (marker comments are rank=1)
     setFeatureprop($dbh, $marker_id, $mki{'marker_type_fld'}, 'Marker Type', 1, $fields);
     setFeatureprop($dbh, $marker_id, $mki{'comment_fld'}, 'comment', 1, $fields);
-
+    
+    # add need this here (NOW it exists if it didn't already)
+    $existing_markers{$marker_name} = $species;
   }#each record
   
   print "\n\nLoaded $line_count markers.\n\n";
 }#loadMarkers
+
+
+sub loadMarkerSequence {
+  my $dbh = $_[0];
+  
+  my ($fields, $sql, $sth, $row, $msg);
+  my ($skip, $skip_all, $update, $update_all);
+
+  $table_file = "$input_dir/MARKER_SEQUENCE.txt";
+  print "Loading/verifying $table_file...\n";
+  
+  @records = readFile($table_file);
+  $line_count = 0;
+  
+  print "\nLoading " . (scalar @records) . " marker sequence records...\n";
+  
+  foreach $fields (@records) {
+    $line_count++;
+    
+    my $marker_name = $fields->{$msi{'marker_name_fld'}};
+#print "$line_count: handle sequence for $marker_name\n";
+
+    # If this marker has not been loaded already, skip it
+    if (!$existing_markers{$marker_name}) {
+      print "skipping sequence data marker $marker_name because it doesn't exist\n";
+      next;
+    }#no marker record
+
+    my $species = $existing_markers{$marker_name};
+    my $unique_marker_name = makeMarkerName($species, $marker_name);
+    my $marker_id = markerExists($dbh, $unique_marker_name, $species);
+    
+    setMarkerSequence($dbh, $marker_id, $fields);
+    
+    # sequence_type and comment (marker-sequence comments are rank=2)
+    setFeatureprop($dbh, $marker_id, $msi{'sequence_type_fld'}, 'Sequence Type', 1, $fields);
+    setFeatureprop($dbh, $marker_id, $msi{'comment_fld'}, 'comment', 2, $fields);
+
+    # forward_primer, reverse_primer
+    loadPrimers($dbh, $marker_id, $marker_name, $species, $fields);
+
+  }#each record
+}#loadMarkerSequence
 
 
 ################################################################################
@@ -197,7 +249,7 @@ sub attachSynonyms {
       if ($synonym_id=getSynonym($dbh, $syn, 'Marker Synonym')) {
         # this synonym already exists; see what it's attached to
         $sql = "
-          SELECT name FROM feature f
+          SELECT name, feature_id FROM feature f
             INNER JOIN feature_synonym fs ON fs.feature_id=f.feature_id
             INNER JOIN synonym s ON s.synonym_id=fs.synonym_id
           WHERE s.synonym_id = $synonym_id
@@ -209,14 +261,15 @@ sub attachSynonyms {
         $sth = doQuery($dbh, $sql);
         if (my $row=$sth->fetchrow_hashref) {
           $msg = "ERROR: The synonym, $syn, has already been used by feature ";
-          $msg .= $row->{'name'};
+          $msg .= $row->{'name'} . "(id: " . $row->{'feature_id'} . ")";
+          reportError($line_count, $msg);
+          next;
         }
-        else {
-          $msg = "ERROR: The synonym, $syn, is already in use, but isn't attached ";
-          $msg .= "to a feature. Please check."
-        }
-        reportError($line_count, $msg);
-        next;
+        
+        # In the unlikely event that this synonym already exists but isn't 
+        #   attached to a feature, ignore; the same synonym can exist if
+        #   different types.
+        
       }#duplicate synonym found
       
       $sql = "
@@ -247,90 +300,62 @@ sub attachSynonyms {
 }#attachSynonyms
 
 
-sub cleanDependants {
-  my ($marker_id) = @_;
+sub loadPrimers {
+  my ($dbh, $marker_id, $marker_name, $species, $fields) = @_;
+  my ($sequence, $seqlen, $msg, $row, $sth, $sql);
   
-  # dbxrefs for GenBank and CMap including dbxref and feature_dbxref
-  # synonyms, including synonym & feature_synonym
-  # DON'T delete lgs?
-  # featurepos
-  # featureprops
-  # primer features
-  
-}#cleanDependants;
+  loadPrimer($dbh, $marker_id, $marker_name, $species, 'forward_primer', 
+             $msi{'forward_primer_seq_fld'}, $msi{'forward_primer_name_fld'}, 
+             $fields);
+  loadPrimer($dbh, $marker_id, $marker_name, $species, 'reverse_primer', 
+             $msi{'reverse_primer_seq_fld'}, $msi{'reverse_primer_name_fld'}, 
+             $fields);
+}#loadPrimers
 
 
-sub loadLGs {
-  my ($dbh, %lgs) = @_;
-  my ($msg, $row, $sth, $sql);
+sub loadPrimer {
+  my ($dbh, $marker_id, $marker_name, $species, $primer_type, 
+      $seq_field, $name_field, $fields) = @_;
   
-  foreach my $lg (keys %lgs) {
-#print "Handle lg $lg: " . Dumper($lgs{$lg});
-    my $lg_id = getFeatureID($dbh, $lg);
-    if ($lg_id) {
-      # verify that lengths are the same
+  my $organism_id = getOrganismID($dbh, $species, $line_count);
+  
+  if (isFieldSet($fields, $seq_field)) {
+    my $sequence = $fields->{$seq_field};
+    my $seqlen = length($sequence);
+    
+    my $primer_name;
+    if (isFieldSet($fields, $name_field)) {
+      $primer_name = $fields->{$name_field};
+    }
+    else {
+      my $primer_suffix = ($primer_type eq 'forward_primer') ? 'fprimer' : 'rprimer';
+      $primer_name = "$marker_name.$primer_suffix";
+    }
+    my $unique_primer_name = makeMarkerName($species, $primer_name);
+    
+    if (primerExists($organism_id, $unique_primer_name, $primer_type)) {
+# TODO: if primer sequence needs to be changed, this will need to do an update
+      print "The primer $primer_name has already been loaded. Skipping. \n";
       next;
     }
-    my $organism_id = getOrganismID($dbh, $lgs{$lg}{'species'}, '');
-    if (!$organism_id) {
-      $msg = "ERROR: Unable to find a record for species "
-           . $lgs{$lg}{'species'};
-      reportError($line_count, $msg);
-      next;
-    }
+    
     $sql = "
       INSERT INTO feature
-        (organism_id, name, uniquename, type_id)
+        (organism_id, name, uniquename, residues, seqlen, type_id)
       VALUES
-        ($organism_id, '$lg', '$lg',
+        ($organism_id, 
+         '$primer_name', 
+         '$unique_primer_name', 
+         '$sequence', 
+         $seqlen,
          (SELECT cvterm_id FROM cvterm 
-          WHERE name='linkage_group' 
-                AND cv_id=(SELECT cv_id FROM cv WHERE name='sequence'))
+          WHERE name = '$primer_type' 
+                AND cv_id = (SELECT cv_id FROM cv WHERE name='sequence'))
         )";
     logSQL($dataset_name, $sql);
     doQuery($dbh, $sql);
-    
-    setFeatureProp($dbh, $marker_id, $mki{'lg_fld'}, 
-                   'Assigned Linkage Group', 1, $fields);
-  }#each lg
-}#loadLGs
-
-
-sub loadPrimers {
-  my ($dbh, $marker_id, $fields) = @_;
-  my ($sequence, $seqlen, $msg, $row, $sth, $sql);
-  
-  my $organism_id = getOrganismID($dbh, $fields->{$mki{'species_fld'}}, $line_count);
-  if (isFieldSet($fields, $mki{'fwd_primer_seq'})) {
-    $sequence = $fields->{$mki{'fwd_primer_seq'}};
-    $seqlen = length($sequence);
-    $sql = "
-      INSERT INTO feature
-        (organism_id, name, uniquename, residues, seqlen, type_id)
-      VALUES
-        ($organism_id, '$sequence', '$sequence', '$sequence', $seqlen,
-         SELECT cvterm_id FROM cvterm 
-         WHERE name = 'forward_primer' 
-               AND cv_id = (SELECT cv_id FROM cv WHERE name='sequence_id')";
-    logSQL($dataset_name, $sql);
-    doQuery($dbh, $sql);
-  }#forward primer provided
-
-  if (isFieldSet($fields, $mki{'bkwd_primer_seq'})) {
-    $sequence = $fields->{$mki{'bkwd_primer_seq'}};
-    $seqlen = length($sequence);
-    $sql = "
-      INSERT INTO feature
-        (organism_id, name, uniquename, residues, seqlen, type_id)
-      VALUES
-        ($organism_id, '$sequence', '$sequence', '$sequence', $seqlen,
-         SELECT cvterm_id FROM cvterm 
-         WHERE name = 'reverse_primer' 
-               AND cv_id = (SELECT cv_id FROM cv WHERE name='sequence_id')";
-    logSQL($dataset_name, $sql);
-    doQuery($dbh, $sql);
-  }#backward primer provided
-}#loadPrimers
+  }#primer provided in worksheet
+}#loadPrimer
 
 
 sub placeMarkerOnLG {
@@ -366,20 +391,99 @@ sub placeMarkerOnLG {
 }#placeMarkerOnLG
 
 
+sub primerExists {
+  my ($organism_id, $uniquename, $type) = @_;
+  my ($sql, $sth, $row);
+  $sql = "
+    SELECT feature_id FROM feature
+    WHERE organism_id=$organism_id
+          AND uniquename='$uniquename'
+          AND type_id = (SELECT cvterm_id FROM cvterm 
+                          WHERE name='$type' 
+                                AND cv_id=(SELECT cv_id FROM cv 
+                                           WHERE name='sequence'))";
+  logSQL($dataset_name, $sql);
+  $sth = doQuery($dbh, $sql);
+  if ($row=$sth->fetchrow_hashref) {
+    return $row->{'feature_id'};
+  }
+  else {
+    return 0;
+  }
+}#primerExists
+
+
 sub setFeatureprop {
   my ($dbh, $marker_id, $fieldname, $typename, $rank, $fields) = @_;
   my ($sql, $sth);
   
   if (isFieldSet($fields, $fieldname)) {
+    my $value = $fields->{$fieldname};
+    
+    # Check if this featureprop type already exists
     $sql = "
-      INSERT INTO chado.featureprop
-        (feature_id, type_id, value, rank)
-      VALUES
-        ($marker_id,
-         (SELECT cvterm_id FROM chado.cvterm 
-          WHERE name='$typename'
-            AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='feature_property')),
-         '$fields->{$fieldname}', $rank)";
+      SELECT MAX(rank) FROM chado.featureprop
+      WHERE feature_id=$marker_id 
+            AND type_id = (SELECT cvterm_id FROM chado.cvterm 
+                           WHERE name='$typename'
+                             AND cv_id = (SELECT cv_id FROM chado.cv 
+                                          WHERE name='feature_property'))
+            AND value='$value'";
+    logSQL($dataset_name, $sql);
+    $sth = doQuery($dbh, $sql);
+    if ($row=$sth->fetchrow_hashref) {
+      # don't re-set or add a duplicate property
+      return;
+    }
+    
+    if ($rank == -1) {
+      # Set the rank based on existing featureprop records
+      $sql = "
+        SELECT MAX(rank) AS rank FROM chado.featureprop
+        WHERE feature_id=$marker_id 
+              AND type_id = (SELECT cvterm_id FROM chado.cvterm 
+                             WHERE name='$typename'
+                               AND cv_id = (SELECT cv_id FROM chado.cv 
+                                            WHERE name='feature_property'))";
+      logSQL($dataset_name, $sql);
+      $sth = doQuery($dbh, $sql);
+      $rank =  ($row=$sth->fetchrow_hashref) ? $row->{'rank'}++ : 1;
+    }#rank is caculated
+    
+    else {
+      # If this featureprop already exists, change it
+      $sql = "
+        SELECT featureprop_id FROM chado.featureprop
+        WHERE feature_id=$marker_id 
+              AND type_id = (SELECT cvterm_id FROM chado.cvterm 
+                             WHERE name='$typename'
+                               AND cv_id = (SELECT cv_id FROM chado.cv 
+                                            WHERE name='feature_property'))
+              AND value='$value'";
+      logSQL($dataset_name, $sql);
+      $sth = doQuery($dbh, $sql);
+      if ($row=$sth->fetchrow_hashref) {
+        # This featureprop needs to be updated
+        $sql = "
+          UPDATE chado.featureprop SET
+            value = '$value'
+          WHERE featureprop_id = " . $row->{'featureprop_id'};
+      }
+      else {
+        # This featureprop needs to be created
+        $sql = "
+          INSERT INTO chado.featureprop
+            (feature_id, type_id, value, rank)
+          VALUES
+            ($marker_id,
+             (SELECT cvterm_id FROM chado.cvterm 
+              WHERE name='$typename'
+                AND cv_id = (SELECT cv_id FROM chado.cv 
+                    WHERE name='feature_property')),
+             '$value', $rank)";
+      }
+    }#rank is fixed
+    
     logSQL($dataset_name, $sql);
     doQuery($dbh, $sql);
   }#value for fieldname exists
@@ -388,45 +492,43 @@ sub setFeatureprop {
 
 sub setMarkerRec {
   my ($dbh, $marker_id, $primary_dbxref_id, $fields) = @_;
+  my ($sql, $sth, $row);
   
+  my $species = $fields->{$mki{'species_fld'}};
   my $marker_name = $fields->{$mki{'marker_name_fld'}};
+  my $unique_marker_name = makeMarkerName($species, $marker_name);
+
   my $organism_id = getOrganismID($dbh, $fields->{$mki{'species_fld'}}, $line_count);
   
-  my $sequence = 'NULL';
-  my $seqlen  = 'NULL';
-  if (isFieldSet($fields, $mki{'sequence_fld'})) {
-    $sequence = qw($fields->{$mki{'sequence_fld'}});
-    $seqlen = length($sequence);
-  }
-  
   if ($existing_markers{$marker_name}) {
+    my $dbxref_clause = ($primary_dbxref_id) ? "dbxref_id = $primary_dbxref_id," : '';
     $sql = "
       UPDATE chado.feature SET
-        dbxref_id=$primary_dbxref_id,
+        $dbxref_clause
         organism_id=$organism_id,
         name='$marker_name',
-        uniquename='$marker_name',
-        residues=$sequence
-        seqlen=$seqlen
+        uniquename='$unique_marker_name'
       WHERE feature_id=$marker_id";
   }
   else {
+    my $dbxref = ($primary_dbxref_id) ? $primary_dbxref_id : 'NULL';
     $sql = "
       INSERT INTO chado.feature
-        (dbxref_id, organism_id, name, uniquename, residues, seqlen, type_id)
+        (organism_id, name, uniquename, type_id, dbxref_id)
       VALUES
-        ($primary_dbxref_id, $organism_id, 
+        ($organism_id, 
          '$marker_name', 
-         '$marker_name',
-         $sequence,
-         $seqlen,
+         '$unique_marker_name',
          (SELECT cvterm_id FROM chado.cvterm 
           WHERE name='genetic_marker'
-            AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='sequence')))
+            AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='sequence')),
+         $dbxref
+        )
        RETURNING feature_id";
   }
   logSQL($dataset_name, $sql);
   $sth = doQuery($dbh, $sql);
+  
   if (!$marker_id) {
     $row = $sth->fetchrow_hashref;
     $marker_id = $row->{'feature_id'};
@@ -437,13 +539,37 @@ sub setMarkerRec {
 }#setMarkerRec
 
 
+sub setMarkerSequence {
+  my ($dbh, $marker_id, $fields) = @_;
+  my ($sql, $sth);
+
+  if (isFieldSet($fields, $msi{'marker_sequence_fld'})) {
+    my $sequence = qw($fields->{$msi{'marker_sequence_fld'}});
+    my $seqlen = length($sequence);
+   
+    $sql = "
+      UPDATE chado.feature SET
+        residues=$sequence,
+        seqlen=$seqlen
+      WHERE feature_id=$marker_id";
+    logSQL($dataset_name, $sql);
+    $sth = doQuery($dbh, $sql);
+  }
+}#setMarkerSequence
+
+
 sub setPhysicalPosition {
   my ($dbh, $marker_id, $fields) = @_;
   my ($msg, $row, $sql, $sth);
+
+# TODO: Don't delete existing data if nothing is set for these fields.
+#       Warn if values change? (Better done in verify script?)
   
   if (isFieldSet($fields, $mki{'phys_ver_fld'})) {
     my $assembly_id = getAssemblyID($dbh, $fields->{$mki{'phys_ver_fld'}});
+print "Not yet implemented";
 exit;
+
     if (!$assembly_id) {
       return;
     }
@@ -460,6 +586,7 @@ exit;
         $msg = "for assembly version $ver.";
         reportError($line_count, $msg);
       }
+# TODO: featureloc record may already exist and neet updating
       $sql = "
         INSERT INTO chado.featureloc
           (feature_id, srcfeature_id, fmin, fmax)
@@ -537,4 +664,20 @@ sub setSecondaryDbxref {
 }#setSecondaryDbxref
 
 
+sub setSequence {
+  my ($dbh, $marker_id, $fieldname, $dbname, $fields) = @_;
+  
+  my $sequence = 'NULL';
+  my $seqlen  = 'NULL';
+  if (isFieldSet($fields, $mki{'sequence_fld'})) {
+    $sequence = qw($fields->{$mki{'sequence_fld'}});
+    $seqlen = length($sequence);
+  }
+  
+  $sql = "
+    UPDATE chado.feature SET
+      residues=$sequence
+      seqlen=$seqlen
+    WHERE feature_id=$marker_id";
+}#setSequence
 

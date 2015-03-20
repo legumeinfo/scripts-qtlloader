@@ -43,6 +43,7 @@ EOS
   # Get spreadsheet constants
   my %mci = getSSInfo('MAP_COLLECTIONS');
   my %mi  = getSSInfo('MAPS');
+  my %mpi  = getSSInfo('MARKER_POSITION');
   
   # Used all over
   my ($table_file, $sql, $sth, $row, $count, @records, @fields, $cmd, $rv);
@@ -56,7 +57,6 @@ EOS
   # Holds linkage maps that are already in db
   my %existing_lg_maps;
   
-#TODO: should be more general
   # Holds LIS map set links (for CMap)
   my %lis_map_sets;
 
@@ -70,10 +70,11 @@ EOS
 
   # Use a transaction so that it can be rolled back if there are any errors
   eval {
-    loadMapCollection($dbh);
-    loadMaps($dbh, $mi{'worksheet'});
+    loadMapCollection($dbh, $mci{'worksheet'});
+    loadLinkageMaps($dbh, $mi{'worksheet'});
+    loadMarkerPositions($dbh, $mpi{'worksheet'});
     
-    $dbh->commit;   # commit the changes if we get this far
+#    $dbh->commit;   # commit the changes if we get this far
   };
   if ($@) {
     print "\n\nTransaction aborted because $@\n\n";
@@ -94,10 +95,10 @@ print "\n\nScript completed\n\n";
 ################################################################################
 
 sub loadMapCollection {
-  my $dbh = $_[0];
+  my ($dbh, $filename) = @_;
   my (%fields, $sql, $sth);
   
-  $table_file = "$input_dir/$mci{'worksheet'}.txt";
+  $table_file = "$input_dir/$filename.txt";
   print "\n\nLoading $table_file...\n";
   
   my ($skip, $skip_all, $update, $update_all);
@@ -164,13 +165,10 @@ sub loadMapCollection {
       }
     
       # attach mapping population to publication
-#print "publink_citations: " . Dumper(@publink_citations);
       foreach my $publink_citation (@publink_citations) {
         $publink_citation =~ s/^\s//;
         $publink_citation =~ s/\s+$//;
-#print "Get id for $publink_citation\n";
         my $pub_id = getPubID($dbh, $publink_citation);
-#print "$publink_citation: $pub_id\n";
         if ($pub_id) {
           $sql = "
             INSERT INTO chado.stock_pub
@@ -204,7 +202,7 @@ sub loadMapCollection {
     insertFeaturemapprop($dbh, $map_id, $mci{'pop_size_fld'}, 'Population Size', $fields);
     insertFeaturemapprop($dbh, $map_id, $mci{'pop_type_fld'}, 'Population Type', $fields);
     insertFeaturemapprop($dbh, $map_id, $mci{'a_method_fld'}, 'Methods', $fields);
-#    insertFeaturemapprop($dbh, $map_id, $mci{'comment_fld'}, 'Featuremap Comment', $fields);
+    insertFeaturemapprop($dbh, $map_id, $mci{'comment_fld'}, 'Featuremap Comment', $fields);
           
     # attach map collection (featuremap) to publication
     foreach my $publink_citation (@publink_citations) {
@@ -227,7 +225,7 @@ sub loadMapCollection {
 }#loadMapCollection
 
 
-sub loadMaps {
+sub loadLinkageMaps {
   my ($dbh, $filename) = @_;
   my (%fields, $sql, $sth);
   
@@ -275,8 +273,6 @@ sub loadMaps {
     
     my $map_id = setLgMapRec($fields);  # feature_id
 
-    # Note that both the mapping population stock record and the map record  
-    #     have the same name.
     my $mapset = $fields->{$mi{'map_name_fld'}};
     
     # set start and end coordinates
@@ -288,7 +284,72 @@ sub loadMaps {
   }#each record
   
   print "Handled $line_count map records\n\n";
-}#loadMaps
+}#loadLinkageMaps
+
+
+sub loadMarkerPositions {
+  my ($dbh, $filename) = @_;
+  
+  my ($fields, $sql, $sth, $row, $msg);
+
+  $table_file = "$input_dir/$filename.txt";
+  print "Loading/verifying $table_file...\n";
+  
+  @records = readFile($table_file);
+  print "\nLoading " . (scalar @records) . " markers...\n";
+  
+  # build linkage groups from the markers and create/update lg records as needed.
+  my %lgs = createLinkageGroups(@records);
+  updateLinkageGroups($dbh, %lgs);
+=cut  
+  $line_count = 0;
+  foreach $fields (@records) {
+    $line_count++;
+    
+    # Try to detect QTLs and skip
+    my $line = join ' ', $fields;
+    if (lc($line) =~ /qtl/) {
+      # guess that this is a QTL, not a marker
+      $msg = "warning: This record appears to be a QTL, not a marker. It will not be loaded.";
+      reportError($line_count, $msg);
+      next;
+    }
+    
+    my $marker_id;
+    my $marker_name = $fields->{'marker_name'};
+#print "$line_count: handle marker $marker_name\n";
+    
+    if ($marker_id=markerExists($dbh, $marker_name, $fields->{'specieslink_abv'})) {
+      if ($skip_all) {
+        next;
+      }
+      if ($update_all) {
+#        cleanDependants($dbh, $marker_id);
+      }
+      else {
+        my $prompt =  "$line_count: This marker ($marker_name)";
+        ($skip, $skip_all, $update, $update_all) = checkUpdate($prompt);
+        if ($skip || $skip_all) {
+          next;
+        }
+        if ($update || $update_all) {
+#          cleanDependants($dbh, $marker_id);
+        }
+      }
+    }#marker exists
+    
+    # Place on linkage group
+    placeMarkerOnLG($dbh, $marker_id, $fields);
+    
+    # CMap link
+    setSecondaryDbxref($dbh, $marker_id, $mki{'cmap_acc_fld'}, 'LIS:cmap', $fields);
+    
+  }#each record
+=cut
+}#loadMarkerPositions
+  
+
+
 
 
 
@@ -456,6 +517,39 @@ sub coordinatesExist {
 }#coordinatesExist
 
 
+sub getLgCoord {
+  my ($dbh, $lg, $coord) = @_;
+  
+  my $sql = "
+    SELECT mappos FROM chado.featurepos fp
+      INNER JOIN chado.featuremap m 
+        ON m.featuremap_id = fp.featuremap_id
+      INNER JOIN chado.featureposprop fpp 
+        ON fpp.featurepos_id = fp.featurepos_id
+    WHERE m.feature_id = 
+          (SELECT feature_id FROM chado.feature 
+           WHERE uniquename='$lg' 
+                 AND type_id = (SELECT cvterm_id FROM cvterm 
+                                WHERE name='genetic_marker' 
+                                      AND cv_id = (SELECT cv_id FROM cv 
+                                                  WHERE name='sequence')
+          )
+          AND fpp.type_id=(SELECT cvterm_id FROM chado.cvterm 
+                  WHERE name='$coord'
+                    AND cv_id=(SELECT cv_id FROM chado.cv 
+                               WHERE name='featurepos_property'))";
+   logSQL('', $sql);
+print "$sql\n";
+  my $sth = doQuery($dbh, $sql);
+  if (my $row == $sth->fetchrow_hashref) {
+    return $row->{'mappos'};
+  }
+  else {
+    return 0;
+  }
+}#getLgCoord
+
+         
 sub insertFeaturemapprop {
   my ($dbh, $map_id, $fieldname, $proptype, $fields) = @_;
   my ($sql, $sth);
@@ -581,56 +675,58 @@ sub setGeneticCoordinates {
   }
 
   # Insert map start position (start coordinate)
-  $sql = "
-    INSERT INTO chado.featurepos
-     (featuremap_id, feature_id, map_feature_id, mappos)
-    VALUES
-     ($mapset_id, $feature_id, $feature_id, $fields->{$mi{'map_start_fld'}})
-    RETURNING featurepos_id";
-  logSQL($dataset_name, $sql);
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
-  $row = $sth->fetchrow_hashref;
-  my $featurepos_id = $row->{'featurepos_id'};
-
-  $sql = "
-    INSERT INTO chado.featureposprop
-      (featurepos_id, type_id, value, rank)
-    VALUES
-      ($featurepos_id,
-       (SELECT cvterm_id FROM chado.cvterm 
-        WHERE name='start'
-          AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='featurepos_property')),
-       '', 1)";
-  logSQL($dataset_name, $sql);
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
+  if (isFieldSet($fields, $mi{'map_start_fld'})) {
+    $sql = "
+      INSERT INTO chado.featurepos
+       (featuremap_id, feature_id, map_feature_id, mappos)
+      VALUES
+       ($mapset_id, $feature_id, $feature_id, $fields->{$mi{'map_start_fld'}})
+      RETURNING featurepos_id";
+    logSQL($dataset_name, $sql);
+    $sth = $dbh->prepare($sql);
+    $sth->execute();
+    $row = $sth->fetchrow_hashref;
+    my $featurepos_id = $row->{'featurepos_id'};
+  
+    $sql = "
+      INSERT INTO chado.featureposprop
+        (featurepos_id, type_id, value, rank)
+      VALUES
+        ($featurepos_id,
+         (SELECT cvterm_id FROM chado.cvterm 
+          WHERE name='start'
+            AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='featurepos_property')),
+         '', 1)";
+    logSQL($dataset_name, $sql);
+    $sth = $dbh->prepare($sql);
+    $sth->execute();
  
-  # insert map end position (stop coordinate)
-  $sql = "
-    INSERT INTO chado.featurepos
-     (featuremap_id, feature_id, map_feature_id, mappos)
-    VALUES
-     ($mapset_id, $feature_id, $feature_id, $fields->{$mi{'map_end_fld'}})
-    RETURNING featurepos_id";
-  logSQL($dataset_name, $sql);
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
-  $row = $sth->fetchrow_hashref;
-  my $featurepos_id = $row->{'featurepos_id'};
-
-  $sql = "
-    INSERT INTO chado.featureposprop
-     (featurepos_id, type_id, value, rank)
-    VALUES
-     ($featurepos_id,
-      (SELECT cvterm_id FROM chado.cvterm 
-       WHERE name='stop'
-         AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='featurepos_property')),
-      '', 1)";
-  logSQL($dataset_name, $sql);
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
+    # insert map end position (stop coordinate)
+    $sql = "
+      INSERT INTO chado.featurepos
+       (featuremap_id, feature_id, map_feature_id, mappos)
+      VALUES
+       ($mapset_id, $feature_id, $feature_id, $fields->{$mi{'map_end_fld'}})
+      RETURNING featurepos_id";
+    logSQL($dataset_name, $sql);
+    $sth = $dbh->prepare($sql);
+    $sth->execute();
+    $row = $sth->fetchrow_hashref;
+    my $featurepos_id = $row->{'featurepos_id'};
+  
+    $sql = "
+      INSERT INTO chado.featureposprop
+       (featurepos_id, type_id, value, rank)
+      VALUES
+       ($featurepos_id,
+        (SELECT cvterm_id FROM chado.cvterm 
+         WHERE name='stop'
+           AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='featurepos_property')),
+        '', 1)";
+    logSQL($dataset_name, $sql);
+    $sth = $dbh->prepare($sql);
+    $sth->execute();
+  }
 }#setGeneticCoordinates
 
         
@@ -732,3 +828,53 @@ sub setMapSetRec {
   
   return $map_id;
 }#setMapSetRec
+
+
+sub updateLinkageGroups {
+  my ($dbh, %lgs) = @_;
+  my ($msg, $sql, $sth, $row);
+  
+  foreach my $lg (keys %lgs) {
+#print "Handle lg $lg: " . Dumper($lgs{$lg});
+    my $lg_id = getFeatureID($dbh, $lg);
+    if ($lg_id) {
+      # verify that lengths are the same
+      my $start = getLgCoord($lg, 'start');
+      my $end   = getLgCoord($lg, 'end');
+print "Got coords $start, $end\n";
+#leave exit in place until this code is completed and tested
+exit;
+      next;
+    }
+
+    my $organism_id = getOrganismID($dbh, $lgs{$lg}{'species'}, '');
+    if (!$organism_id) {
+      $msg = "ERROR: Unable to find a record for species '"
+           . $lgs{$lg}{'species'} . "'.";
+      reportError($line_count, $msg);
+      next;
+    }
+    
+    # check if linkage group already exists
+    
+    $sql = "
+      INSERT INTO feature
+        (organism_id, name, uniquename, type_id)
+      VALUES
+        ($organism_id, '$lg', '$lg',
+         (SELECT cvterm_id FROM cvterm 
+          WHERE name='linkage_group' 
+                AND cv_id=(SELECT cv_id FROM cv WHERE name='sequence'))
+        )";
+    logSQL($dataset_name, $sql);
+    doQuery($dbh, $sql);
+=cut
+#TODO    
+#    setFeatureProp($dbh, $lg_id, $mki{'lg_fld'}, 
+#                   'Assigned Linkage Group', 1, $fields);
+  }#each lg
+}#updateLinkageGroups
+
+
+
+
