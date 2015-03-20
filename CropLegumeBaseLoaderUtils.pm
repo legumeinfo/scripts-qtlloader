@@ -41,6 +41,8 @@ our @EXPORT      = (
                     qw(qtlExists),
                     qw(readFile), 
                     qw(reportError),
+                    qw(setFeatureDbxref),
+                    qw(setFeatureprop),
                     qw(traitExists),
                     qw(uniqueID),
                    );
@@ -275,6 +277,7 @@ sub createLinkageGroups {
       $lgs{$lg_map_name}{'map_end'} = $r->{$mpi{'position_fld'}};
     }
     $lgs{$lg_map_name}{'species'} = $r->{$mpi{'species_fld'}};
+    $lgs{$lg_map_name}{'lg'} = $r->{$mpi{'lg_fld'}};
   }#each record
   
   return %lgs;
@@ -987,6 +990,139 @@ sub reportError {
     print "  $line_count: $msg\n";
   }
 }#reportError
+
+
+sub setFeatureDbxref {
+  my ($dbh, $feature_id, $fieldname, $dbname, $fields) = @_;
+  my ($sql, $sth, $row);
+  
+  if (isFieldSet($fields, $fieldname)) {
+    my $acc = $fields->{$fieldname};
+    my $dbxref_id = dbxrefExists($dbh, $dbname, $acc);
+    if (!$dbxref_id) {
+      $sql = "
+        INSERT INTO chado.dbxref
+          (db_id, accession)
+        VALUES
+          ((SELECT db_id FROM chado.db 
+            WHERE name='$dbname'),
+           '$acc') 
+        RETURNING dbxref_id";
+      logSQL('', $sql);
+      $sth = doQuery($dbh, $sql);
+      $row = $sth->fetchrow_hashref;
+      $dbxref_id = $row->{'dbxref_id'};
+      $sth->finish;
+    }
+    
+    # Return if feature_dbxref record already exists
+    $sql = "
+      SELECT feature_dbxref_id FROM chado.feature_dbxref
+      WHERE feature_id=$feature_id AND $dbxref_id =$dbxref_id";
+    logSQL('', $sql);
+    $sth = doQuery($dbh, $sql);
+    if ($row=$sth->fetchrow_hashref) {
+      return;
+    }
+    
+    # connect dbxref record to feature record
+    $sql = "
+      INSERT INTO chado.feature_dbxref
+        (feature_id, dbxref_id)
+      VALUES
+        ($feature_id, $dbxref_id)";
+    logSQL('', $sql);
+    doQuery($dbh, $sql);
+  }#secondary source fields are set
+}#setFeatureDbxref
+
+
+sub setFeatureprop {
+  my ($dbh, $feature_id, $fieldname, $typename, $rank, $fields) = @_;
+  my ($sql, $sth, $row);
+  if (isFieldSet($fields, $fieldname)) {
+    my $value = $fields->{$fieldname};
+    
+    # Check if this featureprop type already exists
+    $sql = "
+      SELECT MAX(rank) FROM chado.featureprop
+      WHERE feature_id=$feature_id 
+            AND type_id = (SELECT cvterm_id FROM chado.cvterm 
+                           WHERE name='$typename'
+                             AND cv_id = (SELECT cv_id FROM chado.cv 
+                                          WHERE name='feature_property'))
+            AND value='$value'";
+    logSQL('', $sql);
+    $sth = doQuery($dbh, $sql);
+    if ($row=$sth->fetchrow_hashref && $row->{'max'}) {
+      # don't re-set or add a duplicate property
+      return;
+    }
+    
+    if ($rank == -1) {
+      # Set the rank based on existing featureprop records
+      $sql = "
+        SELECT MAX(rank) AS rank FROM chado.featureprop
+        WHERE feature_id=$feature_id 
+              AND type_id = (SELECT cvterm_id FROM chado.cvterm 
+                             WHERE name='$typename'
+                               AND cv_id = (SELECT cv_id FROM chado.cv 
+                                            WHERE name='feature_property'))";
+      logSQL('', $sql);
+      $sth = doQuery($dbh, $sql);
+      $rank =  ($row=$sth->fetchrow_hashref) ? $row->{'rank'}++ : 1;
+      
+      # Add a new featureprop record with a new rank
+      $sql = "
+        INSERT INTO chado.featureprop
+          (feature_id, type_id, value, rank)
+        VALUES
+          ($feature_id,
+           (SELECT cvterm_id FROM chado.cvterm 
+            WHERE name='$typename'
+              AND cv_id = (SELECT cv_id FROM chado.cv 
+                  WHERE name='feature_property')),
+           '$value', $rank)";
+    }#rank is caculated
+    
+    else {
+      # If this featureprop already exists, change it
+      $sql = "
+        SELECT featureprop_id FROM chado.featureprop
+        WHERE feature_id=$feature_id 
+              AND type_id = (SELECT cvterm_id FROM chado.cvterm 
+                             WHERE name='$typename'
+                               AND cv_id = (SELECT cv_id FROM chado.cv 
+                                            WHERE name='feature_property'))
+              AND value='$value'";
+      logSQL('', $sql);
+      $sth = doQuery($dbh, $sql);
+      if ($row=$sth->fetchrow_hashref) {
+        # This featureprop needs to be updated
+        $sql = "
+          UPDATE chado.featureprop SET
+            value = '$value'
+          WHERE featureprop_id = " . $row->{'featureprop_id'};
+      }
+      else {
+        # This featureprop needs to be created
+        $sql = "
+          INSERT INTO chado.featureprop
+            (feature_id, type_id, value, rank)
+          VALUES
+            ($feature_id,
+             (SELECT cvterm_id FROM chado.cvterm 
+              WHERE name='$typename'
+                AND cv_id = (SELECT cv_id FROM chado.cv 
+                    WHERE name='feature_property')),
+             '$value', $rank)";
+      }
+    }#rank is fixed
+    
+    logSQL('', $sql);
+    doQuery($dbh, $sql);
+  }#value for fieldname exists
+}#setFeatureprop
 
 
 sub traitExists {
