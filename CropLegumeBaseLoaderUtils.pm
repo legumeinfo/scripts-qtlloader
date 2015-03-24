@@ -13,6 +13,7 @@ our @EXPORT      = (
                     qw(dbxrefExists),
                     qw(doQuery), 
                     qw(experimentExists),
+                    qw(getAnalysisID),
                     qw(getChromosomeID),
                     qw(getCvtermID), 
                     qw(getFeatureID),
@@ -340,36 +341,18 @@ sub experimentExists {
 }#experimentExists
 
 
-sub getCvtermID {
-  my ($dbh, $term, $cv) = @_;
+sub getAnalysisID {
+  my ($dbh, $analysis_name) = @_;
   my ($sql, $sth, $row);
-  
-  $sql = "
-    SELECT cvterm_id FROM chado.cvterm 
-    WHERE name='$term'
-      AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='$cv')";
-  logSQL('lib', $sql);
+  $sql = "SELECT analysis_id FROM analysis WHERE name='$analysis_name'";
+  logSQL('', $sql);
   $sth = doQuery($dbh, $sql);
-  if ($row=$sth->fetchrow_hashref()) {
-    return $row->{'cvterm_id'};
-  }
-  else {
-    $term = lc($term);
-    $sql = "
-      SELECT cvterm_id FROM chado.cvterm 
-      WHERE name='$term'
-        AND cv_id=(SELECT cv_id FROM chado.cv WHERE LOWER(name)='$cv')";
-    logSQL('lib', $sql);
-    $sth = doQuery($dbh, $sql);
-    if ($row=$sth->fetchrow_hashref()) {
-      return $row->{'cvterm_id'};
-    }
+  if ($row=$sth->fetchrow_hashref) {
+    return $row->{'analysis_id'};
   }
   
-  # search failed
-  reportError("Unable to find term [$term] in controlled vocabulary [$cv]\n");
-  return 0;
-}#getCvtermID
+  return undef;
+}#getAnalysisID
 
 
 sub getAssemblyID {
@@ -421,6 +404,38 @@ sub getChromosomeID {
     return 0;
   }
 }#getChromosomeID
+
+
+sub getCvtermID {
+  my ($dbh, $term, $cv) = @_;
+  my ($sql, $sth, $row);
+  
+  $sql = "
+    SELECT cvterm_id FROM chado.cvterm 
+    WHERE name='$term'
+      AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='$cv')";
+  logSQL('lib', $sql);
+  $sth = doQuery($dbh, $sql);
+  if ($row=$sth->fetchrow_hashref()) {
+    return $row->{'cvterm_id'};
+  }
+  else {
+    $term = lc($term);
+    $sql = "
+      SELECT cvterm_id FROM chado.cvterm 
+      WHERE name='$term'
+        AND cv_id=(SELECT cv_id FROM chado.cv WHERE LOWER(name)='$cv')";
+    logSQL('lib', $sql);
+    $sth = doQuery($dbh, $sql);
+    if ($row=$sth->fetchrow_hashref()) {
+      return $row->{'cvterm_id'};
+    }
+  }
+  
+  # search failed
+  reportError("Unable to find term [$term] in controlled vocabulary [$cv]\n");
+  return 0;
+}#getCvtermID
 
 
 #TODO: this should also include type and species because the unique constraint
