@@ -83,8 +83,7 @@ EOS
     loadMarkers($dbh);
     loadMarkerSequence($dbh);
   
-# commented-out until script is working properly  
-#    $dbh->commit;   # commit the changes if we get this far
+    $dbh->commit;   # commit the changes if we get this far
   };
   if ($@) {
     print "\n\nTransaction aborted because $@\n\n";
@@ -336,7 +335,7 @@ sub loadPrimer {
     if (primerExists($organism_id, $unique_primer_name, $primer_type)) {
 # TODO: if primer sequence needs to be changed, this will need to do an update
       print "The primer $primer_name has already been loaded. Skipping. \n";
-      next;
+      return;
     }
     
     $sql = "
@@ -356,39 +355,6 @@ sub loadPrimer {
     doQuery($dbh, $sql);
   }#primer provided in worksheet
 }#loadPrimer
-
-
-sub placeMarkerOnLG {
-  my ($dbh, $marker_id, $fields) = @_;
-  my ($msg, $row, $sth, $sql);
-  
-  # Find map set record
-  my $map_set_id = getMapSetID($dbh, $fields->{$mki{'map_name_fld'}});
-  if (!$map_set_id) {
-    $msg = "ERROR: Unable to find record for map set " 
-         . $fields->{$mki{'map_name_fld'}};
-    reportError($line_count, $msg);
-    return;
-  }
-      
-  # Find linkage group
-  my $lg_name = makeLinkageMapName($fields->{$mki{'map_name_fld'}}, 
-                                   $fields->{$mki{'lg_fld'}});
-  my $lg_id = getFeatureID($dbh, $lg_name);
-  if (!$lg_id) {
-    $msg = "ERROR: Unable to find record for linkage group $lg_name.";
-    reportError($line_count, $msg);
-    return;
-  }
-  
-  $sql = "
-    INSERT INTO featurepos
-      (featuremap_id, feature_id, map_feature_id, mappos)
-    VALUES
-      ($map_set_id, $marker_id, $lg_id, $fields->{$mki{'position_fld'}})";
-  logSQL($dataset_name, $sql);
-  doQuery($dbh, $sql);
-}#placeMarkerOnLG
 
 
 sub primerExists {
@@ -411,83 +377,6 @@ sub primerExists {
     return 0;
   }
 }#primerExists
-
-
-sub setFeatureprop {
-  my ($dbh, $marker_id, $fieldname, $typename, $rank, $fields) = @_;
-  my ($sql, $sth);
-  
-  if (isFieldSet($fields, $fieldname)) {
-    my $value = $fields->{$fieldname};
-    
-    # Check if this featureprop type already exists
-    $sql = "
-      SELECT MAX(rank) FROM chado.featureprop
-      WHERE feature_id=$marker_id 
-            AND type_id = (SELECT cvterm_id FROM chado.cvterm 
-                           WHERE name='$typename'
-                             AND cv_id = (SELECT cv_id FROM chado.cv 
-                                          WHERE name='feature_property'))
-            AND value='$value'";
-    logSQL($dataset_name, $sql);
-    $sth = doQuery($dbh, $sql);
-    if ($row=$sth->fetchrow_hashref) {
-      # don't re-set or add a duplicate property
-      return;
-    }
-    
-    if ($rank == -1) {
-      # Set the rank based on existing featureprop records
-      $sql = "
-        SELECT MAX(rank) AS rank FROM chado.featureprop
-        WHERE feature_id=$marker_id 
-              AND type_id = (SELECT cvterm_id FROM chado.cvterm 
-                             WHERE name='$typename'
-                               AND cv_id = (SELECT cv_id FROM chado.cv 
-                                            WHERE name='feature_property'))";
-      logSQL($dataset_name, $sql);
-      $sth = doQuery($dbh, $sql);
-      $rank =  ($row=$sth->fetchrow_hashref) ? $row->{'rank'}++ : 1;
-    }#rank is caculated
-    
-    else {
-      # If this featureprop already exists, change it
-      $sql = "
-        SELECT featureprop_id FROM chado.featureprop
-        WHERE feature_id=$marker_id 
-              AND type_id = (SELECT cvterm_id FROM chado.cvterm 
-                             WHERE name='$typename'
-                               AND cv_id = (SELECT cv_id FROM chado.cv 
-                                            WHERE name='feature_property'))
-              AND value='$value'";
-      logSQL($dataset_name, $sql);
-      $sth = doQuery($dbh, $sql);
-      if ($row=$sth->fetchrow_hashref) {
-        # This featureprop needs to be updated
-        $sql = "
-          UPDATE chado.featureprop SET
-            value = '$value'
-          WHERE featureprop_id = " . $row->{'featureprop_id'};
-      }
-      else {
-        # This featureprop needs to be created
-        $sql = "
-          INSERT INTO chado.featureprop
-            (feature_id, type_id, value, rank)
-          VALUES
-            ($marker_id,
-             (SELECT cvterm_id FROM chado.cvterm 
-              WHERE name='$typename'
-                AND cv_id = (SELECT cv_id FROM chado.cv 
-                    WHERE name='feature_property')),
-             '$value', $rank)";
-      }
-    }#rank is fixed
-    
-    logSQL($dataset_name, $sql);
-    doQuery($dbh, $sql);
-  }#value for fieldname exists
-}#setFeatureprop
 
 
 sub setMarkerRec {
@@ -567,7 +456,7 @@ sub setPhysicalPosition {
   
   if (isFieldSet($fields, $mki{'phys_ver_fld'})) {
     my $assembly_id = getAssemblyID($dbh, $fields->{$mki{'phys_ver_fld'}});
-print "Not yet implemented";
+print "Setting marker physical position is not yet implemented";
 exit;
 
     if (!$assembly_id) {
@@ -627,41 +516,6 @@ sub setPrimaryDbxref {
   
   return $primary_dbxref_id;
 }#setPrimaryDbxref
-
-
-sub setSecondaryDbxref {
-  my ($dbh, $marker_id, $fieldname, $dbname, $fields) = @_;
-  my ($sql, $sth, $row);
-  
-  if (isFieldSet($fields, $fieldname)) {
-    my $acc = $fields->{$fieldname};
-    my $dbxref_id = dbxrefExists($dbh, $dbname, $acc);
-    if (!$dbxref_id) {
-      $sql = "
-        INSERT INTO chado.dbxref
-          (db_id, accession)
-        VALUES
-          ((SELECT db_id FROM chado.db 
-            WHERE name='$dbname'),
-           '$acc') 
-        RETURNING dbxref_id";
-      logSQL($dataset_name, $sql);
-      $sth = doQuery($dbh, $sql);
-      $row = $sth->fetchrow_hashref;
-      $dbxref_id = $row->{'dbxref_id'};
-      $sth->finish;
-    }
-    
-    # connect dbxref record to feature record
-    $sql = "
-      INSERT INTO chado.feature_dbxref
-        (feature_id, dbxref_id)
-      VALUES
-        ($marker_id, $dbxref_id)";
-    logSQL($dataset_name, $sql);
-    doQuery($dbh, $sql);
-  }#secondary source fields are set
-}#setSecondaryDbxref
 
 
 sub setSequence {
