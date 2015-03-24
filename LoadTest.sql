@@ -65,10 +65,11 @@ order by p.title, a.rank;
 ------------------------------------------------------------------------------
 -- MAPS -----------------------------------------------------------------------
 ------------------------------------------------------------------------------
+
 select m.featuremap_id, m.name, left(m.description, 20) as description,
        u.name as unit, dn.value as display_name, pn.value as pub_map_name,
        pop.value as pop_size, pt.value as pop_type, meth.value as methods,
-       s.name as stock, pub.uniquename as citation, xref.accession as dbxref,
+       s.name as stock, sp.species_list, pub.uniquename as citation, xref.accession as dbxref,
        left(cm.value, 20) as comment
 from featuremap m
   inner join cvterm u on u.cvterm_id=m.unittype_id
@@ -123,6 +124,13 @@ from featuremap m
                                         
   left join featuremap_dbxref fx on fx.featuremap_id=m.featuremap_id
   left join dbxref xref on xref.dbxref_id=fx.dbxref_id
+
+  left outer join
+    (SELECT so.stock_id, string_agg(o.abbreviation, ', ') AS species_list
+     FROM stock_organism so
+       INNER JOIN organism o ON o.organism_id=so.organism_id
+     GROUP BY so.stock_id
+    ) AS sp ON sp.stock_id=s.stock_id
   
 order by m.name;
 
@@ -157,52 +165,41 @@ order by lg.name;
 
 
 ------------------------------------------------------------------------------
--- MARKERS -----------------------------------------------------------------------
+-- MARKERS -------------------------------------------------------------------
 ------------------------------------------------------------------------------
 
-SELECT m.name, s.synonyms, m.timeaccessioned, t.value AS marker_type, 
-       o.genus || ' ' || o.species AS organism, map.name AS map_name, --lg.name AS lg,
-       fp.mappos
-FROM feature m
-  INNER JOIN featureprop t 
-    ON t.feature_id=m.feature_id
-       AND t.type_id=(SELECT cvterm_id FROM cvterm 
-                      WHERE name='Marker Type' 
-                            AND cv_id=(SELECT cv_id FROM cv 
-                                       WHERE name='feature_property'))
-                                       
-  INNER JOIN organism o ON o.organism_id=m.organism_id
---  INNER JOIN featureprop lg 
---    ON fg.feature_id=m.feature_id
---       AND type_id=(SELECT cvterm_id FROM cvterm 
---                    WHERE name='Assigned Linkage Group' 
---                          AND cv_id=(SELECT cv_id FROM cv 
---                              WHERE name='feature_property'))
-  
-  LEFT OUTER JOIN 
-    (
-      SELECT fs.feature_id, array_to_string(array_agg(name), ', ') AS synonyms 
-      FROM synonym s
-        INNER JOIN feature_synonym fs ON fs.synonym_id=s.synonym_id
-      GROUP BY fs.feature_id
-    ) s ON s.feature_id = m.feature_id
 
-  
-  LEFT OUTER JOIN featurepos fp ON fp.feature_id=m.feature_id
-  LEFT OUTER JOIN feature lgf ON lgf.feature_id=fp.map_feature_id
-  LEFT OUTER JOIN featuremap map ON map.featuremap_id=fp.featuremap_id
-  
-WHERE m.type_id=(SELECT cvterm_id FROM cvterm 
-                 WHERE name='genetic_marker' 
-                       AND cv_id=(SELECT cv_id FROM cv WHERE name='sequence'))
+
+select mk.name, o.genus || ' ' || o.species as species, pdbxref.accession as genbank,
+       alt.name as alt_name, mt.value as marker_type, lg.name as lg, p.mappos as pos 
+from feature mk
+  inner join organism o on o.organism_id=mk.organism_id
+  left outer join dbxref pdbxref on pdbxref.dbxref_id=mk.dbxref_id
+  left outer join feature_synonym fs on fs.feature_id=mk.feature_id
+  left outer join synonym alt on alt.synonym_id=fs.synonym_id
+  left outer join featureprop mt 
+    on mt.feature_id=mk.feature_id 
+       and mt.type_id=(select cvterm_id from cvterm 
+                       where name='Marker Type' 
+                             and cv_id=(select cv_id from cv where name='feature_property'))
+  left outer join featurepos p on p.feature_id=mk.feature_id
+  left outer join feature lg on lg.feature_id=p.map_feature_id
+where mk.type_id = (select cvterm_id from cvterm where name='genetic_marker')
+order by mk.name;
+
+
+select mk.name, mt.value as marker_type 
+from feature mk
+  inner join featureprop mt 
+    on mt.feature_id=mk.feature_id 
+       and mt.type_id=(select cvterm_id from cvterm 
+                       where name='Marker Type' 
+                             and cv_id=(select cv_id from cv where name='feature_property'))
+where mk.type_id = (select cvterm_id from cvterm where name='genetic_marker')
 ;
 
-SELECT fs.feature_id, array_to_string(array_agg(name), ', ') AS synonyms 
-FROM synonym s
-  INNER JOIN feature_synonym fs ON fs.synonym_id=s.synonym_id
-GROUP BY fs.feature_id;
 
-
+                                          
 ------------------------------------------------------------------------------
 -- EXPERIMENTS ----------------------------------------------------------------
 ------------------------------------------------------------------------------
