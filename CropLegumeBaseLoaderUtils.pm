@@ -25,6 +25,7 @@ our @EXPORT      = (
                     qw(getQTLid),
                     qw(getScaffoldID),
                     qw(getSSInfo),
+                    qw(getStockID),
                     qw(getSynonym),
                     qw(getTrait),
                     qw(isFieldSet),
@@ -54,11 +55,6 @@ our @EXPORT      = (
 #   connectToDB() defined here:
 require 'db.pl';
 
-
-
-sub testsub {
-  print "this is a test\n";
-}
 
 
 sub getSSInfo {
@@ -105,6 +101,7 @@ sub getSSInfo {
     return (
       'worksheet'        => 'MAP_COLLECTION',
       'species_fld'      => 'specieslink_abv',
+      'multispecies_fld' => 'multi-species',
       'pub_map_name_fld' => 'publication_map_name',
       'map_name_fld'     => 'map_name',
       'description_fld'  => 'description',
@@ -661,6 +658,22 @@ sub getScaffoldID {
     return 0;
   }
 }#getScaffoldID
+
+
+sub getStockID {
+  my ($dbh, $uniquename) = @_;
+  my ($sql, $sth, $row);
+  
+  $sql = "
+    SELECT stock_id FROM chado.stock WHERE uniquename=?";
+  logSQL('', "$sql\WITH\n'$uniquename'");
+  $sth = doQuery($dbh, $sql, ($uniquename));
+  if ($row=$sth->fetchrow_hashref) {
+    return $row->{'stock_id'};
+  }
+
+  return undef;
+}#getStockID
 
 
 sub getSynonym {
