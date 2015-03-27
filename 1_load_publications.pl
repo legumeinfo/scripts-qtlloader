@@ -385,11 +385,13 @@ sub setCitation {
   
   my $publink_citation = $fields->{$pi{'pub_fld'}};
   my $journal = $fields->{$pi{'journal_fld'}};
-  
+print "publink_citation: $publink_citation, journal: $journal\n";
+
   if ($publink_citation && $publink_citation ne '' 
         && $publink_citation ne 'NULL'
-        && lc($journal) != 'unpublished'
-        && lc($journal) != 'in preparation') {
+        && lc($journal) ne 'unpublished'
+        && lc($journal) ne 'in preparation') {
+print "create a citation property....\n";
     my $citation = $fields->{$pi{'author_fld'}} 
                  . '. (' . $fields->{$pi{'year_fld'}} . '). ' 
                  . $fields->{$pi{'title_fld'}} .'. ' 
@@ -398,7 +400,6 @@ sub setCitation {
                  . $fields->{$pi{'issue_fld'}} . ' ' 
                  . $fields->{$pi{'page_fld'}};
 print "citation will be [$citation]\n";
-exit;
     $sql = "
      INSERT INTO chado.pubprop
        (pub_id, type_id, value, rank)
