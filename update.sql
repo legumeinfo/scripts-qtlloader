@@ -25,9 +25,9 @@ VALUES
 
 -- PeanutBase only: Create a multi-species record for Arachis
 INSERT INTO organism
-  (abbreviation, genus, species)
+  (abbreviation, genus, species, common_name)
 VALUES
-  ('arachis', 'Arachis', '.spp');
+  ('arachis', 'Arachis', '.spp', 'multiple peanut species');
 
 -- Additional Arachis species
 INSERT INTO organism
