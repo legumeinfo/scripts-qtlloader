@@ -361,7 +361,7 @@ print " = $enc_citation ($publink_citation)\n";
       # variables $accession, $accession_source, $SNP_pos are yet to be confirmed
       
       #species field must be set
-      if(!isFieldSet($specieslink_abv)) {
+      if(!$specieslink_abv) {
         $has_errors++;
         $msg = "ERROR: specieslink abbrevation is missing";
         reportError($line_count,$msg);
@@ -376,7 +376,7 @@ print " = $enc_citation ($publink_citation)\n";
       }
       
       # about marker_citation
-      if (!isFieldSet($marker_citation)) {
+      if (!$marker_citation) {
         $has_errors++;
         $msg = "ERROR: marker_citation is missing";
         reportError($line_count, $msg);
@@ -389,7 +389,7 @@ print " = $enc_citation ($publink_citation)\n";
       }
       
       #marker_name must exist
-      if (!isFieldSet($marker_name)) {
+      if (!$marker_name) {
         $has_errors++;
         $msg = "ERROR: marker name is missing";
         reportError($line_count, $msg);
@@ -436,7 +436,7 @@ print " = $enc_citation ($publink_citation)\n";
       
       
       #marker_type must exist
-      if (!isFieldSet($marker_type)) {
+      if (!$marker_type) {
         $has_errors++;
         $msg = "ERROR: marker_type is missing";
         reportError($line_count, $msg);
@@ -473,7 +473,7 @@ print " = $enc_citation ($publink_citation)\n";
       my $reverse_primer_seq  = $fields->{$msi{'reverse_primer_seq_fld'}};
     
       #error: species field must exist
-      if (!isFieldSet($specieslink_abv)) {
+      if (!$specieslink_abv) {
         $has_errors++;
         $msg = "ERROR: specieslink abbrevation is missing";
         reportError($line_count,$msg);
@@ -488,7 +488,7 @@ print " = $enc_citation ($publink_citation)\n";
       }
     
       #marker_name check: marker_name must exist
-      if (!isFieldSet($marker_name)) {
+      if (!$marker_name) {
         $has_errors++;
         $msg = "ERROR: marker name is missing";
         reportError($line_count, $msg);
@@ -768,8 +768,8 @@ print " = $enc_citation ($publink_citation)\n";
     }
     
    
-   # marker_position.txt
-   
+    # marker_position.txt
+
     $wsfile = "$input_dir/MARKER_POSITION.txt";
     print "\nReading records from $wsfile\n";
     my @map_row;
@@ -777,165 +777,169 @@ print " = $enc_citation ($publink_citation)\n";
     my $file = $dir->file("MAP.txt");
     @records = readFile($wsfile);
     $line_count = 0;
+
+    $has_errors   = 0;
+    $has_warnings = 0;
+    $line_count   = 0;
     
-    foreach my $fields(@records){
-    $line_count++;
-    
-    # convenience:
-    my $species = $fields->{$mpi{'species_fld'}};
-    my $marker_name = $fields->{$mpi{'marker_name_fld'}};
-    my $mapname_marker = $fields->{$mpi{'map_name_fld'}};
-    my $lg = $fields->{$mpi{'lg_fld'}};
-    my $position = $fields->{$mpi{'position_fld'}};
-    
-    #error: species field must exist
-    if (!isFieldSet($mpi{'species_fld'})) {
-      $has_errors++;
-      $msg = "ERROR: specieslink abbrevation is missing";
-      reportError($line_count,$msg);
-    }
-    #error: organism record must exist
-    if (!getOrganismID($dbh, $fields->{$mpi{'species_fld'}}, $line_count)) {
-      $has_errors++;
-      $msg = "ERROR: The organism " . $fields->{$mpi{'species_fld'}}
-           . " does not exist in the database.";
-           reportError($line_count, $msg);
+    foreach my $fields(@records) {
+      $line_count++;
+      
+      # convenience:
+      my $species = $fields->{$mpi{'species_fld'}};
+      my $marker_name = $fields->{$mpi{'marker_name_fld'}};
+      my $mapname_marker = $fields->{$mpi{'map_name_fld'}};
+      my $lg = $fields->{$mpi{'lg_fld'}};
+      my $position = $fields->{$mpi{'position_fld'}};
+      
+      #error: species field must exist
+      if (!isFieldSet($fields, $mpi{'species_fld'})) {
+        $has_errors++;
+        $msg = "ERROR: specieslink abbrevation is missing";
+        reportError($line_count,$msg);
       }
-    #error: marker_name must exist
-    if (!isFieldSet($marker_name)) {
-      $has_errors++;
-      $msg = "ERROR: marker name is missing";
-      reportError($line_count, $msg);
-    }
-    elsif ($marker_position{$marker_name}) {
-      #checking uniqueness of the marker name in MARKER_POSITION sheet
-      $has_errors++;
-      $msg = "ERROR: This marker ($marker_name) already exists";
-      $msg.= " in the spreadsheet.";
-      reportError($line_count, $msg);
-    }
-    else {
-      if (!$markers{$marker_name}) { # this is why master marker sheet verification
-                                     #should come first
-      $has_warnings++;
-      $msg = "warning: The marker name $marker_name doesn't exist in the master marker sheet."
-            ."Please consider this for review whether to add into master marker sheet";
-      reportError($line_count, $msg);      
-      }    
-      elsif (markerExists($dbh, $marker_name, $mpi{'species_fld'})) {
-        #checking if the marker is already existing in the database
-        $has_warnings++;
-        $msg = "warning: this marker_name ($marker_name)"
-             . " has already been loaded"
-             . " and will be updated.";
+      #error: organism record must exist
+      if (!getOrganismID($dbh, $fields->{$mpi{'species_fld'}}, $line_count)) {
+        $has_errors++;
+        $msg = "ERROR: The organism " . $fields->{$mpi{'species_fld'}}
+             . " does not exist in the database.";
              reportError($line_count, $msg);
       }
-    }
-    #error: position field must exist  
-    if (!isFieldSet($position, 1)) {
-      $has_errors++;
-      $msg = "ERROR: genetic position is missing";
-      reportError($line_count, $msg);
-    }
-    #error: map name must exist
-    if (!isFieldSet($mapname_marker)) {
-      $has_errors++;
-      $msg = "ERROR: map name is missing";
-      reportError($line_count, $msg);
-    }
-    else {
-      #error: map collection must exist in spreadsheet or database
-      if (!$mapsets{$mapname_marker} && !mapSetExists($dbh, $mapname_marker)) {
+      #error: marker_name must exist
+      if (!$marker_name) {
         $has_errors++;
-        $msg = "ERROR: The map set $mapname_marker does not exist in the spreadsheet"
-            . " or database.";
+        $msg = "ERROR: marker name is missing";
         reportError($line_count, $msg);
       }
-    }
-    ## about lg
-    #error: linkage group(lg) must exist
-    if (!isFieldSet($fields, $lg)) {
-      $has_errors++;
-      $msg = "ERROR: linkage group is missing";
-    }
-    else {
-      open(my $file_handle, "<", $file) || die "Failed to open the file:\n";
-      while (<$file_handle>) {
-        if ($_=~ m/^#/) {
-          next;
-        }
-        else {
-          @map_row = split('\t', $_);
-          if ($map_row[2] eq $lg) {
-            if ($position < $map_row[3] || $position > $map_row[4] ) {
-              $has_errors++;
-              $msg = "ERROR: The linkage group ($lg) is out of bounds with the position $position";
-              reportError($line_count, $msg);
-            }#end of if-condition for lg check
-            
-          }#end of if-condition for position check
-          
-        }#end of else, if not starting with'#'
-        
-      }#end of while
-      
-    }#end of else, when lg is set
-    
-    
-    my $lg_map_name = makeLinkageMapName($mapname_marker,$lg);
-    my $lg_id = lgExists($dbh, $lg_map_name);
-    if ($lg_id) {
-      print " The linkage group ($lg) already exists in the database.\n";
-      if(!checkLG($dbh,$position)) {
+      elsif ($marker_position{$marker_name}) {
+        #checking uniqueness of the marker name in MARKER_POSITION sheet
         $has_errors++;
-        $msg = "ERROR: The linkage group position is out of bounds";
-        $msg.= "with the position $position";
-        reportError($line_count++, $msg);
-       }   
-    }
-  
-    sub lgExists() {
-      my ($dbh, $lg_map_name) = @_;
-      my ($sql, $sth, $row);
-      if ($lg_map_name && $lg_map_name ne 'NULL') {
-        $sql = "select feature_id from feature where uniquename='$lg_map_name'";
-        logSQL('', $sql);
-        $sth = doQuery($dbh, $sql);
-        if ($row=$sth->fetchrow_hashref) {
-          return $row->{'feature_id'};
+        $msg = "ERROR: This marker ($marker_name) already exists";
+        $msg.= " in the spreadsheet.";
+        reportError($line_count, $msg);
+      }
+      else {
+        if (!$markers{$marker_name}) { # this is why master marker sheet verification
+                                       #should come first
+          $has_warnings++;
+          $msg = "warning: The marker name $marker_name doesn't exist in the master marker sheet. "
+                ."Please consider this for review whether to add into master marker sheet";
+          reportError($line_count, $msg);      
+        }    
+        elsif (markerExists($dbh, $marker_name, $mpi{'species_fld'})) {
+          #checking if the marker is already existing in the database
+          $has_warnings++;
+          $msg = "warning: this marker_name ($marker_name)"
+               . " has already been loaded"
+               . " and will be updated.";
+          reportError($line_count, $msg);
         }
       }
-      return 0;
-    }#lgExists
-    
-    sub checkLG() {
-      my ($dbh,$position) = @_;
-      my ($sql, $sth, $row);
-      my ($min, $max);
-      my $count=0;
-      $sql="select mappos from featurepos where feature_id = '$lg_id'";
-      logSQL('',$sql);
-      $sth = doQuery($dbh, $sql);
-      while(my @lg_row=$sth->fetchrow_array) {
-        $count++;
-        if($count==1){ $min = $lg_row[0]; }
-        else{ $max = $lg_row[0]; }
+      #error: position field must exist  
+      if (!$position && $position ne '0') {
+        $has_errors++;
+        $msg = "ERROR: genetic position is missing";
+        reportError($line_count, $msg);
       }
-      if ($position > $max || $position < $min) {
+      #error: map name must exist
+      if (!$mapname_marker) {
+        $has_errors++;
+        $msg = "ERROR: map name is missing";
+        reportError($line_count, $msg);
+      }
+      else {
+        #error: map collection must exist in spreadsheet or database
+        if (!$mapsets{$mapname_marker} && !mapSetExists($dbh, $mapname_marker)) {
+          $has_errors++;
+          $msg = "ERROR: The map set $mapname_marker does not exist in the spreadsheet"
+              . " or database.";
+          reportError($line_count, $msg);
+        }
+      }
+      ## about lg
+      #error: linkage group(lg) must exist
+      if (!$lg) {
+        $has_errors++;
+        $msg = "ERROR: linkage group is missing for $marker_name";
+        reportError($line_count, $msg);
+      }
+      else {
+        open(my $file_handle, "<", $file) || die "Failed to open the file:\n";
+        while (<$file_handle>) {
+          if ($_=~ m/^#/) {
+            next;
+          }
+          else {
+            @map_row = split('\t', $_);
+            if ($map_row[2] eq $lg) {
+              if ($position < $map_row[3] || $position > $map_row[4] ) {
+                $has_errors++;
+                $msg = "ERROR: The linkage group ($lg) is out of bounds with the position $position";
+                reportError($line_count, $msg);
+              }#end of if-condition for lg check
+              
+            }#end of if-condition for position check
+            
+          }#end of else, if not starting with'#'
+          
+        }#end of while
+        
+      }#end of else, when lg is set
+      
+      my $lg_map_name = makeLinkageMapName($mapname_marker,$lg);
+      my $lg_id = lgExists($dbh, $lg_map_name);
+      if ($lg_id) {
+        print " The linkage group ($lg) already exists in the database.\n";
+        if(!checkLG($dbh,$position)) {
+          $has_errors++;
+          $msg = "ERROR: The linkage group position is out of bounds";
+          $msg.= "with the position $position";
+          reportError($line_count++, $msg);
+         }   
+      }
+    
+      sub lgExists() {
+        my ($dbh, $lg_map_name) = @_;
+        my ($sql, $sth, $row);
+        if ($lg_map_name && $lg_map_name ne 'NULL') {
+          $sql = "select feature_id from feature where uniquename='$lg_map_name'";
+          logSQL('', $sql);
+          $sth = doQuery($dbh, $sql);
+          if ($row=$sth->fetchrow_hashref) {
+            return $row->{'feature_id'};
+          }
+        }
         return 0;
-      }
-      else { return 1; }
-    }#checkLG
-    
-### about lg ends here
-### verification of marker_position is finished here. except about cmap_accession.
- $marker_position{$marker_name} = 1;
+      }#lgExists
+      
+      sub checkLG() {
+        my ($dbh,$position) = @_;
+        my ($sql, $sth, $row);
+        my ($min, $max);
+        my $count=0;
+        $sql="select mappos from featurepos where feature_id = '$lg_id'";
+        logSQL('',$sql);
+        $sth = doQuery($dbh, $sql);
+        while(my @lg_row=$sth->fetchrow_array) {
+          $count++;
+          if($count==1){ $min = $lg_row[0]; }
+          else{ $max = $lg_row[0]; }
+        }
+        if ($position > $max || $position < $min) {
+          return 0;
+        }
+        else { return 1; }
+      }#checkLG
+      
+      ### about lg ends here
+      ### verification of marker_position is finished here. except about cmap_accession.
+      $marker_position{$marker_name} = 1;
     }#foreach - marker_position
     
     if ($has_errors) {
       print "\n\nThe marker position table has $has_errors errors. Unable to continue.\n\n";
       exit;
-    }  
+    }
     
   }#do genetic maps
 
