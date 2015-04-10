@@ -203,6 +203,9 @@ print "\n$line_count: $qtl_name\n";
     loadMeasurement($dbh, $qtl_id, $fields->{$qi{'additivity_fld'}}, 
                     'additivity', $fields);
 
+    # there may be 'extension' measurements, indicated by prefix 'analysis:'
+    loadExtensionMeasurements($dbh, $qtl_id, $fields);
+    
 #print "  attach comment\n";
     # comment
     loadFeatureprop($dbh, $qtl_id, $fields->{$qi{'comment_fld'}}, 
@@ -446,7 +449,7 @@ sub attachFavorableAlleleSource {
 sub attachMarker {
   my ($dbh, $feature_id, $markername, $relationship, $fields) = @_;
   my ($sql, $sth, $row);
-print "attach marker $markername\n";
+#print "attach marker $markername\n";
 #print "attach marker $markername'.\n" . Dumper($fields);
 
   if (isNull($markername)) {
@@ -616,6 +619,50 @@ sub insertGeneticCoordinates {
 }#insertGeneticCoordinates
 
 
+sub loadExtensionMeasurements {
+  my ($dbh, $qtl_id, $fields) = @_;
+  my ($sql, $sth, $row, $msg);
+  
+  foreach my $field (keys $fields) {
+    if (!$fields->{$field} 
+          || $fields->{$field} eq '' 
+          || $fields->{$field} eq 'NULL') {
+      next;
+    }
+    
+    if ($field =~ /^analysis:\s+(.*)/) {
+      my $analysis_name = $1;
+      my $analysis_id = getAnalysisID($dbh, $analysis_name);
+      if (!$analysis_id) {
+        print "Warning: The measurement/analysis '$analysis_name' doesn't exist.";
+        print " A record will be added and it will need its description set";
+        print " by hand.\n";
+        $sql = "
+          INSERT INTO analysis
+            (name, program, programversion)
+          VALUES
+            ('$analysis_name', '$analysis_name', '$analysis_name')
+          RETURNING analysis_id";
+        logSQL($dataset_name, $sql);
+        $sth = doQuery($dbh, $sql);
+        $row = $sth->fetchrow_hashref;
+        $analysis_id = $row->{'analysis_id'};
+      }
+
+      my $measure = $fields->{$field};
+      
+      $sql = "
+        INSERT INTO chado.analysisfeature
+          (feature_id, analysis_id, rawscore)
+        VALUES
+          ($qtl_id, $analysis_id, $measure)";
+      logSQL($dataset_name, "$line_count: $sql");
+      $sth = doQuery($dbh, $sql);
+    }#is extended measurement field
+  }#each field
+}#loadExtensionMeasurements
+
+
 sub loadFeatureprop {
   my ($dbh, $feature_id, $prop, $propname, $cv, $fields, $rank) = @_;
   my($sql, $sth, $row);
@@ -675,7 +722,6 @@ sub loadMeasurement {
          ($feature_id,
           (SELECT analysis_id FROM chado.analysis WHERE name='$analysis'),
           $measure)";
-#print "$line_count: $sql\n";
   logSQL($dataset_name, "$line_count: $sql");
   $sth = doQuery($dbh, $sql);
 }#loadMeasurement

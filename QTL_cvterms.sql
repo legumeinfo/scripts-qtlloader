@@ -123,7 +123,8 @@ VALUES
   ((SELECT db_id FROM db WHERE name='tripal'), 'interval_calculation_method'),
   ((SELECT db_id FROM db WHERE name='tripal'), 'assigned_linkage_group'),
   ((SELECT db_id FROM db WHERE name='tripal'), 'qtl_peak'),
-  ((SELECT db_id FROM db WHERE name='tripal'), 'marker_type')
+  ((SELECT db_id FROM db WHERE name='tripal'), 'marker_type'),
+  ((SELECT db_id FROM db WHERE name='tripal'), 'sequence_type')
 ;
 
 INSERT INTO chado.cvterm
@@ -174,7 +175,11 @@ VALUES
    (SELECT dbxref_id FROM dbxref WHERE accession='marker_type')),
   ((SELECT cv_id FROM cv WHERE name='feature_property'),
    'Primer Pair Name', 'Name of the primer pair used to for a marker.', 
-   (SELECT dbxref_id FROM dbxref WHERE accession='qtl_peak'))
+   (SELECT dbxref_id FROM dbxref WHERE accession='qtl_peak')),
+
+  ((SELECT cv_id FROM cv WHERE name='feature_property'),
+   'Sequence Type', 'Type of sequence, e.g. SNP', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='sequence_type'))
 ;
 
 

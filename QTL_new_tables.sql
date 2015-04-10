@@ -95,3 +95,18 @@ CREATE TABLE chado.feature_stock (
   CONSTRAINT feature_stock_c1 UNIQUE (feature_id, stock_id, type_id, rank)  
 );
 ALTER TABLE feature_stock OWNER TO www;
+
+
+-- Create a linker table for linking multiple species to the same stock record
+CREATE TABLE stock_organism (
+  stock_organism_id serial NOT NULL,
+    PRIMARY KEY (feature_stock_id),
+  stock_id INT NOT NULL,
+    FOREIGN KEY (stock_id) REFERENCES chado.stock (stock_id) ON DELETE CASCADE INITIALLY DEFERRED,
+  organism_id INT NOT NULL,
+    FOREIGN KEY (feature_id) REFERENCES chado.organism (feature_id) on DELETE CASCADE INITIALLY DEFERRED,
+  rank INT NOT NULL DEFAULT 0,
+  CONSTRAINT stock_organism_c1 UNIQUE (stock_id, organism_id, type_id, rank)  
+);
+ALTER TABLE feature_stock OWNER TO www;
+
