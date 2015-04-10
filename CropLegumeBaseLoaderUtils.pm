@@ -13,7 +13,6 @@ our @EXPORT      = (
                     qw(dbxrefExists),
                     qw(doQuery), 
                     qw(experimentExists),
-                    qw(getAnalysisID),
                     qw(getChromosomeID),
                     qw(getCvtermID), 
                     qw(getFeatureID),
@@ -26,7 +25,6 @@ our @EXPORT      = (
                     qw(getQTLid),
                     qw(getScaffoldID),
                     qw(getSSInfo),
-                    qw(getStockID),
                     qw(getSynonym),
                     qw(getTrait),
                     qw(isFieldSet),
@@ -43,10 +41,9 @@ our @EXPORT      = (
                     qw(qtlExists),
                     qw(readFile), 
                     qw(reportError),
-                    qw(setFeatureDbxref),
-                    qw(setFeatureprop),
                     qw(traitExists),
                     qw(uniqueID),
+                    qw(_allNULL),
                    );
 #our @EXPORT_OK   = ();
 #our %EXPORT_TAGS = (DEFAULT => [qw(&testsub)]);
@@ -56,6 +53,11 @@ our @EXPORT      = (
 #   connectToDB() defined here:
 require 'db.pl';
 
+
+
+sub testsub {
+  print "this is a test\n";
+}
 
 
 sub getSSInfo {
@@ -102,7 +104,6 @@ sub getSSInfo {
     return (
       'worksheet'        => 'MAP_COLLECTION',
       'species_fld'      => 'specieslink_abv',
-      'multispecies_fld' => 'multi-species',
       'pub_map_name_fld' => 'publication_map_name',
       'map_name_fld'     => 'map_name',
       'description_fld'  => 'description',
@@ -141,6 +142,7 @@ sub getSSInfo {
       'phys_start_fld'      => 'phys_start',
       'phys_end_fld'        => 'phys_end',
       'comment_fld'         => 'comment',
+      # variables $accession, $accession_source, $SNP_pos are yet to be confirmed
     );
   }
   elsif($ss eq 'MARKER_POSITION'){
@@ -259,23 +261,21 @@ sub checkUpdate {
 sub createLinkageGroups {
   my @records = @_;
   
-  # a hash describing the linkage groups represented by an array of marker 
   my %lgs;
-  my %mpi = getSSInfo('MARKER_POSITION');
+  my %mki = getSSInfo('MARKERS');
   
   foreach my $r (@records) {
-    my $lg_map_name = makeLinkageMapName($r->{$mpi{'map_name_fld'}}, $r->{$mpi{'lg_fld'}});
+    my $lg_map_name = makeLinkageMapName($r->{$mki{'map_name_fld'}}, $r->{$mki{'lg_fld'}});
     if (!$lgs{$lg_map_name}) {
       $lgs{$lg_map_name} = {'map_start' => 99999, 'map_end' => -99999};
     }
-    if ($r->{$mpi{'position_fld'}} < $lgs{$lg_map_name}{'map_start'}) {
-      $lgs{$lg_map_name}{'map_start'} = $r->{$mpi{'position_fld'}};
+    if ($r->{$mki{'position_fld'}} < $lgs{$lg_map_name}{'map_start'}) {
+      $lgs{$lg_map_name}{'map_start'} = $r->{$mki{'position_fld'}};
     }
-    if ($r->{$mpi{'position_fld'}} > $lgs{$lg_map_name}{'map_end'}) {
-      $lgs{$lg_map_name}{'map_end'} = $r->{$mpi{'position_fld'}};
+    if ($r->{$mki{'position_fld'}} > $lgs{$lg_map_name}{'map_end'}) {
+      $lgs{$lg_map_name}{'map_end'} = $r->{$mki{'position_fld'}};
     }
-    $lgs{$lg_map_name}{'species'} = $r->{$mpi{'species_fld'}};
-    $lgs{$lg_map_name}{'lg'} = $r->{$mpi{'lg_fld'}};
+    $lgs{$lg_map_name}{'species'} = $r->{$mki{'species_fld'}};
   }#each record
   
   return %lgs;
@@ -310,15 +310,20 @@ sub doQuery {
   if (!@vals) { @vals = (); }
   
   # Translate any UniCode characters in sql statment
+#print "start with: $sql\n";
   $sql = decode("iso-8859-1", $sql);
+#print "end with: $sql\n";
   
   # Translate any UniCode chararcters in values array
   if (@vals && (scalar @vals) > 0) {
+#print "start with:\n" . Dumper(@vals);
     my @tr_vals = map{ decode("iso-8859-1", $_) } @vals;
+#print "translate:\n" . Dumper(@tr_vals);
     @vals = @tr_vals;
   }
   
   my $sth = $dbh->prepare($sql);
+#print "end with:\n" . Dumper(@vals);
   $sth->execute(@vals);
   return $sth;
 }#doQuery
@@ -341,18 +346,36 @@ sub experimentExists {
 }#experimentExists
 
 
-sub getAnalysisID {
-  my ($dbh, $analysis_name) = @_;
+sub getCvtermID {
+  my ($dbh, $term, $cv) = @_;
   my ($sql, $sth, $row);
-  $sql = "SELECT analysis_id FROM analysis WHERE name='$analysis_name'";
-  logSQL('', $sql);
+  
+  $sql = "
+    SELECT cvterm_id FROM chado.cvterm 
+    WHERE name='$term'
+      AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='$cv')";
+  logSQL('lib', $sql);
   $sth = doQuery($dbh, $sql);
-  if ($row=$sth->fetchrow_hashref) {
-    return $row->{'analysis_id'};
+  if ($row=$sth->fetchrow_hashref()) {
+    return $row->{'cvterm_id'};
+  }
+  else {
+    $term = lc($term);
+    $sql = "
+      SELECT cvterm_id FROM chado.cvterm 
+      WHERE name='$term'
+        AND cv_id=(SELECT cv_id FROM chado.cv WHERE LOWER(name)='$cv')";
+    logSQL('lib', $sql);
+    $sth = doQuery($dbh, $sql);
+    if ($row=$sth->fetchrow_hashref()) {
+      return $row->{'cvterm_id'};
+    }
   }
   
-  return undef;
-}#getAnalysisID
+  # search failed
+  reportError("Unable to find term [$term] in controlled vocabulary [$cv]\n");
+  return 0;
+}#getCvtermID
 
 
 sub getAssemblyID {
@@ -404,38 +427,6 @@ sub getChromosomeID {
     return 0;
   }
 }#getChromosomeID
-
-
-sub getCvtermID {
-  my ($dbh, $term, $cv) = @_;
-  my ($sql, $sth, $row);
-  
-  $sql = "
-    SELECT cvterm_id FROM chado.cvterm 
-    WHERE name='$term'
-      AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='$cv')";
-  logSQL('lib', $sql);
-  $sth = doQuery($dbh, $sql);
-  if ($row=$sth->fetchrow_hashref()) {
-    return $row->{'cvterm_id'};
-  }
-  else {
-    $term = lc($term);
-    $sql = "
-      SELECT cvterm_id FROM chado.cvterm 
-      WHERE name='$term'
-        AND cv_id=(SELECT cv_id FROM chado.cv WHERE LOWER(name)='$cv')";
-    logSQL('lib', $sql);
-    $sth = doQuery($dbh, $sql);
-    if ($row=$sth->fetchrow_hashref()) {
-      return $row->{'cvterm_id'};
-    }
-  }
-  
-  # search failed
-  reportError("Unable to find term [$term] in controlled vocabulary [$cv]\n");
-  return 0;
-}#getCvtermID
 
 
 #TODO: this should also include type and species because the unique constraint
@@ -675,22 +666,6 @@ sub getScaffoldID {
 }#getScaffoldID
 
 
-sub getStockID {
-  my ($dbh, $uniquename) = @_;
-  my ($sql, $sth, $row);
-  
-  $sql = "
-    SELECT stock_id FROM chado.stock WHERE uniquename=?";
-  logSQL('', "$sql\WITH\n'$uniquename'");
-  $sth = doQuery($dbh, $sql, ($uniquename));
-  if ($row=$sth->fetchrow_hashref) {
-    return $row->{'stock_id'};
-  }
-
-  return undef;
-}#getStockID
-
-
 sub getSynonym {
   my ($dbh, $synonym, $type) = @_;
   my ($sql, $sth, $row);
@@ -737,11 +712,11 @@ sub getTrait {
 
 
 sub isFieldSet {
-  my ($fields, $fld, $allow_zero) = @_;
-  if ((!$allow_zero && !$fields->{$fld}) 
-        || $fields->{$fld} eq '' 
-        || $fields->{$fld} eq 'null' 
-        || $fields->{$fld} eq 'NULL') {
+  my ($fld, $allow_zero) = @_;
+  #print "allow_zero: $allow_zero";
+  if ((!$allow_zero && !$fld) 
+        || $fld eq '' 
+        || lc($fld) eq 'null') {
     return 0;
   }
   else {
@@ -795,14 +770,10 @@ sub makeMappingPopulationName {
 }#makeMappingPopulationName
 
 
+#NOTE: UNUSED
 sub makeMarkerName {
   my ($species, $marker) = @_;
-# Don't need to append species mnemonic because the unique constraint in the
-#   feature table is (uniquename, type_id, organism_id).
-# Also, what species name to use may not be clear if marker was developed in
-#   an interspecific cross.
-#  my $uniq_marker_name = "$species.$marker";
-  my $uniq_marker_name = "$marker";
+  my $uniq_marker_name = "$species.$marker";
   return $uniq_marker_name;
 }#makeMarkerName
 
@@ -833,31 +804,25 @@ sub mapSetExists {
 
 
 sub markerExists {
-  my ($dbh, $marker, $species) = @_;
+  my ($dbh, $marker, $mapname) = @_;
   my ($sql, $sth, $row);
 
   my ($sql, $sth, $row);
   $sql = "
-    SELECT f.feature_id
+    SELECT f.name 
     FROM chado.feature f
-    WHERE uniquename='$marker'
-          AND organism_id = (SELECT O.organism_id 
-                             FROM chado.organism O 
-                               INNER JOIN chado.organism_dbxref OD ON OD.organism_id=O.organism_id 
-                               INNER JOIN chado.dbxref D on D.dbxref_id=OD.dbxref_id 
-                             WHERE D.accession='$species'
-                            )
-          AND type_id = (SELECT cvterm_id FROM chado.cvterm 
-                         WHERE name='genetic_marker' 
-                               AND cv_id=(SELECT cv_id FROM chado.cv 
-                                          WHERE name='sequence')
-                        )";
-                        
+      INNER JOIN chado.featurepos lg ON lg.feature_id=f.feature_id
+      INNER JOIN chado.featuremap map ON map.featuremap_id=lg.featuremap_id
+    WHERE uniquename='$marker' 
+      AND type_id = (SELECT cvterm_id FROM chado.cvterm 
+                     WHERE name='genetic_marker' 
+                       AND cv_id=(SELECT cv_id FROM chado.cv 
+                                  WHERE name='sequence')
+                     )
+      AND map.name='$mapname'";
   logSQL('', $sql);
-#print "$sql\n";
   $sth = doQuery($dbh, $sql);
   if (($row = $sth->fetchrow_hashref)) {
-#print "marker exists: " . $row->{'feature_id'} . "\n";
     return $row->{'feature_id'};
   }
   
@@ -939,7 +904,6 @@ sub readFile {
   use Encode;
 
   my $table_file = $_[0];
-
   # execute perl one-liner to fix line endings
   my $cmd = "perl -pi -e 's/(?:\\015\\012?|\\012)/\\n/g' $table_file";
   `$cmd`;
@@ -1020,139 +984,6 @@ sub reportError {
 }#reportError
 
 
-sub setFeatureDbxref {
-  my ($dbh, $feature_id, $fieldname, $dbname, $fields) = @_;
-  my ($sql, $sth, $row);
-  
-  if (isFieldSet($fields, $fieldname)) {
-    my $acc = $fields->{$fieldname};
-    my $dbxref_id = dbxrefExists($dbh, $dbname, $acc);
-    if (!$dbxref_id) {
-      $sql = "
-        INSERT INTO chado.dbxref
-          (db_id, accession)
-        VALUES
-          ((SELECT db_id FROM chado.db 
-            WHERE name='$dbname'),
-           '$acc') 
-        RETURNING dbxref_id";
-      logSQL('', $sql);
-      $sth = doQuery($dbh, $sql);
-      $row = $sth->fetchrow_hashref;
-      $dbxref_id = $row->{'dbxref_id'};
-      $sth->finish;
-    }
-    
-    # Return if feature_dbxref record already exists
-    $sql = "
-      SELECT feature_dbxref_id FROM chado.feature_dbxref
-      WHERE feature_id=$feature_id AND $dbxref_id =$dbxref_id";
-    logSQL('', $sql);
-    $sth = doQuery($dbh, $sql);
-    if ($row=$sth->fetchrow_hashref) {
-      return;
-    }
-    
-    # connect dbxref record to feature record
-    $sql = "
-      INSERT INTO chado.feature_dbxref
-        (feature_id, dbxref_id)
-      VALUES
-        ($feature_id, $dbxref_id)";
-    logSQL('', $sql);
-    doQuery($dbh, $sql);
-  }#secondary source fields are set
-}#setFeatureDbxref
-
-
-sub setFeatureprop {
-  my ($dbh, $feature_id, $fieldname, $typename, $rank, $fields) = @_;
-  my ($sql, $sth, $row);
-  if (isFieldSet($fields, $fieldname)) {
-    my $value = $fields->{$fieldname};
-    
-    # Check if this featureprop type already exists
-    $sql = "
-      SELECT MAX(rank) FROM chado.featureprop
-      WHERE feature_id=$feature_id 
-            AND type_id = (SELECT cvterm_id FROM chado.cvterm 
-                           WHERE name='$typename'
-                             AND cv_id = (SELECT cv_id FROM chado.cv 
-                                          WHERE name='feature_property'))
-            AND value='$value'";
-    logSQL('', $sql);
-    $sth = doQuery($dbh, $sql);
-    if ($row=$sth->fetchrow_hashref && $row->{'max'}) {
-      # don't re-set or add a duplicate property
-      return;
-    }
-    
-    if ($rank == -1) {
-      # Set the rank based on existing featureprop records
-      $sql = "
-        SELECT MAX(rank) AS rank FROM chado.featureprop
-        WHERE feature_id=$feature_id 
-              AND type_id = (SELECT cvterm_id FROM chado.cvterm 
-                             WHERE name='$typename'
-                               AND cv_id = (SELECT cv_id FROM chado.cv 
-                                            WHERE name='feature_property'))";
-      logSQL('', $sql);
-      $sth = doQuery($dbh, $sql);
-      $rank =  ($row=$sth->fetchrow_hashref) ? $row->{'rank'}++ : 1;
-      
-      # Add a new featureprop record with a new rank
-      $sql = "
-        INSERT INTO chado.featureprop
-          (feature_id, type_id, value, rank)
-        VALUES
-          ($feature_id,
-           (SELECT cvterm_id FROM chado.cvterm 
-            WHERE name='$typename'
-              AND cv_id = (SELECT cv_id FROM chado.cv 
-                  WHERE name='feature_property')),
-           '$value', $rank)";
-    }#rank is caculated
-    
-    else {
-      # If this featureprop already exists, change it
-      $sql = "
-        SELECT featureprop_id FROM chado.featureprop
-        WHERE feature_id=$feature_id 
-              AND type_id = (SELECT cvterm_id FROM chado.cvterm 
-                             WHERE name='$typename'
-                               AND cv_id = (SELECT cv_id FROM chado.cv 
-                                            WHERE name='feature_property'))
-              AND value='$value'";
-      logSQL('', $sql);
-      $sth = doQuery($dbh, $sql);
-      if ($row=$sth->fetchrow_hashref) {
-        # This featureprop needs to be updated
-        $sql = "
-          UPDATE chado.featureprop SET
-            value = '$value'
-          WHERE featureprop_id = " . $row->{'featureprop_id'};
-      }
-      else {
-        # This featureprop needs to be created
-        $sql = "
-          INSERT INTO chado.featureprop
-            (feature_id, type_id, value, rank)
-          VALUES
-            ($feature_id,
-             (SELECT cvterm_id FROM chado.cvterm 
-              WHERE name='$typename'
-                AND cv_id = (SELECT cv_id FROM chado.cv 
-                    WHERE name='feature_property')),
-             '$value', $rank)";
-      }
-    }#rank is fixed
-    
-    logSQL('', $sql);
-    doQuery($dbh, $sql);
-  }#value for fieldname exists
-}#setFeatureprop
-
-
 sub traitExists {
   my ($dbh, $traitname) = @_;
   my ($sql, $sth, $row);
@@ -1199,6 +1030,7 @@ sub _allNULL {
   }
   return $all_null;
 }#_allNULL
+
 
 
 1;
