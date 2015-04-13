@@ -319,7 +319,6 @@ sub loadMarkerPositions {
     }
     
     my $marker_name = $fields->{'marker_name'};
-print "$line_count: handle marker $marker_name\n";
 
     my $marker_id = updateMarker($dbh, $marker_name, $fields->{$mpi{'species_fld'}});
     
@@ -726,7 +725,6 @@ sub placeMarkerOnLG {
   }
   
   # Check for an existing featurepos record for this marker
-print "Place $marker_id on $lg_name, position " . $fields->{$mpi{'position_fld'}} . "\n";
   $sql = "
     SELECT featurepos_id FROM chado.featurepos
     WHERE featuremap_id=$map_set_id 
