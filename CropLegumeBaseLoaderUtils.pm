@@ -26,6 +26,7 @@ our @EXPORT      = (
                     qw(getQTLid),
                     qw(getScaffoldID),
                     qw(getSSInfo),
+                    qw(getStockID),  #eksc
                     qw(getSynonym),
                     qw(getTrait),
                     qw(isFieldSet),
