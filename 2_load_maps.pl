@@ -291,6 +291,7 @@ sub loadMarkerPositions {
   my ($dbh, $filename) = @_;
   
   my ($fields, $sql, $sth, $row, $msg);
+  my ($skip_all, $change_all, $add_all, $quit);
 
   $table_file = "$input_dir/$filename.txt";
   print "Loading/verifying $table_file...\n";
@@ -318,9 +319,49 @@ sub loadMarkerPositions {
       next;
     }
     
+    my $species = $fields->{$mpi{'species_fld'}};
     my $marker_name = $fields->{'marker_name'};
+    my $species_list = getMarkerSpecies($dbh, $marker_name);
+print "\nspecies list for $marker_name:\n" . Dumper($species_list);
+    if ($species_list && scalar (keys $species_list)
+          && !$species_list->{$species} && !$change_all && !$add_all) {
+      next if ($skip_all);
+      if (!$change_all && !$add_all) {
+        my $prompt = "$line_count: the marker $marker_name already exists ";
+        $prompt .= "but is attached to " . join(', ', (keys $species_list));
+        $prompt .= " instead of $species. Choose an action: (skipall, changeall, addall, quit)";
+        print "$prompt\n";
+        my $userinput =  <STDIN>;
+        chomp $userinput;
+        if ($userinput eq 'skipall') {
+          $skip_all = 1;
+          next;
+        }
+        elsif ($userinput eq 'changeall') {
+          $change_all = 1;
+        }
+        elsif ($userinput eq 'addall') {
+          $add_all = 1;
+        }
+        elsif ($userinput eq 'quit') {
+          exit;
+        }
+        else {
+          print "don't recognize '$userinput', skipping.\n";
+        }
+      }#ask for user action
+    }#potential conflict with existing marker
 
-    my $marker_id = updateMarker($dbh, $marker_name, $fields->{$mpi{'species_fld'}});
+    my $marker_id;
+    if ($change_all) {
+      # change species to current assigned species
+print "Change species for marker $marker_name.\n";
+      $marker_id = updateMarker($dbh, $marker_name, $fields->{$mpi{'species_fld'}}, 1);
+    }
+    else {
+      # add a record for this marker, if necessary
+      $marker_id = updateMarker($dbh, $marker_name, $fields->{$mpi{'species_fld'}});
+    }
     
     # Place on linkage group
     placeMarkerOnLG($dbh, $marker_id, $fields);
@@ -1047,30 +1088,56 @@ sub updateLinkageGroups {
 
 # Update marker if exists, create if not.
 sub updateMarker {
-  my ($dbh, $marker_name, $species) = @_;
+  my ($dbh, $marker_name, $species, $changespecies) = @_;
   my ($sql, $sth, $row);
+print "Update marker $marker_name, which is in species, $species.\n";
   
-  # Does this marker exist?
+  # Does this marker exist for the given species?
   my $marker_id = markerExists($dbh, $marker_name, $species);
   if ($marker_id) {
-    # Nothing to do?
-    
+    return $marker_id;
   }
   else {
     my $organism_id = getOrganismID($dbh, $species);
+print "Got organism id $organism_id for $species.\n";
     my $unique_marker_name = makeMarkerName($species, $marker_name);
-    $sql = "
-      INSERT INTO chado.feature
-        (organism_id, name, uniquename, type_id)
-      VALUES
-        ($organism_id,
-         '$marker_name',
-         '$unique_marker_name',
-         (SELECT cvterm_id FROM cvterm 
-          WHERE name='genetic_marker' 
-                AND cv_id = (SELECT cv_id FROM cv WHERE name='sequence'))
-        )
-      RETURNING feature_id";
+    
+    if ($changespecies) {
+      # check if marker exists for a different species
+      my @marker_list = getMarkerNameIDs($dbh, $marker_name);
+      if (scalar @marker_list > 1) {
+        print "\nWarning: there is more than one marker of this name. ";
+        print "Don't know which one to fix. IDs = (";
+        print (join ',', @marker_list) . ")\n";
+        next;
+      }
+      elsif (scalar @marker_list == 0) {
+        print "\nWarning: marker name not found!\n";
+        next;
+      }
+      
+      $sql = "
+        UPDATE chado.feature
+        SET
+          organism_id=$organism_id
+        WHERE
+          feature_id = " . $marker_list[0] . "
+        RETURNING feature_id";
+    }
+    else {
+      $sql = "
+        INSERT INTO chado.feature
+          (organism_id, name, uniquename, type_id)
+        VALUES
+          ($organism_id,
+           '$marker_name',
+           '$unique_marker_name',
+           (SELECT cvterm_id FROM cvterm 
+            WHERE name='genetic_marker' 
+                  AND cv_id = (SELECT cv_id FROM cv WHERE name='sequence'))
+          )
+        RETURNING feature_id";
+    }
     logSQL($dataset_name, $sql);
     $sth = doQuery($dbh, $sql);
     $row = $sth->fetchrow_hashref;
