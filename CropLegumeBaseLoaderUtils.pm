@@ -18,6 +18,8 @@ our @EXPORT      = (
                     qw(getCvtermID), 
                     qw(getFeatureID),
                     qw(getMapSetID),
+                    qw(getMarkerNameIDs),
+                    qw(getMarkerSpecies),
                     qw(getOBOName),
                     qw(getOBOTermID),
                     qw(getOrganismID),
@@ -478,6 +480,54 @@ sub getMapSetID {
     return 0;
   }
 }#getMapSetID
+
+
+sub getMarkerNameIDs {
+  my ($dbh, $marker_name)= @_;
+  my ($sql, $sth, $row);
+  my @marker_list;
+  
+  $sql = "
+    SELECT feature_id
+    FROM feature
+    WHERE name='$marker_name'";
+  logSQL('', $sql);
+  $sth = doQuery($dbh, $sql);
+  while ($row=$sth->fetchrow_hashref) {
+    push @marker_list, $row->{'feature_id'};
+  }
+  
+  return @marker_list;
+}#getMarkerNameIDs
+
+
+sub getMarkerSpecies {
+  my ($dbh, $marker_name)= @_;
+  my ($sql, $sth, $row);
+  my %species_list;
+#print "Get species for $marker_name from $dbh.\n";
+  
+  $sql = "
+    SELECT d.accession
+    FROM organism o
+      INNER JOIN chado.organism_dbxref od ON od.organism_id=o.organism_id 
+      INNER JOIN chado.dbxref d on d.dbxref_id=od.dbxref_id
+      INNER JOIN chado.feature f ON f.organism_id=o.organism_id
+    WHERE f.name='$marker_name'
+          AND d.db_id=(SELECT db_id FROM db WHERE name='uniprot:species')
+          AND f.type_id=(SELECT cvterm_id FROM cvterm 
+                         WHERE NAME='genetic_marker' 
+                               AND cv_id=(SELECT cv_id FROM cv 
+                                          WHERE name='sequence'))";
+  logSQL('', $sql);
+  $sth = doQuery($dbh, $sql);
+  while ($row=$sth->fetchrow_hashref) {
+    $species_list{$row->{'accession'}} = 1;
+  }
+  
+#print "returning:\n" . Dumper(%species_list);
+  return \%species_list;
+}#getMarkerSpecies
 
 
 sub getOBOName {
