@@ -1149,16 +1149,18 @@ print "\nCheck for [$publink_citation] in\n" . Dumper(%citations) . "\n\n";
       
       my $uniq_marker_name;
       
+      my $species = $fields->{$qi{'species_fld'}};
       my $nearest_marker = $fields->{$qi{'nearest_mrkr_fld'}};
       if ($nearest_marker ne '' && lc($nearest_marker) ne 'null') {
-        $uniq_marker_name = makeMarkerName($fields->{'specieslink_abv'}, 
-                                           $fields->{'nearest_marker'});
+        $uniq_marker_name = makeMarkerName($fields->{$qi{'species_fld'}}, 
+                                           $nearest_marker);
         if (!$markers{$nearest_marker} 
-                && !markerExists($dbh, $uniq_marker_name)) {
+                && !markerExists($dbh, $uniq_marker_name, $species)) {
           $has_warnings++;
-          $msg = "warning: nearest marker ($nearest_marker) ";
-          $msg .= "does not exist in spreadsheet or database. ";
-          $msg .= "A stub record will be created.";
+          $msg = "warning: nearest marker ($nearest_marker) for species ";
+          $msg .= "$species does not exist in spreadsheet or database. ";
+          $msg .= "A stub record will be created, or the species can ";
+          $msg .= "be changed at load time.";
           reportError($line_count, $msg);
         }
       }
@@ -1215,6 +1217,7 @@ print "\nCheck for [$publink_citation] in\n" . Dumper(%citations) . "\n\n";
     $wsfile = "$input_dir/$mpfile";
     print "\nReading map position records from $wsfile\n";
     @records = readFile($wsfile);
+print "finished reading file\n";
     $has_errors   = 0;
     $line_count   = 0;
     foreach my $fields (@records) {
