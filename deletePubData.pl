@@ -32,14 +32,13 @@ EOS
 ;
 
   if (not defined $ARGV[0]) {
-  print "You haven't given any Citation name or Publication Id".
-  ". Please enter the valid Citation name or Publication Id\n";
-  die $warn;
+    print "You haven't given any Citation name or Publication Id".
+    ". Please enter the valid Citation name or Publication Id\n";
+    die $warn;
   }
   else{
-  $citation = $ARGV[0];
-  chomp $citation;
-  
+    $citation = $ARGV[0];
+    chomp $citation;
   }
 
   #Connecting to the database
@@ -59,15 +58,15 @@ EOS
   
   #Getting the publication id of the citation.
   if ($citation =~ /^[+-]?\d+$/) { #Checking if the given input is a numeric value
-  $pub_id = $dbh->selectrow_array("SELECT pub_id FROM pub WHERE pub_id ='$citation'");
+    $pub_id = $dbh->selectrow_array("SELECT pub_id FROM pub WHERE pub_id ='$citation'");
   }
   else{
-  $pub_id = $dbh->selectrow_array("SELECT pub_id FROM pub WHERE uniquename = '$citation'");
+    $pub_id = $dbh->selectrow_array("SELECT pub_id FROM pub WHERE uniquename = '$citation'");
   }
   if (not defined $pub_id) {
-  print "Please enter the valid Citation Name or Publication Id:\n";
-  $dbh->disconnect();
-  die $warn;
+    print "Please enter the valid Citation Name or Publication Id:\n";
+    $dbh->disconnect();
+    die $warn;
   }
   print "Publication Id:$pub_id\n";
     
@@ -86,17 +85,14 @@ EOS
   $sth = $dbh->prepare($sql);
   my $rv = $sth->execute();
   if ($rv<0) {
-  print $DBI::errstr;
+    print $DBI::errstr;
   }
   print ("\nFound " . $sth->rows . " QTL records for this publication.\n\n");
   
   #For each QTL id, Loop through the following Delete Statements
-#eksc: I recommend using hashref instead. It enables explicitly naming fields
-#      which makes the code more clear, and less likely to introduce an error
-#      if the QTL statement is changed.
   while (my $row = $sth->fetchrow_hashref()){
   my $qtl_id = $row->{'feature_id'}; # Storing feature_id as $qtl_id every time
-  print "Deleting qtl $qtl_id\n";
+    print "Deleting qtl $qtl_id\n";
     
     #Transaction Begins
     eval{
@@ -126,8 +122,6 @@ EOS
       
       $dbh->do("DELETE FROM feature WHERE feature_id ='$qtl_id'");
       
-#eksc: added an extra check because there are so many dbxref for other features
-#      and want to be sure-sure-sure only QTL dbxref records are deleted
       $sql ="DELETE FROM dbxref x
              USING feature_dbxref fx
              WHERE fx.dbxref_id = x.dbxref_id
@@ -199,9 +193,8 @@ EOS
                                                       (SELECT cv_id FROM cv WHERE name = 'sequence')))";
         print "Deleting Assigned Linkage Groups(feature_property)";					      
         print "$sql\n";
-	$dbh->do($sql);
-#eksc: again, to be sure-sure-sure, make sure this is a linkage_group feature
-      $sql = 
+	      $dbh->do($sql);
+        $sql = 
         "DELETE FROM feature l 
          USING featurepos lp 
          WHERE lp.feature_id = l.feature_id 
@@ -211,25 +204,24 @@ EOS
                                       AND cv_id = (SELECT cv_id FROM cv 
                                                    WHERE name = 'sequence')
                                 )";
-      print "$sql\n";
-      $dbh->do($sql);
-      
-      $dbh->do("DELETE FROM dbxref 
-                WHERE dbxref_id IN(SELECT dbxref_id 
-                                   FROM featuremap_dbxref 
-                                   WHERE featuremap_id = '$map_set_id')");
-      
-      if($stock_count==1){
-      $dbh->do("DELETE from stock s USING featuremap_stock fs
-                WHERE fs.stock_id = s.stock_id 
-                      AND fs.featuremap_id = '$map_set_id'");
+        print "$sql\n";
+        $dbh->do($sql);
+        
+        $dbh->do("DELETE FROM dbxref 
+                  WHERE dbxref_id IN(SELECT dbxref_id 
+                                     FROM featuremap_dbxref 
+                                     WHERE featuremap_id = '$map_set_id')");
+        
+        if($stock_count==1){
+        $dbh->do("DELETE from stock s USING featuremap_stock fs
+                  WHERE fs.stock_id = s.stock_id 
+                        AND fs.featuremap_id = '$map_set_id'");
       }
       
       $dbh->do("DELETE FROM featuremap_dbxref where featuremap_id = '$map_set_id'");
       
       $dbh->do("DELETE FROM featurepos where featuremap_id = '$map_set_id'");  
       
-#eksc: Need to delete the featuremap record too
       $sql = "DELETE FROM featuremap WHERE featuremap_id = $map_set_id";
       print "$sql\n";
       $dbh->do($sql);
@@ -254,7 +246,6 @@ EOS
   $sth = $dbh->prepare($sql);
   $sth->execute();
   
-#eksc: please indent nested statements
   #For each project_id, Loop through the following Delete Statements   
   while(my $row=$sth->fetchrow_hashref()){
         my $experiment_id = $row->{'project_id'}; #Storing project_id as $experiment_id every time
@@ -265,7 +256,6 @@ EOS
                 $dbh->do("DELETE from projectprop where project_id = '$experiment_id'");
                 $dbh->do("DELETE from nd_experiment_project where project_id = '$experiment_id'");
                 $dbh->do("DELETE from project_pub where project_id = '$experiment_id'");
-                #eksc: need to delete project record too
                 $sql = "DELETE FROM project WHERE project_id = $experiment_id";
                 print "$sql\n";
                 $dbh->do($sql);
@@ -283,35 +273,34 @@ EOS
   
   #Transaction Begins
   eval{
-	$dbh->do("DELETE FROM dbxref WHERE dbxref_id IN
-		                                        (SELECT dbxref_id from pub_dbxref WHERE pub_id = '$pub_id')");
-        $dbh->do("DELETE from pub_dbxref where pub_id = '$pub_id'");
-        $dbh->do("DELETE from pubprop where pub_id = '$pub_id'");
-        $dbh->do("DELETE from pubauthor where pub_id = '$pub_id'");
-        #eksc: need to delete the publication too
-        $sql = "DELETE FROM pub WHERE pub_id = $pub_id";
-        print "$sql\n";
-        $dbh->do($sql);
+	  $dbh->do("DELETE FROM dbxref WHERE dbxref_id IN
+		            (SELECT dbxref_id from pub_dbxref WHERE pub_id = '$pub_id')");
+    $dbh->do("DELETE from pub_dbxref where pub_id = '$pub_id'");
+    $dbh->do("DELETE from pubprop where pub_id = '$pub_id'");
+    $dbh->do("DELETE from pubauthor where pub_id = '$pub_id'");
+    $sql = "DELETE FROM pub WHERE pub_id = $pub_id";
+    print "$sql\n";
+    $dbh->do($sql);
   }; #Transaction Ends
   
   #Error Handling & Rolling Back entire transaction if any error in the above SQL statements
   if ($@){
-        local $dbh->{RaiseError} = 0;
-        print "Transaction aborted:$@";
-        $dbh->rollback();
+    local $dbh->{RaiseError} = 0;
+    print "Transaction aborted:$@";
+    $dbh->rollback();
   }
   
   $sql="DELETE FROM dbxref x WHERE x.dbxref_id NOT IN
-                                                     (SELECT fx.dbxref_id FROM feature_dbxref fx
-                                                     INNER JOIN feature_project fpr ON fpr.feature_id = fx.feature_id
-                                                     INNER JOIN project pr ON pr.project_id = fpr.project_id
-                                                     INNER JOIN project_pub pp ON pp.project_id = pr.project_id
-                                                     INNER JOIN pub p ON p.pub_id = pp.pub_id WHERE p.pub_id = '$pub_id' )
+         (SELECT fx.dbxref_id FROM feature_dbxref fx
+         INNER JOIN feature_project fpr ON fpr.feature_id = fx.feature_id
+         INNER JOIN project pr ON pr.project_id = fpr.project_id
+         INNER JOIN project_pub pp ON pp.project_id = pr.project_id
+         INNER JOIN pub p ON p.pub_id = pp.pub_id WHERE p.pub_id = '$pub_id' )
         AND
         x.dbxref_id NOT IN
-                          (SELECT fd.dbxref_id FROM featuremap_dbxref fd
-                          INNER JOIN featuremap_pub fb ON fb.featuremap_id = fd.featuremap_id
-                          WHERE pub_id = '$pub_id')
+          (SELECT fd.dbxref_id FROM featuremap_dbxref fd
+          INNER JOIN featuremap_pub fb ON fb.featuremap_id = fd.featuremap_id
+          WHERE pub_id = '$pub_id')
         AND
         x.db_id = (SELECT d.db_id FROM db d WHERE d.name = 'LIS:cmap');";
 
