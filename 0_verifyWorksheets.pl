@@ -218,8 +218,6 @@ EOS
       $line_count++;
       
       my $publink_citation = $fields->{$qei{'pub_fld'}};
-#print "\ncitation: $publink_citation\n";
-print "\nCheck for [$publink_citation] in:\n" . Dumper(%citations) . "\n\n";
  
       if (!$publink_citation || $publink_citation eq ''
             || $publink_citation eq 'NULL') {
@@ -228,9 +226,7 @@ print "\nCheck for [$publink_citation] in:\n" . Dumper(%citations) . "\n\n";
         reportError($line_count, $msg);
       }
       else {
-print "\nencode citation: $publink_citation";
         my $enc_citation = encode("UTF-8", $publink_citation);
-print " = $enc_citation ($publink_citation)\n";
         if (!$citations{$enc_citation}
               && !publicationExists($dbh, $publink_citation)) {
           $has_errors++;
@@ -241,7 +237,6 @@ print " = $enc_citation ($publink_citation)\n";
       }
       
       my $name = $fields->{$qei{'name_fld'}};
-#print "experiment name: $name\n";
       my $enc_name = encode("UTF-8", $name);
       if ($experiments{$enc_name}) {
         $has_errors++;
@@ -258,7 +253,6 @@ print " = $enc_citation ($publink_citation)\n";
       $experiments{$enc_name} = 1;
       
       my $species = $fields->{$qei{'species_fld'}};
-#print "species: $species\n";
       if (!getOrganismID($dbh, $species)) {
         $has_errors++;
         $msg = "ERROR: species name ($species) doesn't exist";
@@ -266,7 +260,6 @@ print " = $enc_citation ($publink_citation)\n";
       }
 
       my $map_name = $fields->{$qei{'map_fld'}};
-#print "map name: $map_name\n";
       if ($map_name eq '') {
         $has_errors++;
         $msg = "ERROR: map collection name not specified.";
@@ -274,7 +267,6 @@ print " = $enc_citation ($publink_citation)\n";
       }
 
       my $geoloc = $fields->{$qei{'geoloc_field'}};
-#print "geolocation: $geoloc\n";
       if (length($fields->{'geolocation'}) > 255) {
         $has_errors++;
         $msg = "Geolocation description is too long: [$geoloc]";
@@ -1121,13 +1113,11 @@ print "\nCheck for [$publink_citation] in\n" . Dumper(%citations) . "\n\n";
     $line_count = 0;
     
     foreach my $fields (@records) {
-#print Dumper($fields);
       $line_count++;
 
       my $qtl_name = $fields->{$qi{'species_fld'}} . '.'
                    . makeQTLName($fields->{$qi{'qtl_symbol_fld'}}, 
                                  $fields->{$qi{'qtl_identifier_fld'}});
-print "\nQTL name: $qtl_name\n";
       if ($qtls{$qtl_name}) {
         $has_errors++;
         $msg = "ERROR: QTL ($qtl_name) already exists in spreadsheet.";
@@ -1140,7 +1130,6 @@ print "\nQTL name: $qtl_name\n";
       }
       
       my $expt = $fields->{$qi{'qtl_expt_fld'}};
-print "experiment: $expt\n";
       if (!$experiments{$expt} && !experimentExists($dbh, $expt)) {
         $has_errors++;
         $msg = "ERROR: experiment name '$expt' does not exist ";
@@ -1149,7 +1138,6 @@ print "experiment: $expt\n";
       }
       
       my $qtl_symbol = $fields->{$qi{'qtl_symbol_fld'}};
-print "QTL symbol: $qtl_symbol\n";
       if (!$traits{$qtl_symbol}) {
         if (!getTrait($dbh, $qtl_symbol)) {
           $has_errors++;
@@ -1162,7 +1150,6 @@ print "QTL symbol: $qtl_symbol\n";
       my $uniq_marker_name;
       
       my $nearest_marker = $fields->{$qi{'nearest_mrkr_fld'}};
-print "Nearest marker: $nearest_marker\n";
       if ($nearest_marker ne '' && lc($nearest_marker) ne 'null') {
         $uniq_marker_name = makeMarkerName($fields->{'specieslink_abv'}, 
                                            $fields->{'nearest_marker'});
@@ -1177,7 +1164,6 @@ print "Nearest marker: $nearest_marker\n";
       }
       
       my $flanking_marker_low = $fields->{$qi{'flank_mrkr_low_fld'}};
-print "Flanking marker low: $flanking_marker_low\n";
       if ($flanking_marker_low ne '' && lc($flanking_marker_low) ne 'null') {
         $uniq_marker_name = makeMarkerName($fields->{'specieslink_abv'}, 
                                            $fields->{'flanking_marker_low'});
@@ -1192,7 +1178,6 @@ print "Flanking marker low: $flanking_marker_low\n";
       }
       
       my $flanking_marker_high = $fields->{$qi{'flanking_marker_high'}};
-print "Flanking marker high: $flanking_marker_high\n";
       if ($flanking_marker_high ne '' && lc($flanking_marker_high) ne 'null') {
         $uniq_marker_name = makeMarkerName($fields->{'specieslink_abv'},
                                            $fields->{'flanking_marker_high'});
@@ -1207,7 +1192,6 @@ print "Flanking marker high: $flanking_marker_high\n";
       }
       
       my $species = $fields->{$qi{'species_fld'}};
-print "species: $species\n";
       if (!getOrganismID($dbh, $species)) {
         $has_errors++;
         $msg = "ERROR: species name ($species) doesn't exist";
@@ -1238,12 +1222,10 @@ print "species: $species\n";
 
       my $qtl_name = makeQTLName($fields->{$mpi{'qtl_symbol_fld'}},
                                  $fields->{$mpi{'qtl_identifier_fld'}});
-print "\nQTL name: $qtl_name\n";
       
       my $ms_name = $fields->{$mpi{'map_name_fld'}};
       my $lg      = $fields->{$mpi{'lg_fld'}};
       my $mapname = makeLinkageMapName($ms_name, $lg);
-print "linkage map name: $mapname\n";
       if (!$mapname || $mapname eq '' || lc($mapname) eq 'null') {
         $has_errors++;
         $msg = "ERROR: map name is missing from record.";
@@ -1262,7 +1244,6 @@ print "linkage map name: $mapname\n";
       
       my $left_end  = $fields->{$mpi{'left_end_fld'}};
       my $right_end = $fields->{$mpi{'right_end_fld'}};
-print "QTL coordinates: $left_end - $right_end\n";
       if ($left_end eq '' || lc($left_end) eq 'null'
             || $right_end eq '' || lc($right_end) eq 'null') {
         $has_errors++;
