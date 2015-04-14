@@ -433,7 +433,31 @@ EOS
         $msg = "ERROR: marker_type is missing";
         reportError($line_count, $msg);
       }
-    
+      #assembly_name, phys_chr, phys_start, phys_end.
+      #If atleast one is set, all must be set
+      if (!_allNULL($assembly_name, $phys_chr, $phys_start, $phys_end)) {
+        checkeachNULL($fields, $mki{'assembly_name_fld'}, $mki{'phys_chr_fld'},
+                      $mki{'phys_start_fld'}, $mki{'phys_end_fld'});
+      }   
+      sub checkeachNULL() {
+        my ( @fld_array ) = @_; #argument elemets are copied to an array
+        my $counter = 1; #to traverse through array elements which are fld values
+        my $fields = $fld_array[0];
+        while ( $counter < scalar @fld_array ) {
+          my $fld = $fld_array[$counter];
+          $fields->{$fld} =~ s/^\s+|\s+$//g; #trim leading and trailing white spaces
+          if ( !$fields->{$fld} || $fields->{$fld} eq ''
+              || lc($fields->{$fld}) eq 'null' ) {
+            $has_errors++;
+            $msg = "ERROR: '$fld' is missing. Among (assembly_name), (phys_chr),";
+            $msg.= " (phys_start) and (phys_end), Either ALL should be null";
+            $msg.=" or NONE should be null";
+            reportError($line_count, $msg);
+          }#if
+          $counter++;  
+        }#while
+      }#checkeachNULL
+          
     }#foreach - markers
     
     if ($has_errors || $has_warnings) {
@@ -536,11 +560,17 @@ EOS
           $msg.= "exists in the spreadsheet.\n";
           reportError($line_count, $msg);
         }
+        else {
+          $marker_sequence{$forward_primer_name} = 1;
+        }
         if($marker_sequence{$reverse_primer_name}) {
           $has_errors++;
           $msg = "ERROR: The reverse primer name ($reverse_primer_name) already";
           $msg.= "exists in the spreadsheet.\n";
           reportError($line_count, $msg);
+        }
+        else {
+          $marker_sequence{$reverse_primer_name} = 1;
         }
         if($marker_sequence{$forward_primer_seq}) {
           $has_errors++;
@@ -548,11 +578,17 @@ EOS
           $msg.= "exists in the spreadsheet.\n";
           reportError($line_count, $msg);
         }
+        else {
+          $marker_sequence{$forward_primer_seq} = 1;
+        }
         if($marker_sequence{$reverse_primer_seq}) {
           $has_errors++;
           $msg = "ERROR: The reverse primer sequence ($reverse_primer_seq) already";
           $msg.= "exists in the spreadsheet.\n";
           reportError($line_count, $msg);
+        }
+        else {
+          $marker_sequence{$reverse_primer_seq} = 1;
         }
       }#checkPrimer
     
@@ -809,23 +845,14 @@ EOS
         $msg = "ERROR: This marker ($marker_name) already exists";
         $msg.= " in the spreadsheet.";
         reportError($line_count, $msg);
-      }
-      else {
-        if (!$markers{$marker_name}) { # this is why master marker sheet verification
-                                       #should come first
-          $has_warnings++;
-          $msg = "warning: The marker name $marker_name doesn't exist in the master marker sheet. "
-                ."Please consider this for review whether to add into master marker sheet";
-          reportError($line_count, $msg);      
-        }    
-        elsif (markerExists($dbh, $marker_name, $mpi{'species_fld'})) {
-          #checking if the marker is already existing in the database
-          $has_warnings++;
-          $msg = "warning: this marker_name ($marker_name)"
-               . " has already been loaded"
-               . " and will be updated.";
-          reportError($line_count, $msg);
-        }
+      }    
+      elsif (markerExists($dbh, $marker_name, $mpi{'species_fld'})) {
+        #checking if the marker is already existing in the database
+        $has_warnings++;
+        $msg = "warning: this marker_name ($marker_name)"
+             . " has already been loaded"
+             . " and will be updated.";
+        reportError($line_count, $msg);
       }
       #error: position field must exist  
       if (!$position && $position ne '0') {
