@@ -1245,7 +1245,7 @@ sub _allNULL {
   foreach my $f (@_) {
     my $t = $f;
     $t =~ s/\s//;
-    if ($t ne '' && $t ne 'NULL' && $t ne 'null') { 
+    if ($t ne '' && lc($t) ne 'null') { 
       $all_null = 0; 
     }
   }
