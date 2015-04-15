@@ -449,8 +449,6 @@ sub attachFavorableAlleleSource {
 sub attachMarker {
   my ($dbh, $feature_id, $markername, $relationship, $fields) = @_;
   my ($sql, $sth, $row);
-#print "attach marker $markername\n";
-#print "attach marker $markername'.\n" . Dumper($fields);
 
   if (isNull($markername)) {
     return;
@@ -460,6 +458,9 @@ sub attachMarker {
   my $unique_marker_name = makeMarkerName($species, $markername);
   
   # check for existing marker
+#TODO: check species associated with this marker name and allow user to choose
+#      whether to skip, change the species, or add a new marker for the new 
+#      species.
   my $marker_id = 0;
   $sql = "SELECT feature_id FROM chado.feature WHERE uniquename='$unique_marker_name'";
 #print "$sql\n";
