@@ -353,7 +353,7 @@ EOS
       # variables $accession, $accession_source, $SNP_pos are yet to be confirmed
       
       #species field must be set
-      if(!$specieslink_abv) {
+      if(!isFieldSet($fields, $mki{'species_fld'})) {
         $has_errors++;
         $msg = "ERROR: specieslink abbrevation is missing";
         reportError($line_count,$msg);
@@ -368,7 +368,7 @@ EOS
       }
       
       # about marker_citation
-      if (!$marker_citation) {
+      if (!isFieldSet($fields, $mki{'marker_citation_fld'})) {
         $has_errors++;
         $msg = "ERROR: marker_citation is missing";
         reportError($line_count, $msg);
@@ -381,7 +381,7 @@ EOS
       }
       
       #marker_name must exist
-      if (!$marker_name) {
+      if (!isFieldSet($fields, $mki{'marker_name_fld'})) {
         $has_errors++;
         $msg = "ERROR: marker name is missing";
         reportError($line_count, $msg);
@@ -420,19 +420,28 @@ EOS
         $hash_of_markers{$marker_name}{$phys_end}        = 1;
       }
       
-      #marker synonym must be unique
-      if ($markers{$marker_synonym}) {
+      #marker synonym must be present
+      if (!isFieldSet($fields, $mki{'marker_synonym_fld'})) {
+        $has_errors++;
+        $msg = "ERROR: marker_synonymn is missing";
+        reportError($line_count, $msg);
+      }      
+      elsif ($markers{$marker_synonym}) {  #marker synonym must be unique
+        $has_errors++;
         $msg = "ERROR: This marker synonym ($marker_synonym) already exists in the spreadsheet";
         reportError($line_count++, $msg);
       }
-      
+      else {
+        $markers{$marker_synonym} = 1;
+      }   
       
       #marker_type must exist
-      if (!$marker_type) {
+      if (!isFieldSet($fields, $mki{'marker_type_fld'})) {
         $has_errors++;
         $msg = "ERROR: marker_type is missing";
         reportError($line_count, $msg);
       }
+      
       #assembly_name, phys_chr, phys_start, phys_end.
       #If atleast one is set, all must be set
       if (!_allNULL($assembly_name, $phys_chr, $phys_start, $phys_end)) {
@@ -489,7 +498,7 @@ EOS
       my $reverse_primer_seq  = $fields->{$msi{'reverse_primer_seq_fld'}};
     
       #error: species field must exist
-      if (!$specieslink_abv) {
+      if (!isFieldSet($fields, $msi{'species_fld'})) {
         $has_errors++;
         $msg = "ERROR: specieslink abbrevation is missing";
         reportError($line_count,$msg);
@@ -504,7 +513,7 @@ EOS
       }
     
       #marker_name check: marker_name must exist
-      if (!$marker_name) {
+      if (!isFieldSet($fields, $msi{'marker_name_fld'})) {
         $has_errors++;
         $msg = "ERROR: marker name is missing";
         reportError($line_count, $msg);
