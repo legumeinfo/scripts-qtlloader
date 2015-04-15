@@ -89,7 +89,7 @@ EOS
       INNER JOIN project p ON p.project_id=fp.project_id
       INNER JOIN project_pub pp ON pp.project_id=p.project_id
       INNER JOIN pub ON pub.pub_id=pp.pub_id
-    WHERE pub.pub_id = '$pub_id'
+    WHERE pub.pub_id = $pub_id
       AND q.type_id = (SELECT cvterm_id FROM cvterm WHERE name = 'QTL')";
   logSQL('deletePub', "$sql");
   $sth = $dbh->prepare($sql);
@@ -106,57 +106,57 @@ EOS
     
   #Transaction Begins
   eval {
-#eksc: Odd problems accessing this table from the script. Since the records in
+#eksc: Odd problems accessing these tables from the script. Since the records in
 #      in this table will be deleted when the referenced feature and project
 #      records are deleted, can leave out this statement.
 #      $dbh->do("DELETE FROM feature_project WHERE feature_id='$qtl_id'");
-      
-      $sql = "DELETE FROM feature_stock WHERE feature_id ='$qtl_id'";
+#      
+      $sql = "DELETE FROM chado.feature_stock WHERE feature_id ='$qtl_id'";
       logSQL('deletePub', "$sql");
       $dbh->do($sql);
       
-      $sql = "DELETE FROM feature_relationship 
+      $sql = "DELETE FROM chado.feature_relationship 
                 WHERE subject_id ='$qtl_id' OR object_id ='$qtl_id'";
       logSQL('deletePub', "$sql");
       $dbh->do($sql);
       
-      $sql = "DELETE FROM feature_cvterm WHERE feature_id ='$qtl_id'";
+      $sql = "DELETE FROM chado.feature_cvterm WHERE feature_id ='$qtl_id'";
       logSQL('deletePub', "$sql");
       $dbh->do($sql);
 
-      $sql = "DELETE FROM featurepos WHERE feature_id ='$qtl_id'";
+      $sql = "DELETE FROM chado.featurepos WHERE feature_id ='$qtl_id'";
       logSQL('deletePub', "$sql");
       $dbh->do($sql);
       
-      $sql = "DELETE FROM featureprop WHERE feature_id ='$qtl_id'";
+      $sql = "DELETE FROM chado.featureprop WHERE feature_id ='$qtl_id'";
       logSQL('deletePub', "$sql");
       $dbh->do($sql);
       
-      $sql = "DELETE FROM featureloc WHERE feature_id ='$qtl_id'";
+      $sql = "DELETE FROM chado.featureloc WHERE feature_id ='$qtl_id'";
       logSQL('deletePub', "$sql");
       $dbh->do($sql);
       
-      $sql = "DELETE FROM analysisfeature WHERE feature_id ='$qtl_id'";
+      $sql = "DELETE FROM chado.analysisfeature WHERE feature_id ='$qtl_id'";
       logSQL('deletePub', "$sql");
       $dbh->do($sql);
       
       $sql = "
-        DELETE FROM synonym
+        DELETE FROM chado.synonym
         WHERE synonym_id IN
            (SELECT synonym_id FROM feature_synonym 
             WHERE feature_id ='$qtl_id')";
       logSQL('deletePub', "$sql");
-      $dbh->do();
+      $dbh->do($sql);
       
-      $sql = "DELETE FROM feature WHERE feature_id ='$qtl_id'";
+      $sql = "DELETE FROM chado.feature WHERE feature_id ='$qtl_id'";
       logSQL('deletePub', "$sql");
-      $dbh->do();
+      $dbh->do($sql);
       
-      $sql ="DELETE FROM dbxref x
+      $sql ="DELETE FROM chado.dbxref x
              USING feature_dbxref fx
              WHERE fx.dbxref_id = x.dbxref_id
                    AND fx.feature_id = '$qtl_id'
-                   AND x.db_id IN (SELECT db_id FROM db 
+                   AND x.db_id IN (SELECT db_id FROM chado.db 
                                    WHERE name = 'LIS:cmap')";
       logSQL('deletePub', "$sql");
       $dbh->do($sql);
@@ -176,8 +176,8 @@ EOS
   
   #Getting all featuremap_ids for the given pub_id of Citation
   $sql=
-	"SELECT m.featuremap_id FROM featuremap m
-	 INNER JOIN featuremap_pub mp ON mp.featuremap_id = m.featuremap_id
+	"SELECT m.featuremap_id FROM chado.featuremap m
+	 INNER JOIN chado.featuremap_pub mp ON mp.featuremap_id = m.featuremap_id
 	 WHERE mp.pub_id = '$pub_id'";
   logSQL('deletePub', "$sql");
   $sth=$dbh->prepare($sql);
@@ -190,13 +190,13 @@ EOS
     
     # Keeping a count of records in the Stock table corresponding to the above featuremap_id(map_set_id)
     my $stock_count=$dbh->selectrow_array("
-      SELECT COUNT(*) FROM stock s 
-        INNER JOIN featuremap_stock fs ON fs.stock_id = s.stock_id 
+      SELECT COUNT(*) FROM chado.stock s 
+        INNER JOIN chado.featuremap_stock fs ON fs.stock_id = s.stock_id 
       WHERE fs.featuremap_id = '$map_set_id'");
     print "  There are $stock_count stock record(s) associated with this map set.\n";
   
     $sql = "
-       SELECT COUNT(*) FROM feature l, featurepos lp 
+       SELECT COUNT(*) FROM chado.feature l, chado.featurepos lp 
          WHERE lp.feature_id = l.feature_id 
                AND lp.featuremap_id = '$map_set_id'
                AND l.type_id = (SELECT cvterm_id FROM cvterm 
@@ -211,55 +211,58 @@ EOS
     #Transaction Begins
     eval{
         $sql=
-        "DELETE FROM featureprop
+        "DELETE FROM chado.featureprop
          WHERE feature_id IN
-	                    (SELECT l.feature_id FROM feature l
+	                    (SELECT l.feature_id FROM chado.feature l
                              INNER JOIN featurepos lp ON lp.feature_id = l.feature_id
                              AND lp.featuremap_id = '$map_set_id'
                              AND l.type_id=
-                                          (SELECT cvterm_id FROM cvterm
+                                          (SELECT cvterm_id FROM chado.cvterm
                                            WHERE name ='linkage_group'
                                            AND cv_id =
-                                                      (SELECT cv_id FROM cv WHERE name = 'sequence')))";
+                                                      (SELECT cv_id FROM chado.cv WHERE name = 'sequence')))";
         print "Deleting Assigned Linkage Groups(feature_property)";					      
         logSQL('deletePub', "$sql");
 	      $dbh->do($sql);
         $sql = 
-        "DELETE FROM feature l 
+        "DELETE FROM chado.feature l 
          USING featurepos lp 
          WHERE lp.feature_id = l.feature_id 
                AND lp.featuremap_id = '$map_set_id'
-               AND l.type_id = (SELECT cvterm_id FROM cvterm 
+               AND l.type_id = (SELECT cvterm_id FROM chado.cvterm 
                                 WHERE name = 'linkage_group' 
-                                      AND cv_id = (SELECT cv_id FROM cv 
+                                      AND cv_id = (SELECT cv_id FROM chado.cv 
                                                    WHERE name = 'sequence')
                                 )";
         logSQL('deletePub', "$sql");
         $dbh->do($sql);
         
-        $dbh->do("DELETE FROM dbxref 
-                  WHERE dbxref_id IN(SELECT dbxref_id 
-                                     FROM featuremap_dbxref 
-                                     WHERE featuremap_id = '$map_set_id')");
+        $sql = "
+          DELETE FROM chado.dbxref 
+          WHERE dbxref_id IN(SELECT dbxref_id 
+                             FROM chado.featuremap_dbxref 
+                             WHERE featuremap_id = '$map_set_id')";
+        logSQL('deletePub', "$sql");
+        $dbh->do($sql);
         
         if ($stock_count==1) {
           $sql = "
-            DELETE from stock s USING featuremap_stock fs
+            DELETE from chado.stock s USING featuremap_stock fs
             WHERE fs.stock_id = s.stock_id 
                   AND fs.featuremap_id = '$map_set_id'";
           logSQL('deletePub', "$sql");
           $dbh->do($sql);
       }
       
-      $sql = "DELETE FROM featuremap_dbxref where featuremap_id = '$map_set_id'";
+      $sql = "DELETE FROM chado.featuremap_dbxref where featuremap_id = '$map_set_id'";
       logSQL('deletePub', "$sql");
       $dbh->do($sql);
       
-      $sql = "DELETE FROM featurepos where featuremap_id = '$map_set_id'";
+      $sql = "DELETE FROM chado.featurepos where featuremap_id = '$map_set_id'";
       logSQL('deletePub', "$sql");
       $dbh->do($sql);  
       
-      $sql = "DELETE FROM featuremap WHERE featuremap_id = $map_set_id";
+      $sql = "DELETE FROM chado.featuremap WHERE featuremap_id = $map_set_id";
       logSQL('deletePub', "$sql");
       $dbh->do($sql);
     }; #Transaction Ends
@@ -275,8 +278,8 @@ EOS
   ####  DELETING EXPERIMENT DATA  ####
   
   #Getting all project_ids for the given pub_id of Citation
-  $sql="SELECT p.project_id FROM project p 
-      INNER JOIN project_pub pp 
+  $sql="SELECT p.project_id FROM chado.project p 
+      INNER JOIN chado.project_pub pp 
       ON pp.project_id = p.project_id 
       WHERE pp.pub_id = '$pub_id'";
   logSQL('deletePub', "$sql");
@@ -290,16 +293,16 @@ EOS
 	
         #Transaction Begins
         eval{
-          $sql = "DELETE from projectprop where project_id = '$experiment_id'";
+          $sql = "DELETE from chado.projectprop where project_id = '$experiment_id'";
           logSQL('deletePub', "$sql");
           $dbh->do($sql);
-          $sql = "DELETE from nd_experiment_project where project_id = '$experiment_id'";
+          $sql = "DELETE from chado.nd_experiment_project where project_id = '$experiment_id'";
           logSQL('deletePub', "$sql");
           $dbh->do($sql);
-          $sql = "DELETE from project_pub where project_id = '$experiment_id'";
+          $sql = "DELETE from chado.project_pub where project_id = '$experiment_id'";
           logSQL('deletePub', "$sql");
           $dbh->do($sql);
-          $sql = "DELETE FROM project WHERE project_id = $experiment_id";
+          $sql = "DELETE FROM chado.project WHERE project_id = $experiment_id";
           logSQL('deletePub', "$sql");
           $dbh->do($sql);
         }; #Transaction Ends
@@ -319,23 +322,23 @@ EOS
     $sql = "
       DELETE FROM dbxref 
       WHERE dbxref_id IN
-		    (SELECT dbxref_id from pub_dbxref WHERE pub_id = '$pub_id')";
+		    (SELECT dbxref_id from chado.pub_dbxref WHERE pub_id = '$pub_id')";
 		logSQL('deletePub', "$sql");
 	  $dbh->do($sql);
 	  
-		$sql = "DELETE from pub_dbxref where pub_id = '$pub_id'";
+		$sql = "DELETE from chado.pub_dbxref where pub_id = '$pub_id'";
 		logSQL('deletePub', "$sql");
     $dbh->do($sql);
     
-    $sql = "DELETE from pubprop where pub_id = '$pub_id'";
+    $sql = "DELETE from chado.pubprop where pub_id = '$pub_id'";
     logSQL('deletePub', "$sql");
     $dbh->do($sql);
     
-    $sql = "DELETE from pubauthor where pub_id = '$pub_id'";
+    $sql = "DELETE from chado.pubauthor where pub_id = '$pub_id'";
     logSQL('deletePub', "$sql");
     $dbh->do($sql);
     
-    $sql = "DELETE FROM pub WHERE pub_id = $pub_id";
+    $sql = "DELETE FROM chado.pub WHERE pub_id = $pub_id";
     logSQL('deletePub', "$sql");
     $dbh->do($sql);
   }; #Transaction Ends
@@ -347,26 +350,26 @@ EOS
     $dbh->rollback();
   }
   
-  $sql="DELETE FROM dbxref x WHERE x.dbxref_id NOT IN
-         (SELECT fx.dbxref_id FROM feature_dbxref fx
-         INNER JOIN feature_project fpr ON fpr.feature_id = fx.feature_id
-         INNER JOIN project pr ON pr.project_id = fpr.project_id
-         INNER JOIN project_pub pp ON pp.project_id = pr.project_id
-         INNER JOIN pub p ON p.pub_id = pp.pub_id WHERE p.pub_id = '$pub_id' )
+  $sql="DELETE FROM chado.dbxref x WHERE x.dbxref_id NOT IN
+         (SELECT fx.dbxref_id FROM chado.feature_dbxref fx
+         INNER JOIN chado.feature_project fpr ON fpr.feature_id = fx.feature_id
+         INNER JOIN chado.project pr ON pr.project_id = fpr.project_id
+         INNER JOIN chado.project_pub pp ON pp.project_id = pr.project_id
+         INNER JOIN chado.pub p ON p.pub_id = pp.pub_id WHERE p.pub_id = '$pub_id' )
         AND
         x.dbxref_id NOT IN
-          (SELECT fd.dbxref_id FROM featuremap_dbxref fd
-          INNER JOIN featuremap_pub fb ON fb.featuremap_id = fd.featuremap_id
+          (SELECT fd.dbxref_id FROM chado.featuremap_dbxref fd
+          INNER JOIN chado.featuremap_pub fb ON fb.featuremap_id = fd.featuremap_id
           WHERE pub_id = '$pub_id')
         AND
-        x.db_id = (SELECT d.db_id FROM db d WHERE d.name = 'LIS:cmap');";
+        x.db_id = (SELECT d.db_id FROM chado.db d WHERE d.name = 'LIS:cmap');";
 
   logSQL('deletePub', "$sql");
   $sth=$dbh->prepare($sql);
   $sth->execute();
 
   $sth->finish();
-#  $dbh->commit;
+  $dbh->commit;
   $dbh->disconnect();
 
 ############################################################################################################################################
