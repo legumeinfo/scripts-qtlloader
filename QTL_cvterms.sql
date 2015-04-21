@@ -37,7 +37,20 @@ VALUES
   ('uniprot:species',
    'Uniprot species mnemonics',
    'http://www.uniprot.org/docs/speclist',
-   '')
+   ''),
+  
+  ('download:map',
+   'Download location for genetic maps',
+   '/files/maps',
+   '/files/maps'),
+  ('download:QTL',
+   'Download location for QTL data',
+   '/files/qtls',
+   '/files/qtls'),
+  ('download:traits',
+   'Download location for trait data',
+   '/files/qtls',
+   '/files/qtls')
 ;
 
 UPDATE chado.db SET 
