@@ -165,23 +165,25 @@ sub loadMapCollection {
       }
     
       # attach mapping population to publication
-      foreach my $publink_citation (@publink_citations) {
-        $publink_citation =~ s/^\s//;
-        $publink_citation =~ s/\s+$//;
-        my $pub_id = getPubID($dbh, $publink_citation);
-        if ($pub_id) {
-          $sql = "
-            INSERT INTO chado.stock_pub
-              (stock_id, pub_id)
-            VALUES
-              ((SELECT stock_id FROM chado.stock WHERE uniquename='$mapname'),
-               $pub_id
-              )";
-          logSQL($dataset_name, "$sql");
-          $sth = $dbh->prepare($sql);
-          $sth->execute();
-        }
-      }
+      if (!isNull($fields->{$mci{'pub_fld'}})) {
+        foreach my $publink_citation (@publink_citations) {
+          $publink_citation =~ s/^\s//;
+          $publink_citation =~ s/\s+$//;
+          my $pub_id = getPubID($dbh, $publink_citation);
+          if ($pub_id) {
+            $sql = "
+              INSERT INTO chado.stock_pub
+                (stock_id, pub_id)
+              VALUES
+                ((SELECT stock_id FROM chado.stock WHERE uniquename='$mapname'),
+                 $pub_id
+                )";
+            logSQL($dataset_name, "$sql");
+            $sth = $dbh->prepare($sql);
+            $sth->execute();
+          }#pub exists
+        }#each pub
+      }#pub is given
       
       # attach map collection (featuremap) to mapping population (stock)
       # map name = mapping population uniquename
@@ -205,16 +207,18 @@ sub loadMapCollection {
     insertFeaturemapprop($dbh, $map_id, $mci{'comment_fld'}, 'Featuremap Comment', $fields);
           
     # attach map collection (featuremap) to publication
-    foreach my $publink_citation (@publink_citations) {
-      $sql = "
-        INSERT INTO chado.featuremap_pub
-          (featuremap_id, pub_id)
-        VALUES
-          ($map_id,
-           (SELECT pub_id FROM chado.pub WHERE uniquename=?))";
-      logSQL($dataset_name, "$sql\nWITH:\n$publink_citation");
-      $sth = doQuery($dbh, $sql, ($publink_citation));
-    }
+    if (!isNull($fields->{$mci{'pub_fld'}})) {
+      foreach my $publink_citation (@publink_citations) {
+        $sql = "
+          INSERT INTO chado.featuremap_pub
+            (featuremap_id, pub_id)
+          VALUES
+            ($map_id,
+             (SELECT pub_id FROM chado.pub WHERE uniquename=?))";
+        logSQL($dataset_name, "$sql\nWITH:\n$publink_citation");
+        $sth = doQuery($dbh, $sql, ($publink_citation));
+      }#each pub
+    }#pub is given
     
     # make a dbxref record for LIS cmap link (for full mapset)
     makeMapsetDbxref($dbh, $map_id, $mci{'LIS_name_fld'}, $fields);
@@ -355,7 +359,6 @@ print "\nspecies list for $marker_name:\n" . Dumper($species_list);
     my $marker_id;
     if ($change_all) {
       # change species to current assigned species
-print "Change species for marker $marker_name.\n";
       $marker_id = updateMarker($dbh, $marker_name, $fields->{$mpi{'species_fld'}}, 1);
     }
     else {
@@ -802,12 +805,15 @@ sub setGeneticCoordinates {
     exit;
   }
 
-  if (isFieldSet($fields, $mi{'map_start_fld'})) {
+  if (isFieldSet($fields, $mi{'map_start_fld'}, 1)) {
     # Insert map start position (start coordinate)
     setLgCoord($dbh, $mapset_id, $feature_id, $mapname, 'start', $fields->{$mi{'map_start_fld'}});
  
     # insert map end position (stop coordinate)
     setLgCoord($dbh, $mapset_id, $feature_id, $mapname, 'stop', $fields->{$mi{'map_end_fld'}});
+  }
+  else {
+    print "warning: no map position provided for $mapname.\n";
   }
 }#setGeneticCoordinates
 
@@ -973,14 +979,13 @@ sub updateLinkageGroups {
   foreach my $lg (keys %lgs) {
     my $lg_id = getFeatureID($dbh, $lg);
     if ($lg_id) {
-#print "Handle lg $lg: " . Dumper($lgs{$lg});
       # verify that lengths are the same
       my $start = getLgCoord($dbh, $lg, 'start');
       my $end   = getLgCoord($dbh, $lg, 'stop');
-#print "Got coords $start, $end\n";
-      if ($start != $lgs{$lg}{'map_start'}) {
-        print "Warning: the calculated start for linkage group $lg ($start) ";
-        print "is less than what has already been set in the database. ";
+      if ($lgs{$lg}{'map_start'} < $start) {
+        print "Warning: the calculated start for linkage group $lg ";
+        print "(" . $lgs{$lg}{'map_start'} .") is less than ";
+        print "what has already been set in the database ($start). ";
         print "Update? (y/n) ";
         my $userinput =  <STDIN>;
         chomp ($userinput);
@@ -988,9 +993,10 @@ sub updateLinkageGroups {
           next;
         }
       }
-      if ($end != $lgs{$lg}{'map_end'}) {
-        print "Warning: the calculated end for linkage group $lg ($end) ";
-        print "is greater than what has already been set in the database. ";
+      if ($lgs{$lg}{'map_end'} > $end) {
+        print "Warning: the calculated end for linkage group $lg ";
+        print "(" . $lgs{$lg}{'map_end'} .") is greater than ";
+        print "is greater than what has already been set in the database ($end). ";
         print "Update? (y/n) ";
         my $userinput =  <STDIN>;
         chomp ($userinput);

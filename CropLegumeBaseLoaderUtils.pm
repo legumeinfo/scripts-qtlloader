@@ -363,7 +363,7 @@ sub getCvtermID {
     $term = lc($term);
     $sql = "
       SELECT cvterm_id FROM chado.cvterm 
-      WHERE name='$term'
+      WHERE tolower(name)='$term'
         AND cv_id=(SELECT cv_id FROM chado.cv WHERE LOWER(name)='$cv')";
     logSQL('lib', $sql);
     $sth = doQuery($dbh, $sql);
