@@ -1286,12 +1286,12 @@ print "finished reading file\n";
       if ($left_end eq '' || lc($left_end) eq 'null'
             || $right_end eq '' || lc($right_end) eq 'null') {
         $has_errors++;
-        $msg = "ERROR: missing left and/or right end coordinates for QTL.";
+        $msg = "ERROR: missing left and/or right end coordinates for QTL ($qtl_name).";
         reportError($line_count, $msg);
       }
       elsif ($left_end > $right_end) {
         $has_errors++;
-        $msg = "ERROR: left coordinate is larger than right coordinate for QTL.";
+        $msg = "ERROR: left coordinate ($left_end) is larger than right coordinate ($right_end) for QTL ($qtl_name).";
         reportError($line_count, $msg);
       }
       
