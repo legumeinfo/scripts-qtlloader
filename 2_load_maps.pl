@@ -303,10 +303,12 @@ sub loadMarkerPositions {
   @records = readFile($table_file);
   print "\nLoading " . (scalar @records) . " markers...\n";
   
-  # build linkage groups from the markers and create/update lg records as needed.
-  my %lgs = createLinkageGroups(@records);
-  my $mapset = $records[0]->{$mpi{'map_name_fld'}};
-  updateLinkageGroups($dbh, $mapset, %lgs);
+  if ((scalar @records) > 0) {
+    # build linkage groups from the markers and create/update lg records as needed.
+    my %lgs = createLinkageGroups(@records);
+    my $mapset = $records[0]->{$mpi{'map_name_fld'}};
+    updateLinkageGroups($dbh, $mapset, %lgs);
+  }
   
   $line_count = 0;
   foreach $fields (@records) {
