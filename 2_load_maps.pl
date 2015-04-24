@@ -393,6 +393,32 @@ print "\nspecies list for $marker_name:\n" . Dumper($species_list);
 ################################################################################
 ################################################################################
 
+sub changeLGcoord {
+  my ($dbh, $lg_id, $mappos, $coord) = @_;
+  my ($sql, $sth, $row);
+  
+  $sql= "
+    SELECT fp.featurepos_id 
+    FROM featurepos fp
+      INNER JOIN featureposprop fpp ON fpp.featurepos_id=fp.featurepos_id
+    WHERE fp.feature_id=$lg_id
+          AND fpp.type_id = (SELECT cvterm_id FROM cvterm 
+                             WHERE name='$coord' 
+                                   AND cv_id = (SELECT cv_id FROM cv 
+                                                WHERE name='featurepos_property'))";
+  logSQL('', $sql);
+  $sth = doQuery($dbh, $sql);
+  if ($row = $sth->fetchrow_hashref) {
+    $sql = "
+      UPDATE featurepos
+        SET mappos = $mappos
+      WHERE featurepos_id=" . $row->{'featurepos_id'};
+    logSQL('', $sql);
+    doQuery($dbh, $sql);
+  }
+}#changeLGcoord
+
+
 sub clearMapSetDependencies {
   my ($dbh, $map_set_id, $fields) = @_;
   my ($sql, $sth, $row);
@@ -992,6 +1018,7 @@ sub updateLinkageGroups {
         if (!($userinput =~ /^y.*/)) {
           next;
         }
+        changeLGcoord($dbh, $lg_id, $lgs{$lg}{'map_start'}, 'start');
       }
       if ($lgs{$lg}{'map_end'} > $end) {
         print "Warning: the calculated end for linkage group $lg ";
@@ -1003,6 +1030,7 @@ sub updateLinkageGroups {
         if (!($userinput =~ /^y.*/)) {
           next;
         }
+        changeLGcoord($dbh, $lg_id, $lgs{$lg}{'map_end'}, 'stop');
       }
       next;
     }
