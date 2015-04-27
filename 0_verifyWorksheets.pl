@@ -843,7 +843,7 @@ EOS
              reportError($line_count, $msg);
       }
       #error: marker_name must exist
-      if (!$marker_name) {
+      if (!isFieldSet($fields, $mpi{'marker_name_fld'})) {
         $has_errors++;
         $msg = "ERROR: marker name is missing";
         reportError($line_count, $msg);
@@ -854,23 +854,16 @@ EOS
         $msg = "ERROR: This marker ($marker_name) already exists";
         $msg.= " in the spreadsheet.";
         reportError($line_count, $msg);
-      }    
-      elsif (markerExists($dbh, $marker_name, $mpi{'species_fld'})) {
-        #checking if the marker is already existing in the database
-        $has_warnings++;
-        $msg = "warning: this marker_name ($marker_name)"
-             . " has already been loaded"
-             . " and will be updated.";
-        reportError($line_count, $msg);
       }
+      markerCheck($dbh, $marker_name, $mpi{'species_fld'}); #do all checks on marker_name
       #error: position field must exist  
-      if (!$position && $position ne '0') {
+      if (!isFieldSet($fields, $mpi{'position_fld'}) && $position ne '0') {
         $has_errors++;
         $msg = "ERROR: genetic position is missing";
         reportError($line_count, $msg);
       }
       #error: map name must exist
-      if (!$mapname_marker) {
+      if (!isFieldSet($fields, $mpi{'map_name_fld'})) {
         $has_errors++;
         $msg = "ERROR: map name is missing";
         reportError($line_count, $msg);
@@ -886,12 +879,57 @@ EOS
       }
       ## about lg
       #error: linkage group(lg) must exist
-      if (!$lg) {
+      if (!isFieldSet($fields, $mpi{'lg_fld'})) {
         $has_errors++;
         $msg = "ERROR: linkage group is missing for $marker_name";
         reportError($line_count, $msg);
       }
       else {
+        positionSheetCheck(); #check the position in Spreadsheet.
+      }
+      positionDBCheck(); #check the position in DB.
+      
+      ### about lg ends here
+                  
+#######    All Subroutines required for MARKER_POSITION check starts here   ######
+##########****************************************************************########
+
+      sub markerCheck() {
+        my ($dbh, $marker_name, $species) = @_;
+        my $accession;
+        if (markerExists($dbh, $marker_name, $mpi{'species_fld'})) {
+        #checking if the marker is already existing in the database
+        $has_warnings++;
+        $msg = "Warning: This marker_name ($marker_name)"
+             . " has already been loaded"
+             . " and will be updated.";
+        reportError($line_count, $msg);
+        }
+        $sql = "SELECT f.organism_id FROM feature f
+                WHERE f.name = '$marker_name'";
+        logSQL('', $sql);
+        $sth = doQuery($dbh, $sql);
+        while(my @org_id=$sth->fetchrow_array) {
+          $sql = "
+          SELECT dx.accession FROM dbxref dx
+          WHERE dx.dbxref_id IN
+                            (SELECT od.dbxref_id FROM organism_dbxref od
+                             WHERE od.organism_id = $org_id[0])
+           AND dx.db_id =
+                         (SELECT d.db_id FROM db d
+                          WHERE d.name = 'uniprot:species')";
+           $accession = $dbh->selectrow_array($sql);
+           if ($accession ne $species) {
+            $has_warnings++;
+            $msg = "Warning: The marker ($marker_name) is already associated with";
+            $msg.= " different species ($accession) in the Database";
+            reportError($line_count, $msg);
+           }
+           
+        }
+      }#markerCheck
+
+      sub positionSheetCheck() {
         open(my $file_handle, "<", $file) || die "Failed to open the file:\n";
         while (<$file_handle>) {
           if ($_=~ m/^#/) {
@@ -902,7 +940,8 @@ EOS
             if ($map_row[2] eq $lg) {
               if ($position < $map_row[3] || $position > $map_row[4] ) {
                 $has_errors++;
-                $msg = "ERROR: The linkage group ($lg) is out of bounds with the position $position";
+                $msg = "ERROR: The marker ($marker_name) is out of bounds";
+                $msg.= " on the linkage group ($lg) with position $position";
                 reportError($line_count, $msg);
               }#end of if-condition for lg check
               
@@ -912,25 +951,28 @@ EOS
           
         }#end of while
         
-      }#end of else, when lg is set
+      }#positionSheetCheck
       
-      my $lg_map_name = makeLinkageMapName($mapname_marker,$lg);
-      my $lg_id = lgExists($dbh, $lg_map_name);
-      if ($lg_id) {
-        print " The linkage group ($lg) already exists in the database.\n";
-        if(!checkLG($dbh,$position)) {
-          $has_errors++;
-          $msg = "ERROR: The linkage group position is out of bounds";
-          $msg.= "with the position $position";
-          reportError($line_count++, $msg);
-         }   
-      }
-    
+      sub positionDBCheck() {
+        my $lg_map_name = makeLinkageMapName($mapname_marker,$lg);
+        my $lg_id = lgExists($dbh, $lg_map_name);
+        if ($lg_id!=0) {
+          my $min = checkLG($dbh,$lg_id,'start');
+          my $max = checkLG($dbh,$lg_id,'stop');
+          if ($position < $min || $position > $max) {
+            $has_errors++;
+            $msg = "ERROR: The marker ($marker_name) is out of bounds on the linkage group ($lg)";
+            $msg.= " with position $position";
+            reportError($line_count,$msg);
+          }
+        }
+      }#positionDBCheck
+      
       sub lgExists() {
         my ($dbh, $lg_map_name) = @_;
         my ($sql, $sth, $row);
         if ($lg_map_name && $lg_map_name ne 'NULL') {
-          $sql = "select feature_id from feature where uniquename='$lg_map_name'";
+          $sql = "SELECT feature_id FROM feature WHERE uniquename='$lg_map_name'";
           logSQL('', $sql);
           $sth = doQuery($dbh, $sql);
           if ($row=$sth->fetchrow_hashref) {
@@ -941,41 +983,42 @@ EOS
       }#lgExists
       
       sub checkLG() {
-        my ($dbh,$position) = @_;
-        my ($sql, $sth, $row);
-        my ($min, $max);
-        my $count=0;
-        $sql="select mappos from featurepos where feature_id = '$lg_id'";
+        my ($dbh,$lg_id,$coord) = @_;
+        # earlier query: "select mappos from featurepos where feature_id = $lg_id"; 
+        $sql = "
+        SELECT fp.mappos FROM chado.featurepos fp
+           INNER JOIN chado.featuremap m
+              ON m.featuremap_id = fp.featuremap_id
+           INNER JOIN chado.featureposprop fpp
+              ON fpp.featurepos_id = fp.featurepos_id
+        WHERE fp.feature_id = $lg_id
+                 AND fpp.type_id=(SELECT cvterm_id FROM chado.cvterm 
+                                   WHERE name='$coord'
+                                         AND cv_id=(SELECT cv_id FROM chado.cv 
+                                                    WHERE name='featurepos_property'))";
         logSQL('',$sql);
         $sth = doQuery($dbh, $sql);
-        while(my @lg_row=$sth->fetchrow_array) {
-          $count++;
-          if($count==1){ $min = $lg_row[0]; }
-          else{ $max = $lg_row[0]; }
-        }
-        if ($position > $max || $position < $min) {
-          return 0;
-        }
-        else { return 1; }
+        return $row->{'mappos'};
       }#checkLG
-      
-      ### about lg ends here
-      ### verification of marker_position is finished here. except about cmap_accession.
+#################### All Subroutines for MARKER_POSITION check ends here  ###################
+####################*****************************************************####################
+
       $marker_position{$marker_name} = 1;
     }#foreach - marker_position
     
-    if ($has_errors) {
-      print "\n\nThe marker position table has $has_errors errors. Unable to continue.\n\n";
+    ### verification of marker_position is finished here. except about cmap_accession.
+    
+    if ($has_errors || $has_warnings) {
+      $msg = "\n\nThe Marker Position table has $has_errors error(s)";
+      $msg.= " and $has_warnings warning(s). Unable to continue..\n\n";
+      print $msg;
       exit;
     }
     
   }#do genetic maps
-
-
-
   
 ################################################################################
-####                           TRAIT WORKSHEETS                            #####
+####                           TRAIT WORKSHEETS                             ####
 ################################################################################
 
   my %traits;
