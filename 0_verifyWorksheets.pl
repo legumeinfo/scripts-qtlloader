@@ -311,7 +311,7 @@ EOS
       exit;
     }
       
-    ###############      PREVIOUS COMMENTS BY ETHY    #####################################
+    ###############        PREVIOUS COMMENTS BY ETHY    ###################################
     # marker.txt:
     # error: marker_type, marker_name, species, map_name, linkage_group, postion required
     # error: marker name must be unique within map collection (check 
@@ -388,24 +388,28 @@ EOS
       }
       #marker_name must be unique within MARKER sheet
       elsif ($markers{$marker_name}) {
-        $msg = "ERROR: The marker name ($marker_name) at line ($line_count)";
-        $msg.= " already exists in the spreadsheet";
-        reportError($line_count, $msg);
         #checking if all fields are matching
         if ($hash_of_markers{$marker_name}{$specieslink_abv} && $hash_of_markers{$marker_name}{$marker_citation}
           && $hash_of_markers{$marker_name}{$marker_synonym} && $hash_of_markers{$marker_name}{$marker_type}
           && $hash_of_markers{$marker_name}{$assembly_name} && $hash_of_markers{$marker_name}{$phys_chr}
           && $hash_of_markers{$marker_name}{$phys_start} && $hash_of_markers{$marker_name}{$phys_end}) {
           
-          $has_errors++;
-          $msg = "ERROR: This is a Duplicate record since all fields are repeated\n\n";
+          $has_warnings++;
+          $msg = "Warning: The record at ($line_count) is a Duplicate record.";
+          $msg.= " already exists in the spreadhseet\n\n";
           print $msg;
         }
         else {
+          $has_errors++;
+          $msg = "ERROR: Marker name ($marker_name) is already";
+          $msg.= " existing with different details.";
+          reportError($line_count,$msg);
+        }
+        if (!markerExists($dbh, $marker_name, $specieslink_abv)) {
           $has_warnings++;
-          $msg = "Warning: But other record details are different.";
-          $msg.= " Please consider to review which one to retain\n\n";
-          print $msg;
+          $msg = "Warning: This marker ($marker_name) has a different species names in db.";
+          $msg.= " (or) marker may not be existing in db";
+          reportError($line_count, $msg);
         }
       }
       else {
@@ -419,21 +423,6 @@ EOS
         $hash_of_markers{$marker_name}{$phys_start}      = 1;
         $hash_of_markers{$marker_name}{$phys_end}        = 1;
       }
-      
-      #marker synonym must be present
-      if (!isFieldSet($fields, $mki{'marker_synonym_fld'})) {
-        $has_errors++;
-        $msg = "ERROR: marker_synonymn is missing";
-        reportError($line_count, $msg);
-      }      
-      elsif ($markers{$marker_synonym}) {  #marker synonym must be unique
-        $has_errors++;
-        $msg = "ERROR: This marker synonym ($marker_synonym) already exists in the spreadsheet";
-        reportError($line_count++, $msg);
-      }
-      else {
-        $markers{$marker_synonym} = 1;
-      }   
       
       #marker_type must exist
       if (!isFieldSet($fields, $mki{'marker_type_fld'})) {
@@ -650,7 +639,7 @@ EOS
     }
     if (!$files{$mpfile}) {
       $has_warnings++;
-      $msg = "\nwarning: MAP_POSITION sheet is missing but optional";
+      $msg = "\nwarning: MARKER_POSITION sheet is missing but optional";
       reportError('', $msg);
     }
     
@@ -825,6 +814,7 @@ EOS
       # convenience:
       my $species = $fields->{$mpi{'species_fld'}};
       my $marker_name = $fields->{$mpi{'marker_name_fld'}};
+      my $alt_marker_name = $fields->{$mpi{'alt_marker_name_fld'}};
       my $mapname_marker = $fields->{$mpi{'map_name_fld'}};
       my $lg = $fields->{$mpi{'lg_fld'}};
       my $position = $fields->{$mpi{'position_fld'}};
@@ -855,6 +845,22 @@ EOS
         $msg.= " in the spreadsheet.";
         reportError($line_count, $msg);
       }
+      
+      #alt_marker name must be present
+      if (!isFieldSet($fields, $mpi{'alt_marker_name_fld'})) {
+        $has_errors++;
+        $msg = "ERROR: alt_marker_name is missing";
+        reportError($line_count, $msg);
+      }      
+      elsif ($marker_position{$alt_marker_name}) {  #marker synonym must be unique
+        $has_errors++;
+        $msg = "ERROR: This alternate marker name ($alt_marker_name) already exists in the spreadsheet";
+        reportError($line_count++, $msg);
+      }
+      else {
+        $marker_position{$alt_marker_name} = 1;
+      }   
+      
       markerCheck($dbh, $marker_name, $mpi{'species_fld'}); #do all checks on marker_name
       #error: position field must exist  
       if (!isFieldSet($fields, $mpi{'position_fld'}) && $position ne '0') {
@@ -925,7 +931,6 @@ EOS
             $msg.= " different species ($accession) in the Database";
             reportError($line_count, $msg);
            }
-           
         }
       }#markerCheck
 
@@ -1197,6 +1202,8 @@ print "\nCheck for [$publink_citation] in\n" . Dumper(%citations) . "\n\n";
       my $qtl_name = $fields->{$qi{'species_fld'}} . '.'
                    . makeQTLName($fields->{$qi{'qtl_symbol_fld'}}, 
                                  $fields->{$qi{'qtl_identifier_fld'}});
+      my $qtl = makeQTLName($fields->{$qi{'qtl_symbol_fld'}},
+                            $fields->{$qi{'qtl_identifier_fld'}});
       if ($qtls{$qtl_name}) {
         $has_errors++;
         $msg = "ERROR: QTL ($qtl_name) already exists in spreadsheet.";
@@ -1206,6 +1213,20 @@ print "\nCheck for [$publink_citation] in\n" . Dumper(%citations) . "\n\n";
         $has_warnings++;
         $msg = "warning: QTL ($qtl_name) already exists in database.";
         reportError($line_count, $msg);
+        $sql = "
+                SELECT p.uniquename FROM pub p
+                where p.pub_id =
+                              (SELECT fc.pub_id FROM feature_cvterm fc
+                                 WHERE fc.feature_id =
+                                                   (SELECT f.feature_id f FROM feature f
+                                                    WHERE f.uniquename = '$qtl_name'))";
+        my $pub_name = $dbh->selectrow_array($sql);
+        my @citation = split(' exp',$fields->{qi{'qtl_expt_fld'}});
+        if ($pub_name ne $citation[0]) {
+          $has_errors++;
+          $msg = "ERROR: This QTL ($qtl) has already been used for publication $pub_name";
+          reportError($line_count,$msg);
+        }
       }
       
       my $expt = $fields->{$qi{'qtl_expt_fld'}};
@@ -1278,7 +1299,7 @@ print "\nCheck for [$publink_citation] in\n" . Dumper(%citations) . "\n\n";
         $msg = "ERROR: species name ($species) doesn't exist";
         reportError($line_count, $msg);
       }
-      
+      $qtls{$qtl} = 1;
       $qtls{$qtl_name} = 1;
     }#each record
   
@@ -1323,7 +1344,11 @@ print "finished reading file\n";
           }
         }
       }
-      
+      if (!$qtls{$qtl_name}) {
+        $has_errors++;
+        $msg = "ERROR: This QTL ($qtl_name) does not appear in the QTL SpreadSheet.";
+        reportError($line_count, $msg);
+      }
       my $left_end  = $fields->{$mpi{'left_end_fld'}};
       my $right_end = $fields->{$mpi{'right_end_fld'}};
       if ($left_end eq '' || lc($left_end) eq 'null'
