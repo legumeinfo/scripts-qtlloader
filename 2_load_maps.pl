@@ -43,7 +43,7 @@ EOS
   # Get spreadsheet constants
   my %mci = getSSInfo('MAP_COLLECTIONS');
   my %mi  = getSSInfo('MAPS');
-  my %mpi  = getSSInfo('MARKER_POSITION');
+  my %mpi = getSSInfo('MARKER_POSITION');
   
   # Used all over
   my ($table_file, $sql, $sth, $row, $count, @records, @fields, $cmd, $rv);
@@ -724,7 +724,11 @@ sub makeLgDbxref {
   
   # WARNING! THIS IS SPECIFIC TO LIS CMAP URLS!
   # "accession" here is the completion of db URL.
-  my $lis_mapname = $lis_map_sets{$fields->{$mci{'map_name_fld'}}};
+  my $lis_mapname = $lis_map_sets{$fields->{$mi{'map_name_fld'}}};
+#TODO: either don't rely on map collection loading or require full link in CMap column
+print "map set accession: $lis_map_sets{$fields->{$mi{'map_name_fld'}}}\n";
+print "map name: $fields->{$mi{'map_name_fld'}}\n";
+print "all map set accessions:\n" . Dumper(%lis_map_sets) . "\n";
   my $accession = "?ref_map_set_acc=$lis_mapname;ref_map_accs=" . $fields->{$fieldname};
 #print "create dbxref for $accession\n";
 
