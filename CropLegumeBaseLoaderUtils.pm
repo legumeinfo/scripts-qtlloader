@@ -18,8 +18,6 @@ our @EXPORT      = (
                     qw(getCvtermID), 
                     qw(getFeatureID),
                     qw(getMapSetID),
-                    qw(getMarkerNameIDs),
-                    qw(getMarkerSpecies),
                     qw(getOBOName),
                     qw(getOBOTermID),
                     qw(getOrganismID),
@@ -50,6 +48,7 @@ our @EXPORT      = (
                     qw(traitExists),
                     qw(uniqueID),
                     qw(_allNULL),
+                    qw($has_errors $has_warnings $qtl_errors $qtl_warnings $line_count $msg $wsfile $sql $sth $row %fields @records @fields $cmd $rv)
                    );
 #our @EXPORT_OK   = ();
 #our %EXPORT_TAGS = (DEFAULT => [qw(&testsub)]);
@@ -59,7 +58,10 @@ our @EXPORT      = (
 #   connectToDB() defined here:
 require 'db.pl';
 
-
+# Used all over
+our ($has_errors, $has_warnings, $qtl_errors, $qtl_warnings, $line_count, 
+      $msg, $wsfile, $sql, $sth, $row, %fields, @records, @fields, $cmd, 
+      $rv);
 
 sub getSSInfo {
   my $ss = $_[0];
@@ -321,8 +323,7 @@ sub doQuery {
     my @tr_vals = map{ decode("iso-8859-1", $_) } @vals;
     @vals = @tr_vals;
   }
-  
-  my $sth = $dbh->prepare($sql);
+  $sth = $dbh->prepare($sql);
   $sth->execute(@vals);
   
   return $sth;
@@ -363,7 +364,7 @@ sub getCvtermID {
     $term = lc($term);
     $sql = "
       SELECT cvterm_id FROM chado.cvterm 
-      WHERE tolower(name)='$term'
+      WHERE name='$term'
         AND cv_id=(SELECT cv_id FROM chado.cv WHERE LOWER(name)='$cv')";
     logSQL('lib', $sql);
     $sth = doQuery($dbh, $sql);
@@ -480,54 +481,6 @@ sub getMapSetID {
     return 0;
   }
 }#getMapSetID
-
-
-sub getMarkerNameIDs {
-  my ($dbh, $marker_name)= @_;
-  my ($sql, $sth, $row);
-  my @marker_list;
-  
-  $sql = "
-    SELECT feature_id
-    FROM feature
-    WHERE name='$marker_name'";
-  logSQL('', $sql);
-  $sth = doQuery($dbh, $sql);
-  while ($row=$sth->fetchrow_hashref) {
-    push @marker_list, $row->{'feature_id'};
-  }
-  
-  return @marker_list;
-}#getMarkerNameIDs
-
-
-sub getMarkerSpecies {
-  my ($dbh, $marker_name)= @_;
-  my ($sql, $sth, $row);
-  my %species_list;
-#print "Get species for $marker_name from $dbh.\n";
-  
-  $sql = "
-    SELECT d.accession
-    FROM organism o
-      INNER JOIN chado.organism_dbxref od ON od.organism_id=o.organism_id 
-      INNER JOIN chado.dbxref d on d.dbxref_id=od.dbxref_id
-      INNER JOIN chado.feature f ON f.organism_id=o.organism_id
-    WHERE f.name='$marker_name'
-          AND d.db_id=(SELECT db_id FROM db WHERE name='uniprot:species')
-          AND f.type_id=(SELECT cvterm_id FROM cvterm 
-                         WHERE NAME='genetic_marker' 
-                               AND cv_id=(SELECT cv_id FROM cv 
-                                          WHERE name='sequence'))";
-  logSQL('', $sql);
-  $sth = doQuery($dbh, $sql);
-  while ($row=$sth->fetchrow_hashref) {
-    $species_list{$row->{'accession'}} = 1;
-  }
-  
-#print "returning:\n" . Dumper(%species_list);
-  return \%species_list;
-}#getMarkerSpecies
 
 
 sub getOBOName {
@@ -921,8 +874,6 @@ sub markerExists {
 sub markerExistsOnOtherMap {
   my ($dbh, $marker_name, $mapname) = @_;
   my ($sql, $sth, $row);
-
-  my ($sql, $sth, $row);
   my @matches;
   
   $sql = "
@@ -1225,7 +1176,6 @@ sub traitExists {
   return 0;
 }#traitExists
 
-
 sub uniqueID {
   my $len = $_[0];
   my @a = map { chr } (48..57, 65..90, 97..122); 
@@ -1245,7 +1195,7 @@ sub _allNULL {
   foreach my $f (@_) {
     my $t = $f;
     $t =~ s/\s//;
-    if ($t ne '' && lc($t) ne 'null') { 
+    if ( $t ne '' && lc($t) ne 'null' ) { 
       $all_null = 0; 
     }
   }
