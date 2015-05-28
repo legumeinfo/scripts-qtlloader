@@ -128,7 +128,7 @@ EOS
 
   if ($do_qtls) {
     QtlVerif::qtlVerif($input_dir,$dbh,$berkeley_dbh);
-    HashDB::delete_berkeleyDB($input_dir);
+    #HashDB::delete_berkeleyDB($input_dir);
   }#check QTL tables
 
 ################################################################################
