@@ -117,7 +117,7 @@ sub qtlVerif {
         $uniq_marker_name = makeMarkerName($fields->{'specieslink_abv'}, 
                                            $fields->{'flanking_marker_low'});
         $status = $berkeley_dbh->db_get($flanking_marker_low,$value);
-        if ($status && !markerExists($dbh, $uniq_marker_name)) {
+        if ($status && !markerExists($dbh, $uniq_marker_name, $species)) {
           $has_warnings++;
           $msg = "warning: flanking marker low ($flanking_marker_low) ";
           $msg .= "does not exist in spreadsheet or database. ";
@@ -131,7 +131,7 @@ sub qtlVerif {
         $uniq_marker_name = makeMarkerName($fields->{'specieslink_abv'},
                                            $fields->{'flanking_marker_high'});
         $status = $berkeley_dbh->db_get($flanking_marker_high,$value);
-        if ($status && !markerExists($dbh, $uniq_marker_name)) {
+        if ($status && !markerExists($dbh, $uniq_marker_name, $species)) {
           $has_warnings++;
           $msg = "warning: flanking marker high ($flanking_marker_high) ";
           $msg .= "does not exist in spreadsheet or database. ";
