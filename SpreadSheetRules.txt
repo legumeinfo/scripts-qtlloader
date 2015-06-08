@@ -1,0 +1,133 @@
+SpreadSheet Verification Rules:
+
+—————————————  PUB  ———————————————————————
+1.The publink_citation must be unique. Else report an error.
+2.The ref_type field value must exist. Else, report an error.
+  If ref_type is NOT null, then ref_type field value must exist in the
+  database[cvterm table] and ref_type must be of type 'pub_type'.
+3.The pmid must be a number. Else, report an error.
+4.doi must be of the format '10.<prefix>/<suffix>'. Else, report an error saying 'format error'
+5.Authors field in the PUB sheet is mandatory. Else, report an error.
+
+—————————————————  MAP COLLECTION  ——————————————————
+1.The map_citation field must exist. Else, report an error.
+  Also, the citations present in this field must had also been
+  present either in PUB sheet (or) in the database[pub table].
+2.The specieslink_abv(mnemonic-> accession in dbxref) must have a corresponding record in the organism table.
+3.The unit field must be existing in cvterm table and it must be of type 'featuremap_units'.
+4.The map_name field must be unique within the column in MAP_COLLECTION sheet.
+  Also check for the map_name in the database[feature_map table]. If already exist in DB, issue a warning.
+
+—————————————————   MAP  ———————————————————————
+1.Create a variable called 'var' as follows
+  var = [map_name field value]-[lg field value]
+2.var created in the Rule 1 must be unique within MAP sheet. Else report an error.
+3.map_name field value must exist in atleast one of the following
+  -- MAP_COLLECTION sheet
+  -- in the database[featuremap table]
+  Else report an error.
+4.Check for the map_position as follows
+  -- map_start and map_end field values, either both must exist or both must be null.
+  -- map_end field value should NOT be less than map_start field value. Else issue an error.
+5.specieslink_abv field value must exist. Else issue an error.
+
+—————————————————    MARKER_POSITION   ——————————————————————
+1.specieslink_abv field value must exist. Else issue an error.
+2.Corresponding to the specieslink_abv, an organism record must exist in the database[organism table].
+3.marker_name field value must exist. Else issue an error.
+4.The marker_name field value must be unique within its column in MARKER_POSITION sheet. Else issue an error.
+5.alt_marker_name field value must exist. Else issue an error.
+6.alt_marker_name field value must be unique within its column in MARKER_POSITION sheet.
+7.Check if the marker_name field value corresponding to the specieslink_abv field value,
+  already exists in the database[feature table]. If exists, issue a warning.
+8.Check in the database[feature table], if the marker_name field is associated with any different
+  species other than corresponding specieslink_abv field value. Is yes, issue a warning.
+9.position field value must exist. Else issue an error.
+10.map_name field value must exist. Else issue an error.
+11.map_name field value must exist in atleast one of the following
+   -- MAP_COLLECTION sheet
+   -- database[featuremap table]
+   Else report an error.
+12.lg field value must exist. Else issue an error.
+13.If lg field value exists, then verify the corresponding position field value in MAP sheet as follows
+   -- the position field value in MARKER_POSITION sheet must be within the range of map_start and map_end field values in MAP sheet for any particular linkage group
+14.Verify the position field value in MARKER_SHEET with the start and end coordinates in database[featurepos table]
+
+————————————————————   QTL_EXPERIMENT   —————————————————————————
+1.publink_citation field value must exist.
+2.publink_citation field value must had also been present in PUB sheet (or) in the database[pub table].
+3.publink_citation_exp field value must be unique within column in QTL_EXPERIMENT sheet.
+Also check for publink_citation_exp value in the database[project table]. If already exists in DB, issue a warning.
+4.specieslink_abv field must exist.
+5.map_name field value must exist.
+6.geolocation field value must not exceed 255 characters
+
+————————————————————————   QTL   —————————————————————————-
+1.First create a variable called qtl_name as follows
+  qtl_name = specieslink_abv.[qtl_symbol]<space>[qtl_identifier]
+2.qtl_name must be unique within QTL spreadsheet else issue an error.
+3.Check for qtl_name of type 'QTL'(cvterm_id) and 'sequence'(cv) in the database[feature table].
+  If already exists in DB, do the following :-
+  ---issue warning saying that the QTL already exists.
+  ---Check if the publication name associated with qtl in DB is same as the current publication name. If not same, issue an error
+4.publink_citation_exp field value if not present in QTL_EXPERIMENT sheet
+  and if also doesn't exist in the database[project table], issue an error.
+5.Check if qtl_symbol field value exists in Master Trait Sheet. If exists, nothing to do.
+  But, if doesn't exist, check if qtl_symbol exists in the database[cvterm table] with name = qtl_symbol
+  AND cv = LegumeInfo:traits (or) SOY (or) soybean_whole_plant_growth_stage (or) soybean_development (or) soybean_structure (or) soybean_trait
+  If doesn't exist even in database[cvterm_table], issue an error.
+  
+DECLARATION: If the [RULEZ] field value is not null/empty, then create a variable called uniq_marker_name as follows
+             For now, the uniq_marker_name is same as value in [RULEZ] field.
+             --[RULEZ] field value if not present in MARKER sheet of master marker workbook
+             AND if also doesn't exist in the database[feature table] associated with the corresponding species, issue a warning.
+  
+6.RULEZ = nearest_marker in the above DECLARATION.
+7.RULEZ = flanking_marker_low in the above DECLARATION.
+8.RULEZ = flanking_marker_high in the above DECLARATION.
+9.specieslink_abv field value must have an associated record in the database[organism table]. Else issue an error
+
+—————————————————————      MAP_POSITION   —————————————————————
+1.Create a variable 'qtl' as follows
+  qtl = [qtl_symbol]<space>[qtl_identifier]
+2.Create a variable 'map' as follows
+  map = [map_name field value]-[lg field value]
+3.The variable 'map' created in Rule 2, must not be null/empty. Else issue an error.
+  If 'map' is not null/empty, then
+  --check if the same 'map' variable value exists in MAP sheet
+  --If not existing in MAP sheet, then check in the database[feature table]
+  --If still not existing in the database too, then issue a warning.
+4.If the variable 'qtl' which is created above, doesn't exists in the QTL sheet, then issue an error.
+5.Neither left_end field value nor right_end field value can be null/empty.
+  If atleast one of these two fields is null/empty, issue an error.
+6.If left_end field value is greater than right_end field value, issue an error.
+
+
+
+****************************************
+Master Marker Sheet - Verification Rules —
+****************************************
+————————————————————    MARKER   ————————————————————————————————
+1.specieslink_abv field value must exist. Else report an error.
+2.Corresponding to the specieslink_abv, an organism record must exist in the database[organism table]. Else report an error.
+3.marker_citation field value must exist. Else, report an error.
+4.If the marker_citation doesn't exist in the database[pub table], then report an error saying 'Fatal Error'.
+5.marker_name field value must exist. Else, report an error.
+6.marker_name must be unique within the column in MARKER sheet.
+7.Else if the marker_name is repeated within the column, then check if all the other fields in the record are same too.
+  If same, then declare a warning saying that the record is duplicate.
+  If different, the report an error.
+8.Check for the given specieslink_abv field value, if there is a marker_name field value existing in the database[feature table]
+9.marker_type field value must exist. Else, report an error.
+10.The field values of the columns 'assembly_name', 'phys_chr', 'phys_start', 'phys_end' has a rule that,
+   either ALL should be Null/empty or NONE should be Null/empty.
+
+—————————————————————    MARKER_SEQUENCE  ———————————————————
+1.specieslink_abv field value must exist. Else report an error.
+2.Corresponding to the specieslink_abv, an organism record must exist in the database[organism table]. Else report an error.
+3.marker_name field value must exist. Else report an error.
+4.marker_name field value must be unique within the column in MARKER_SEQUENCE sheet. Else, report an error.
+5.The marker_name field value in MARKER_SEQUENCE sheet must also exist in marker_name column of MARKER sheet. Else report an error.
+6.sequence_type field value cant be null, when atleast one of the columns Genbank_accession, sequence_name, marker_sequence are NOT null.
+7.The field values of the columns 'forward_primer_name', 'reverse_primer_name', 'forward_primer_seq', 'reverse_primer_seq'
+  must be unique within their columns. Else, report an error.
