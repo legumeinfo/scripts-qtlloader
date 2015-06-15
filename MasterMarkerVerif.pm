@@ -67,6 +67,8 @@ sub masterMarkerVerif {
       my $phys_chr        = $fields->{$mki{'phys_chr_fld'}};
       my $phys_start      = $fields->{$mki{'phys_start_fld'}};
       my $phys_end        = $fields->{$mki{'phys_end_fld'}};
+      my $accession       = $fields->{$mki{'accession_fld'}};
+      my $accession_src   = $fields->{$mki{'accession_src_fld'}};
       # variables $accession, $accession_source, $SNP_pos are yet to be confirmed
       
       #species field must be set
@@ -103,33 +105,46 @@ sub masterMarkerVerif {
         $msg = "ERROR: marker name is missing";
         reportError($line_count, $msg);
       }
-      #marker_name must be unique within MARKER sheet
-      elsif ($markers{$marker_name}) {
-        #checking if all fields are matching
-        if ($hash_of_markers{$marker_name}{$specieslink_abv} && $hash_of_markers{$marker_name}{$marker_citation}
-          && $hash_of_markers{$marker_name}{$marker_type}
-          && $hash_of_markers{$marker_name}{$assembly_name} && $hash_of_markers{$marker_name}{$phys_chr}
-          && $hash_of_markers{$marker_name}{$phys_start} && $hash_of_markers{$marker_name}{$phys_end}) {
-          
-          $has_warnings++;
-          $msg = "Warning: The record at ($line_count) is a Duplicate record.";
-          $msg.= " already exists in the spreadhseet\n\n";
-          print $msg;
-        }
-        else {
-          $has_errors++;
-          $msg = "ERROR: Marker name ($marker_name) is already";
-          $msg.= " existing with different details.";
-          reportError($line_count,$msg);
-        }
-        if (!markerExists($dbh, $marker_name, $specieslink_abv)) {
+      else{
+        my $marker_id = markerExists($dbh, $marker_name, $specieslink_abv);
+        if (not defined $marker_id) {
           $has_warnings++;
           $msg = "Warning: This marker ($marker_name) has a different species names in db.";
           $msg.= " (or) marker may not be existing in db";
           reportError($line_count, $msg);
         }
-        
-      }
+        else {
+        #Marker Name cannot be associated with same species and different publications    
+            my $pub_id = feature_pubExists($dbh, $marker_id);
+            if (defined $pub_id) {
+                if ($pub_id != getPubID($dbh, $marker_citation)) {
+                    $has_errors++;
+                    $msg = "ERROR: The marker ($marker_name) with same species";
+                    $msg.= "is associated with a different publication in the database.";
+                    reportError($line_count,$msg);
+                } 
+            } 
+        }
+        #marker_name must be unique within MARKER sheet
+        if ($markers{$marker_name}) {
+            #checking if all fields are matching
+            if ($hash_of_markers{$marker_name}{$specieslink_abv} && $hash_of_markers{$marker_name}{$marker_citation}
+                && $hash_of_markers{$marker_name}{$marker_type}
+                && $hash_of_markers{$marker_name}{$assembly_name} && $hash_of_markers{$marker_name}{$phys_chr}
+                && $hash_of_markers{$marker_name}{$phys_start} && $hash_of_markers{$marker_name}{$phys_end}) {
+                
+                $has_warnings++;
+                $msg = "Warning: The record at ($line_count) is a Duplicate record.";
+                $msg.= " already exists in the spreadhseet\n\n";
+                print $msg;
+            }
+            else {
+                $has_errors++;
+                $msg = "ERROR: Marker name ($marker_name) is already";
+                $msg.= " existing with different details.";
+                reportError($line_count,$msg);
+            }
+        }
       else {
         $hash_of_markers{$marker_name}{$specieslink_abv} = 1;
         $hash_of_markers{$marker_name}{$marker_citation} = 1;
@@ -142,12 +157,21 @@ sub masterMarkerVerif {
         $hash_of_markers{$marker_name}{$phys_start}      = 1;
         $hash_of_markers{$marker_name}{$phys_end}        = 1;
       }
+    }
       
       #marker_type must exist
       if (!isFieldSet($fields, $mki{'marker_type_fld'})) {
         $has_errors++;
         $msg = "ERROR: marker_type is missing";
         reportError($line_count, $msg);
+      }
+      else{
+        if ($marker_type eq 'SNP' && !isFieldSet($fields, $mki{'snp_pos_fld'})) {
+            $has_errors++;
+            $msg = "ERROR: SNP_pos cannot be NULL when the marker type is 'SNP'";
+            reportError($line_count, $msg);
+        }
+        
       }
       
       #assembly_name, phys_chr, phys_start, phys_end.
@@ -157,6 +181,12 @@ sub masterMarkerVerif {
                       $mki{'phys_start_fld'}, $mki{'phys_end_fld'});
       }
       
+      if (isFieldSet($fields, $mki{'accession_fld'}) && !isFieldSet($fields, $mki{'accession_src_fld'})) {
+        $has_errors++;
+        $msg = "ERROR: accession_source cannot be Null/empty when accession is not Null";
+        reportError($line_count, $msg);
+      }
+            
     }#foreach - markers
     
     if ($has_errors || $has_warnings) {
@@ -322,6 +352,15 @@ sub masterMarkerVerif {
         $marker_sequence{$reverse_primer_seq} = 1;
       }
     }#checkPrimer
+    
+    sub feature_pubExists {
+        my ($dbh, $marker_id) = @_;
+        $sql = "SELECT pub_id FROM feature_pub WHERE feature_id = $marker_id";
+        logSQL('', $sql);
+        $sth = doQuery($dbh, $sql);
+        return $row->{'pub_id'};
+    }#feature_pubExists         
+
 
 ########################################################################################################
 
