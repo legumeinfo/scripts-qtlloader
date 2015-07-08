@@ -92,9 +92,9 @@ EOS
     eval { $dbh->rollback };
   }
 
-
+  $sth->finish;
   # ALL DONE
-  $dbh->disconnect();
+  #$dbh->disconnect();
   print "\n\n";
 
 
@@ -131,6 +131,7 @@ sub loadMarkers {
     my $species = $fields->{$mki{'species_fld'}};
     my $marker_name = $fields->{$mki{'marker_name_fld'}};
     my $unique_marker_name = makeMarkerName($species, $marker_name);
+    my $marker_citation = $fields->{$mki{'marker_citation_fld'}};
 #print "$line_count: handle marker $marker_name\n";
     
     # likely to be duplicates that haven't been cleaned out of the spreadsheet
@@ -165,17 +166,21 @@ sub loadMarkers {
       }
     }#marker already exists
 
-    # Genbank_accession (if any)
-    my $primary_dbxref_id = setPrimaryDbxref($dbh, $fields, 'genbank:nuccore');
-
     # specieslink_abv, marker_name, source_sequence: feature
-    $marker_id = setMarkerRec($dbh, $marker_id, $primary_dbxref_id, $fields);
+    $marker_id = setMarkerRec($dbh, $marker_id, $fields);
+    
+    # Genbank_accession (if any)
+    my $primary_dbxref_id = setFeatureDbxref($dbh, $marker_id, $mki{'accession_fld'}, 'genbank:nuccore', $fields);
     
     # Synonyms
-    attachSynonyms($dbh, $marker_id, $mki{'alt_name_fld'}, $fields);
+    attachSynonyms($dbh, $marker_id, $mki{'alt_name_fld'}, $marker_citation, $fields);
     
     # assembly_name, phys_chr, phys_start: featureloc
     setPhysicalPosition($dbh, $marker_id, $fields);
+    
+    # Attaching the pub to marker
+    
+    linkPubFeature($dbh, $marker_id, $marker_citation);
     
     # marker_type and comment (marker comments are rank=1)
     setFeatureprop($dbh, $marker_id, $mki{'marker_type_fld'}, 'Marker Type', 1, $fields);
@@ -237,7 +242,7 @@ sub loadMarkerSequence {
 ################################################################################
 
 sub attachSynonyms {
-  my ($dbh, $marker_id, $fieldname, $fields) = @_;
+  my ($dbh, $marker_id, $fieldname, $marker_citation, $fields) = @_;
   
   my ($msg, $sql, $sth, $row);
   
@@ -291,9 +296,10 @@ sub attachSynonyms {
            (synonym_id, feature_id, pub_id)
          VALUES
            ($synonym_id, $marker_id,
-            (SELECT pub_id FROM pub WHERE uniquename='null'))";
+            (SELECT pub_id FROM pub WHERE uniquename='$marker_citation'))";
        logSQL($dataset_name, $sql);
        doQuery($dbh, $sql);
+       $sth->finish;
     }#each synonym
   }#synonym given
 }#attachSynonyms
@@ -376,11 +382,12 @@ sub primerExists {
   else {
     return 0;
   }
+  $sth->finish;
 }#primerExists
 
 
 sub setMarkerRec {
-  my ($dbh, $marker_id, $primary_dbxref_id, $fields) = @_;
+  my ($dbh, $marker_id, $fields) = @_;
   my ($sql, $sth, $row);
   
   my $species = $fields->{$mki{'species_fld'}};
@@ -390,28 +397,26 @@ sub setMarkerRec {
   my $organism_id = getOrganismID($dbh, $fields->{$mki{'species_fld'}}, $line_count);
   
   if ($existing_markers{$marker_name}) {
-    my $dbxref_clause = ($primary_dbxref_id) ? "dbxref_id = $primary_dbxref_id," : '';
+    #my $dbxref_clause = ($primary_dbxref_id) ? "dbxref_id = $primary_dbxref_id," : '';
     $sql = "
       UPDATE chado.feature SET
-        $dbxref_clause
         organism_id=$organism_id,
         name='$marker_name',
         uniquename='$unique_marker_name'
       WHERE feature_id=$marker_id";
   }
   else {
-    my $dbxref = ($primary_dbxref_id) ? $primary_dbxref_id : 'NULL';
+    #my $dbxref = ($primary_dbxref_id) ? $primary_dbxref_id : 'NULL';
     $sql = "
       INSERT INTO chado.feature
-        (organism_id, name, uniquename, type_id, dbxref_id)
+        (organism_id, name, uniquename, type_id)
       VALUES
         ($organism_id, 
          '$marker_name', 
          '$unique_marker_name',
          (SELECT cvterm_id FROM chado.cvterm 
           WHERE name='genetic_marker'
-            AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='sequence')),
-         $dbxref
+            AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='sequence'))
         )
        RETURNING feature_id";
   }
@@ -427,22 +432,34 @@ sub setMarkerRec {
   return $marker_id;
 }#setMarkerRec
 
+sub linkPubFeature {
+      my ($dbh, $marker_id, $marker_citation) = @_;
+      #print "This is inside linkpub feature: $marker_citation\n";
+      
+      $sql = "
+      INSERT INTO chado.feature_pub (feature_id, pub_id)
+      VALUES
+      ($marker_id,
+      (SELECT pub_id FROM chado.pub WHERE uniquename = '$marker_citation'))";
+      logSQL($dataset_name, $sql);
+      doQuery($dbh, $sql);
+}#linkPubFeature
 
 sub setMarkerSequence {
   my ($dbh, $marker_id, $fields) = @_;
   my ($sql, $sth);
 
   if (isFieldSet($fields, $msi{'marker_sequence_fld'})) {
-    my $sequence = qw($fields->{$msi{'marker_sequence_fld'}});
+    my $sequence = $fields->{$msi{'marker_sequence_fld'}};
     my $seqlen = length($sequence);
    
     $sql = "
       UPDATE chado.feature SET
-        residues=$sequence,
+        residues='$sequence',
         seqlen=$seqlen
       WHERE feature_id=$marker_id";
     logSQL($dataset_name, $sql);
-    $sth = doQuery($dbh, $sql);
+    doQuery($dbh, $sql);
   }
 }#setMarkerSequence
 
