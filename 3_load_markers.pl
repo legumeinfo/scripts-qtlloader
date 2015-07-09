@@ -356,13 +356,33 @@ sub loadPrimer {
          (SELECT cvterm_id FROM cvterm 
           WHERE name = '$primer_type' 
                 AND cv_id = (SELECT cv_id FROM cv WHERE name='sequence'))
-        )";
+        )
+        RETURNING feature_id";
     logSQL($dataset_name, $sql);
-    doQuery($dbh, $sql);
+    $sth = doQuery($dbh, $sql);
+    $row = $sth->fetchrow_hashref;
+    my $subject_id = $row->{'feature_id'};
+        
+    #linking the marker with its related features
+    setFeatureRelationship($dbh, $marker_id, $subject_id, $primer_type); 
   }#primer provided in worksheet
 }#loadPrimer
 
-
+sub setFeatureRelationship {
+  my ($dbh, $object_id, $subject_id, $primer_type) = @_;
+  $sql = "
+        INSERT INTO feature_relationship
+           (subject_id, object_id, type_id)
+        VALUES
+           ($subject_id, $object_id,
+           (SELECT cvterm_id FROM cvterm
+              WHERE name = '$primer_type'
+              AND cv_id = (SELECT cv_id FROM cv WHERE name = 'sequence'))
+           )";
+  logSQL($dataset_name, $sql);
+  doQuery($dbh, $sql);
+}# setFeatureRelationship
+    
 sub primerExists {
   my ($organism_id, $uniquename, $type) = @_;
   my ($sql, $sth, $row);
@@ -384,7 +404,6 @@ sub primerExists {
   }
   $sth->finish;
 }#primerExists
-
 
 sub setMarkerRec {
   my ($dbh, $marker_id, $fields) = @_;
@@ -428,13 +447,11 @@ sub setMarkerRec {
     $marker_id = $row->{'feature_id'};
   }
   $sth->finish;
-  
   return $marker_id;
 }#setMarkerRec
 
 sub linkPubFeature {
       my ($dbh, $marker_id, $marker_citation) = @_;
-      #print "This is inside linkpub feature: $marker_citation\n";
       
       $sql = "
       INSERT INTO chado.feature_pub (feature_id, pub_id)
