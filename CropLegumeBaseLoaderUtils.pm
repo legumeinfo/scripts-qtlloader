@@ -135,17 +135,40 @@ sub getSSInfo {
   }
   elsif ($ss eq 'MARKERS') {
     return (
-      'worksheet'           => 'MARKER',
-      'species_fld'         => 'specieslink_abv',
-      'marker_citation_fld' => 'marker_citation',
-      'marker_name_fld'     => 'marker_name',
-      'marker_type_fld'     => 'marker_type',
-      'assembly_name_fld'   => 'assembly_name',
-      'phys_chr_fld'        => 'phys_chr',
-      'phys_start_fld'      => 'phys_start',
-      'phys_end_fld'        => 'phys_end',
-      'comment_fld'         => 'comment',
-      # variables $accession, $accession_source, $SNP_pos are yet to be confirmed
+      'worksheet'                 => 'MARKER',
+      'marker_identifier_fld'     => 'marker_name',
+      'marker_type_fld'           => 'marker_type',
+      'alias_fld'                 => 'alias',              # not in our data
+      'pub_marker_name_fld'       => 'source_publication_marker_name',
+      'pub_fld'                   => 'marker_citation',
+      'species_fld'               => 'specieslink_abv',    # may be separated into genus/species
+      'src_descr_fld'             => 'marker_stock',
+      'src_marker_fld'            => 'source_marker',
+      'repeat_motif_fld'          => 'SSR_repeat_motif',
+      'db_accession_fld'          => 'accession',
+      'database_fld'              => 'accession_source',
+      'sequence_name_fld'         => 'sequence_name',
+      'sequence_fld'              => 'marker_sequence',
+      'primer*_name_fld'          => 'primer*_name',
+      'primer*_seq_fld'           => 'primer*_seq',
+      'probe*_name_fld'           => 'probe*_name',        # not in our data
+      'probe*_seq_fld'            => 'probe*_seq',         # not in our data
+      'restriction_enzyme_fld'    => 'restriction_enzyme', # not in our data
+      'product_length_fld'        => 'product_length',     # not in our data
+      'max_length_fld'            => 'max_length',         # not in our data
+      'min_length_fld'            => 'min_length',         # not in our data
+      'PCR_condition_fld'         => 'PCR_condition',      # not in our data
+      'SNP_alleles_fld'           => 'SNP_alleles',
+      'SNP_5_prime_flank_seq_fld' => 'SNP_five_prime_flanking_sequence',
+      'SNP_3_prime_flank_seq_fld' => 'SNP_three_prime_flanking_sequence',
+      'image_fld'                 => 'image_identifier',   # not in our data
+      'contact_fld'               => 'contact_identifier', # not in our data
+      'stock_fld'                 => 'stock_identifier',
+      'assembly_name_fld'         => 'assembly_name',
+      'phys_chr_fld'              => 'phys_chr',
+      'phys_start_fld'            => 'phys_start',
+      'phys_end_fld'              => 'phys_end',
+      'comment_fld'               => 'comment',
     );
   }
   elsif($ss eq 'MARKER_POSITION'){
@@ -482,7 +505,8 @@ sub getMapSetID {
   }
 }#getMapSetID
 
-
+              
+# given a dbxref id, find the associated cvterm name.
 sub getOBOName {
   my ($dbh, $dbxref_id) = @_;
   my ($sql, $sth, $row);
@@ -504,6 +528,7 @@ sub getOBOName {
 }#getOBOName
 
 
+# Given an OBO name, find its cvterm id
 sub getOBOTermID {
   my ($dbh, $term) = @_;
   my ($sql, $sth, $row);
@@ -1049,7 +1074,7 @@ sub setFeatureDbxref {
     # Return if feature_dbxref record already exists
     $sql = "
       SELECT feature_dbxref_id FROM chado.feature_dbxref
-      WHERE feature_id=$feature_id AND $dbxref_id =$dbxref_id";
+      WHERE feature_id=$feature_id AND dbxref_id =$dbxref_id";
     logSQL('', $sql);
     $sth = doQuery($dbh, $sql);
     if ($row=$sth->fetchrow_hashref) {
@@ -1072,7 +1097,7 @@ sub setFeatureprop {
   my ($dbh, $feature_id, $fieldname, $typename, $rank, $fields) = @_;
   my ($sql, $sth, $row);
   if (isFieldSet($fields, $fieldname)) {
-    my $value = $fields->{$fieldname};
+    my $value = $dbh->quote($fields->{$fieldname});
     
     # Check if this featureprop type already exists
     $sql = "
@@ -1080,9 +1105,9 @@ sub setFeatureprop {
       WHERE feature_id=$feature_id 
             AND type_id = (SELECT cvterm_id FROM chado.cvterm 
                            WHERE name='$typename'
-                             AND cv_id = (SELECT cv_id FROM chado.cv 
-                                          WHERE name='feature_property'))
-            AND value='$value'";
+                             AND cv_id IN (SELECT cv_id FROM chado.cv 
+                                           WHERE name IN ('feature_property', 'local')))
+            AND value=$value";
     logSQL('', $sql);
     $sth = doQuery($dbh, $sql);
     if ($row=$sth->fetchrow_hashref && $row->{'max'}) {
@@ -1097,8 +1122,8 @@ sub setFeatureprop {
         WHERE feature_id=$feature_id 
               AND type_id = (SELECT cvterm_id FROM chado.cvterm 
                              WHERE name='$typename'
-                               AND cv_id = (SELECT cv_id FROM chado.cv 
-                                            WHERE name='feature_property'))";
+                               AND cv_id IN (SELECT cv_id FROM chado.cv 
+                                             WHERE name IN ('feature_property', 'local')))";
       logSQL('', $sql);
       $sth = doQuery($dbh, $sql);
       $rank =  ($row=$sth->fetchrow_hashref) ? $row->{'rank'}++ : 1;
@@ -1111,9 +1136,10 @@ sub setFeatureprop {
           ($feature_id,
            (SELECT cvterm_id FROM chado.cvterm 
             WHERE name='$typename'
-              AND cv_id = (SELECT cv_id FROM chado.cv 
-                  WHERE name='feature_property')),
-           '$value', $rank)";
+              AND cv_id IN (SELECT cv_id FROM chado.cv 
+                  WHERE name IN ('feature_property', 'local'))),
+           $value, 
+           $rank)";
     }#rank is caculated
     
     else {
@@ -1123,16 +1149,16 @@ sub setFeatureprop {
         WHERE feature_id=$feature_id 
               AND type_id = (SELECT cvterm_id FROM chado.cvterm 
                              WHERE name='$typename'
-                               AND cv_id = (SELECT cv_id FROM chado.cv 
-                                            WHERE name='feature_property'))
-              AND value='$value'";
+                               AND cv_id IN (SELECT cv_id FROM chado.cv 
+                                            WHERE name IN ('feature_property', 'local')))
+              AND value=$value";
       logSQL('', $sql);
       $sth = doQuery($dbh, $sql);
       if ($row=$sth->fetchrow_hashref) {
         # This featureprop needs to be updated
         $sql = "
           UPDATE chado.featureprop SET
-            value = '$value'
+            value = $value
           WHERE featureprop_id = " . $row->{'featureprop_id'};
       }
       else {
@@ -1144,9 +1170,9 @@ sub setFeatureprop {
             ($feature_id,
              (SELECT cvterm_id FROM chado.cvterm 
               WHERE name='$typename'
-                AND cv_id = (SELECT cv_id FROM chado.cv 
-                    WHERE name='feature_property')),
-             '$value', $rank)";
+                AND cv_id IN (SELECT cv_id FROM chado.cv 
+                    WHERE name IN ('feature_property', 'local'))),
+             $value, $rank)";
       }
     }#rank is fixed
     

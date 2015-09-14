@@ -30,6 +30,10 @@ VALUES
    'GenBank nucleotide collection',
    'http://www.ncbi.nlm.nih.gov',
    'http://www.ncbi.nlm.nih.gov/nuccore/'),
+  ('genbank:gss', 
+   'GenBank Genomic Sequence Survey database',
+   'http://www.ncbi.nlm.nih.gov',
+   'http://www.ncbi.nlm.nih.gov/gss/'),
   ('genbank:taxonomy', 
    'GenBank taxonomy',
    'http://www.ncbi.nlm.nih.gov',
@@ -88,8 +92,22 @@ VALUES
   ((SELECT db_id FROM db WHERE name='internal'), 'favorable_allele_source'),
   ((SELECT db_id FROM db WHERE name='internal'), 'has_trait'),
   ((SELECT db_id FROM db WHERE name='internal'), 'has_trait_class'),
-  ((SELECT db_id FROM db WHERE name='internal'), 'has_obo_term')
+  ((SELECT db_id FROM db WHERE name='internal'), 'has_obo_term'),
   
+  ((SELECT db_id FROM db WHERE name='internal'), 'source_description'),
+  ((SELECT db_id FROM db WHERE name='internal'), 'source_marker'),
+  ((SELECT db_id FROM db WHERE name='internal'), 'repeat_motif'),
+  ((SELECT db_id FROM db WHERE name='internal'), 'restriction_enzyme'),
+  ((SELECT db_id FROM db WHERE name='internal'), 'product_length'),
+  ((SELECT db_id FROM db WHERE name='internal'), 'max_length'),
+  ((SELECT db_id FROM db WHERE name='internal'), 'min_length'),
+  ((SELECT db_id FROM db WHERE name='internal'), 'PCR_condition'),
+  ((SELECT db_id FROM db WHERE name='internal'), 'sequence_name'),
+  ((SELECT db_id FROM db WHERE name='internal'), 'SNP_alleles'),
+  ((SELECT db_id FROM db WHERE name='internal'), 'SNP_five_prime_flanking_sequence'),
+  ((SELECT db_id FROM db WHERE name='internal'), 'SNP_three_prime_flanking_sequence'),
+  
+  ((SELECT db_id FROM db WHERE name='internal'), 'canonical_marker')
 ;
 
 INSERT INTO chado.cvterm
@@ -117,8 +135,49 @@ VALUES
 
   ((SELECT cv_id FROM cv WHERE name='local'),
    'Has OBO Term', 'Indicates that a formal OBO term is associated with this class', 
-   (SELECT dbxref_id FROM dbxref WHERE accession='has_obo_term'))
+   (SELECT dbxref_id FROM dbxref WHERE accession='has_obo_term')),
+   
 
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'Source Description', 'Description of the marker source.', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='source_description')),
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'Source Marker', 'Name of marker this marker was developed from (e.g. an aflp)', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='source_marker')),
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'Repeat Motif', 'The repeat motif, described in PROSITE syntax', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='repeat_motif')),
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'Restriction Enzyme', 'Restriction Enzyme used to create marker', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='restriction_enzyme')),
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'Product Length', '', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='product_length')),
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'Max Length', '', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='max_length')),
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'Min Length', '', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='min_length')),
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'PCR Condition', '', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='PCR_condition')),
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'Sequence Name', 'Name of the marker sequence, if different than marker name or accession', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='sequence_name')),
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'SNP Alleles', 'SNP alleles in the form A/T', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='SNP_alleles')),
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'SNP 5-prime Flanking Sequence', 'Upstream flanking sequence for SNP.', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='SNP_five_prime_flanking_sequence')),
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'SNP 3-prime Flanking Sequence', 'Downstream flanking sequence for SNP', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='SNP_three_prime_flanking_sequence')),
+
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'Canonical Marker', 'Official marker (determined by curator)', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='canonical_marker'))
 ;
 
 

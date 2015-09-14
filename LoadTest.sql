@@ -168,8 +168,145 @@ order by lg.name;
 -- MARKERS -------------------------------------------------------------------
 ------------------------------------------------------------------------------
 
+-- Check markers linked to canonical markers:
+SELECT cmarker, array_agg(marker) AS markers
+FROM (
+  SELECT f.name AS cmarker, m.name AS marker 
+   FROM feature f
+    INNER JOIN featureprop fp ON fp.feature_id=f.feature_id
+    INNER JOIN feature_relationship fr 
+      ON fr.object_id=f.feature_id 
+        AND fr.type_id=(SELECT cvterm_id FROM cvterm WHERE name='instance_of')
+    INNER JOIN feature m ON m.feature_id=fr.subject_id
+  WHERE fp.type_id=(SELECT cvterm_id FROM cvterm WHERE name='Canonical Marker')
+  GROUP BY f.name, m.name
+  ) a
+GROUP BY cmarker
+;
+
+-- Get all markers and synonyms linked to canonical markers:
+SELECT * FROM (
+  SELECT cmarker, cmarker_id, array_agg(marker) AS markers, array_agg(marker_id) AS marker_ids
+  FROM (
+    SELECT f.name AS cmarker, f.feature_id AS cmarker_id, m.name AS marker, m.feature_id AS marker_id 
+     FROM feature f
+      INNER JOIN featureprop fp ON fp.feature_id=f.feature_id
+      INNER JOIN feature_relationship fr 
+        ON fr.object_id=f.feature_id 
+          AND fr.type_id=(SELECT cvterm_id FROM cvterm WHERE name='instance_of')
+      INNER JOIN feature m ON m.feature_id=fr.subject_id
+    WHERE fp.type_id=(SELECT cvterm_id FROM cvterm WHERE name='Canonical Marker')
+    GROUP BY f.name, f.feature_id, m.name, m.feature_id
+    ) a
+  GROUP BY cmarker, cmarker_id
+  ) mrkrs
+  LEFT OUTER JOIN feature_synonym fs 
+    ON fs.feature_id=mrkrs.cmarker_id 
+       OR fs.feature_id=any(marker_ids)
+;
+
+-- Get all markers that are not canonical or linked
+  SELECT f.name AS cmarker, f.feature_id AS cmarker_id, '{}' AS markers, '{}' AS marker_ids 
+  FROM feature f
+    LEFT OUTER JOIN feature_relationship fr ON fr.subject_id=f.feature_id
+    LEFT OUTER JOIN featureprop fp 
+      ON fp.feature_id=f.feature_id 
+         AND fp.type_id=(SELECT cvterm_id FROM cvterm WHERE name='Canonical Marker')
+  WHERE f.type_id=(SELECT cvterm_id FROM cvterm WHERE name='genetic_marker')
+        AND fr.subject_id IS NULL
+        AND fp.feature_id IS NULL
+ 
+-- All marker synonyms
+SELECT s.name FROM feature_synonym fs
+  INNER JOIN feature f ON f.feature_id=fs.feature_id
+  INNER JOIN synonym s ON s.synonym_id=fs.synonym_id
+WHERE f.type_id=(SELECT cvterm_id FROM cvterm WHERE name='genetic_marker')
+;
+
+-- Find a marker by name:
+CREATE TABLE marker_search
+SELECT * FROM
+(
+  SELECT cmarker, cmarker_id, nid, ARRAY_AGG(marker) AS markers, 
+         ARRAY_AGG(marker_id) AS marker_ids, ARRAY_AGG(synonym) AS synonyms
+  FROM (
+    SELECT f.name AS cmarker, f.feature_id AS cmarker_id, cf.nid,
+           m.name AS marker, m.feature_id AS marker_id, s.name AS synonym 
+     FROM feature f
+      INNER JOIN public.chado_feature cf ON cf.feature_id=f.feature_id
+      LEFT OUTER JOIN featureprop fp ON fp.feature_id=f.feature_id
+      LEFT OUTER JOIN feature_relationship fr 
+        ON fr.object_id=f.feature_id 
+          AND fr.type_id=(SELECT cvterm_id FROM cvterm 
+                          WHERE name='instance_of'
+                                AND cv_id=(SELECT cv_id FROM cv 
+                                           WHERE name='relationship'))
+      LEFT OUTER JOIN feature m ON m.feature_id=fr.subject_id
+      LEFT OUTER JOIN feature_synonym fs 
+        ON fs.feature_id=f.feature_id OR fs.feature_id=m.feature_id
+      LEFT OUTER JOIN synonym s on s.synonym_id=fs.synonym_id
+    WHERE f.type_id=(SELECT cvterm_id FROM cvterm 
+                     WHERE name='genetic_marker'
+                           AND cv_id=(SELECT cv_id FROM cv WHERE name='sequence'))
+          AND fp.type_id=(SELECT cvterm_id FROM cvterm WHERE name='Canonical Marker')
+    GROUP BY f.name, f.feature_id, cf.nid, m.name, m.feature_id, s.name
+    ) a
+  GROUP BY cmarker, cmarker_id, nid
+
+  UNION
+
+  SELECT f.name AS cmarker, f.feature_id AS cmarker_id, '{}' AS markers, 
+         '{}' AS marker_ids, ARRAY_AGG(s.name) AS synonyms 
+  FROM feature f
+    LEFT OUTER JOIN feature_relationship fr ON fr.subject_id=f.feature_id
+    LEFT OUTER JOIN featureprop fp 
+      ON fp.feature_id=f.feature_id 
+         AND fp.type_id=(SELECT cvterm_id FROM cvterm WHERE name='Canonical Marker')
+    LEFT OUTER JOIN feature_synonym fs ON fs.feature_id=f.feature_id
+    LEFT OUTER JOIN synonym s on s.synonym_id=fs.synonym_id
+  WHERE f.type_id=(SELECT cvterm_id FROM cvterm WHERE name='genetic_marker')
+        AND fr.subject_id IS NULL
+        AND fp.feature_id IS NULL
+  GROUP BY f.name, f.feature_id
+) mrkrs
+WHERE cmarker='pPGSseq11F12' 
+      OR 'pPGSseq11F12' = ANY(markers)
+      OR 'pPGSseq11F12' = ANY(synonyms)
+;
+
+--Get all maps associated with any marker
+SELECT cmarker, ARRAY_AGG(fm.name) AS maps, ARRAY_AGG(fm.featuremap_id) AS map_ids
+ FROM marker_search ms
+  INNER JOIN featurepos pos 
+    ON pos.feature_id=ms.cmarker_id OR pos.feature_id=ANY(ms.marker_ids)
+  INNER JOIN featuremap fm ON fm.featuremap_id=pos.featuremap_id
+GROUP BY cmarker
+ORDER BY cmarker
+;
+
+--Get all properties associated with any marker
+SELECT cmarker, ARRAY_AGG(fp.value) AS props, ARRAY_AGG(c.name) AS prop_types
+FROM marker_search ms
+  LEFT OUTER JOIN featureprop fp 
+    ON fp.feature_id=ms.cmarker_id OR fp.feature_id=ANY(marker_ids)
+  LEFT OUTER JOIN cvterm c ON c.cvterm_id=fp.type_id
+GROUP BY cmarker
+;
+
+--Get all primers associated with any marker
+SELECT ms.cmarker, p.name, p.residues FROM marker_search ms
+  INNER JOIN feature_relationship fr 
+    ON (fr.object_id=ms.cmarker_id OR fr.object_id=ANY(ms.marker_ids))
+  INNER JOIN feature p ON p.feature_id=fr.subject_id
+       AND p.type_id=(SELECT cvterm_id FROM cvterm 
+                      WHERE name='primer'AND cv_id=(SELECT cv_id FROM cv 
+                                                    WHERE name='sequence'))
+;
 
 
+
+
+-- OLD
 select mk.name, o.genus || ' ' || o.species as species, pdbxref.accession as genbank,
        alt.name as alt_name, mt.value as marker_type, lg.name as lg, p.mappos as pos 
 from feature mk

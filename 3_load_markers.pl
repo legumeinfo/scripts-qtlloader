@@ -15,6 +15,15 @@
 #
 # history:
 #  05/28/13  eksc  created
+#  09/08/15  eksc  modified for pre-v2 worksheet design
+
+# Rules:
+#   primerx columns must start with 1 and be in numerical order
+#   probex columns must start with 1 and be in numerical order
+#   database/accession_database value must correspond to a db record
+#   primer names must be unique (should marker and primer names be case-sensitive?)
+#   check for duplicate names already loaded, using a near match rule too, need
+#     to allow curator to mark one canonical.
 
 
   use strict;
@@ -38,28 +47,12 @@ EOS
     die $warn;
   }
   
-  
-  #######################################################################################
-  # IMPORTANT NOTE: as functionality is added, make sure it is reflected in 
-  #                 the scripts 0_verifyWorksheets.pl, deletePubData.pl, 
-  #                 and dumpSpreadsheet.pl.
-  
-  print "warning: this script has not been fully implemented and/or tested to handle:\n";
-  print "  > physicial positions\n";
-  print "  > updating existing records\n";
-#  my $userinput =  <STDIN>;
-
-  ########################################################################################
-  
-  
   my $input_dir = @ARGV[0];
   my @filepaths = <$input_dir/*.txt>;
   my %files = map { s/$input_dir\/(.*)$/$1/; $_ => 1} @filepaths;
   
   # get worksheet contants
   my %mki  = getSSInfo('MARKERS');
-  my %mpi  = getSSInfo('MARKER_POSITION');
-  my %msi  = getSSInfo('MARKER_SEQUENCE');
 
   # Used all over
   my ($table_file, $sql, $sth, $row, $count, @records, @fields, $cmd, $rv);
@@ -67,9 +60,6 @@ EOS
 
   my $dataset_name = 'markers';
     
-  # Holds markers that are already in db; assume they should be updated
-  my %existing_markers;
-
   # Get connected
   my $dbh = connectToDB;
 
@@ -78,10 +68,16 @@ EOS
   $sth = $dbh->prepare($sql);
   $sth->execute();
 
+  # Holds markers that are already in db; assume they should be updated if
+  #   any of these appear in the worksheet.
+  my %existing_markers = getExistingMarkers($dbh);
+  
+  # keeps track of markers already seen in worksheet.
+  my %markers_in_ws;
+
   # Use a transaction so that it can be rolled back if there are any errors
   eval {
     loadMarkers($dbh);
-    loadMarkerSequence($dbh);
   
     $dbh->commit;   # commit the changes if we get this far
   };
@@ -129,31 +125,26 @@ sub loadMarkers {
     
     my $marker_id;
     my $species = $fields->{$mki{'species_fld'}};
-    my $marker_name = $fields->{$mki{'marker_name_fld'}};
+    my $marker_name = $fields->{$mki{'marker_identifier_fld'}};
     my $unique_marker_name = makeMarkerName($species, $marker_name);
-    my $marker_citation = $fields->{$mki{'marker_citation_fld'}};
-#print "$line_count: handle marker $marker_name\n";
+    my $marker_citation = $fields->{$mki{'pub_fld'}};
+print "\n$line_count: handle marker $marker_name as described by $marker_citation\n";
     
-    # likely to be duplicates that haven't been cleaned out of the spreadsheet
-    if ($existing_markers{$marker_name}) {
-# for expediency, just skip all of these for now.
-#      print "$line_count: The marker $marker_name has already been "
-#            . "loaded from this spreadsheet. Skip or update? (u/s/q)\n";
-#      my $userinput =  <STDIN>;
-#      chomp ($userinput);
-#      if ($userinput eq 's') {
+    if ($markers_in_ws{$marker_name}) {
+      print "$line_count: The marker $marker_name has already been "
+            . "loaded from this spreadsheet. Skip or update? (u/s/q)\n";
+      my $userinput =  <STDIN>;
+      chomp ($userinput);
+      if ($userinput eq 's') {
         next;
-#     }
-#     elsif ($userinput eq 'q') {
-#       exit;
-#     }
+      }
+      elsif ($userinput eq 'q') {
+        exit;
+      }
     }#already loaded from spreadsheet
     
-    elsif ($marker_id=markerExists($dbh, $unique_marker_name, $species)) {
+    elsif ($marker_id=$existing_markers{$unique_marker_name}) {
       
-      # need this here (it already exists)
-      $existing_markers{$marker_name} = $species;
-
       if ($skip_all) {
         next;
       }
@@ -164,77 +155,58 @@ sub loadMarkers {
           next;
         }
       }
+      
+      clearMarkerDependancies($dbh, $marker_id);
     }#marker already exists
 
-    # specieslink_abv, marker_name, source_sequence: feature
+    # specieslink_abv, marker_name, marker_sequence
     $marker_id = setMarkerRec($dbh, $marker_id, $fields);
     
-    # Genbank_accession (if any)
-    my $primary_dbxref_id = setFeatureDbxref($dbh, $marker_id, $mki{'accession_fld'}, 'genbank:nuccore', $fields);
+    # database, database_accession
+    my $primary_dbxref_id 
+      = setFeatureDbxref($dbh, $marker_id, $mki{'db_accession_fld'}, 
+                         $fields->{$mki{'database_fld'}}, $fields);
     
-    # Synonyms
-    attachSynonyms($dbh, $marker_id, $mki{'alt_name_fld'}, $marker_citation, $fields);
-    
-    # assembly_name, phys_chr, phys_start: featureloc
-    setPhysicalPosition($dbh, $marker_id, $fields);
-    
-    # Attaching the pub to marker
-    
+    # marker_citation
     linkPubFeature($dbh, $marker_id, $marker_citation);
     
-    # marker_type and comment (marker comments are rank=1)
-    setFeatureprop($dbh, $marker_id, $mki{'marker_type_fld'}, 'Marker Type', 1, $fields);
-    setFeatureprop($dbh, $marker_id, $mki{'comment_fld'}, 'comment', 1, $fields);
+    # alias, source_publication_marker_name
+    if ($fields->{$mki{'alias_fld'}} ne $marker_name) {
+      attachSynonyms($dbh, $marker_id, $mki{'alias_fld'}, $marker_citation, $fields);
+    }
+    if ($fields->{$mki{'pub_marker_name_fld'}} ne $marker_name) {
+      attachSynonyms($dbh, $marker_id, $mki{'pub_marker_name_fld'}, $marker_citation, $fields);
+    }
     
-    # add need this here (NOW it exists if it didn't already)
-    $existing_markers{$marker_name} = $species;
+    # marker_type
+    setMarkerType($dbh, $marker_id, $fields->{$mki{'marker_type_fld'}}, $marker_citation);
+    
+    # primer*_name, primer*_seq
+    loadPrimers($dbh, $marker_id, $marker_name, $species, $fields);
+
+    # SSR_repeat_motif, source_description, restriction_enzyme, product_length, 
+    #   max_length, min_length, PCR_condition, sequence_name, marker_source, 
+    #   SNP_alleles, SNP_five_prime_flanking_sequence, 
+    #   SNP_three_prime_flanking_sequence, comment
+    setFeatureprop($dbh, $marker_id, $mki{'src_descr_fld'},             'Source Description', 1, $fields);
+    setFeatureprop($dbh, $marker_id, $mki{'repeat_motif_fld'},          'Repeat Motif', 1, $fields);
+    setFeatureprop($dbh, $marker_id, $mki{'sequence_name_fld'},         'Sequence Name', 1, $fields);
+    setFeatureprop($dbh, $marker_id, $mki{'restriction_enzyme_fld'},    'Restriction Enzyme', 1, $fields);
+    setFeatureprop($dbh, $marker_id, $mki{'product_length_fld'},        'Product Length', 1, $fields);
+    setFeatureprop($dbh, $marker_id, $mki{'max_length_fld'},            'Max Length', 1, $fields);
+    setFeatureprop($dbh, $marker_id, $mki{'min_length_fld'},            'Min Length', 1, $fields);
+    setFeatureprop($dbh, $marker_id, $mki{'PCR_condition_fld'},         'PCR Condition', 1, $fields);
+    setFeatureprop($dbh, $marker_id, $mki{'SNP_alleles_fld'},           'SNP Alleles', 1, $fields);
+    setFeatureprop($dbh, $marker_id, $mki{'SNP_5_prime_flank_seq_fld'}, 'SNP 5-prime Flanking Sequence', 1, $fields);
+    setFeatureprop($dbh, $marker_id, $mki{'SNP_3_prime_flank_seq_fld'}, 'SNP 3-prime Flanking Sequence', 1, $fields);
+    setFeatureprop($dbh, $marker_id, $mki{'comment_fld'},               'comment', 1, $fields);
+    
+    # assembly_name, phys_chr, phys_start: featureloc
+    setPhysicalPosition($dbh, $marker_id, $fields);    
   }#each record
   
   print "\n\nLoaded $line_count markers.\n\n";
 }#loadMarkers
-
-
-sub loadMarkerSequence {
-  my $dbh = $_[0];
-  
-  my ($fields, $sql, $sth, $row, $msg);
-  my ($skip, $skip_all, $update, $update_all);
-
-  $table_file = "$input_dir/MARKER_SEQUENCE.txt";
-  print "Loading/verifying $table_file...\n";
-  
-  @records = readFile($table_file);
-  $line_count = 0;
-  
-  print "\nLoading " . (scalar @records) . " marker sequence records...\n";
-  
-  foreach $fields (@records) {
-    $line_count++;
-    
-    my $marker_name = $fields->{$msi{'marker_name_fld'}};
-#print "$line_count: handle sequence for $marker_name\n";
-
-    # If this marker has not been loaded already, skip it
-    if (!$existing_markers{$marker_name}) {
-      print "skipping sequence data marker $marker_name because it doesn't exist\n";
-      next;
-    }#no marker record
-
-    my $species = $existing_markers{$marker_name};
-    my $unique_marker_name = makeMarkerName($species, $marker_name);
-    my $marker_id = markerExists($dbh, $unique_marker_name, $species);
-    
-    setMarkerSequence($dbh, $marker_id, $fields);
-    
-    # sequence_type and comment (marker-sequence comments are rank=2)
-    setFeatureprop($dbh, $marker_id, $msi{'sequence_type_fld'}, 'Sequence Type', 1, $fields);
-    setFeatureprop($dbh, $marker_id, $msi{'comment_fld'}, 'comment', 2, $fields);
-
-    # forward_primer, reverse_primer
-    loadPrimers($dbh, $marker_id, $marker_name, $species, $fields);
-
-  }#each record
-}#loadMarkerSequence
 
 
 ################################################################################
@@ -305,21 +277,108 @@ sub attachSynonyms {
 }#attachSynonyms
 
 
+sub clearMarkerDependancies {
+  my ($dbh, $marker_id) = @_;
+  
+  my ($sql, $sth);
+  
+  # delete dbxrefs (e.g. CMap link)
+  $sql = "
+    DELETE FROM dbxref 
+    WHERE dbxref_id IN (SELECT dbxref_id FROM feature_dbxref 
+                        WHERE feature_id=$marker_id)";
+  logSQL($dataset_name, $sql);
+  $sth = doQuery($dbh, $sql);
+  
+  $sql = "
+    DELETE FROM feature_dbxref WHERE feature_id=$marker_id";
+  logSQL($dataset_name, $sql);
+  $sth = doQuery($dbh, $sql);
+
+  # delete pub link (but not pub)
+  $sql = "
+    DELETE FROM feature_pub WHERE feature_id=$marker_id";
+  logSQL($dataset_name, $sql);
+  $sth = doQuery($dbh, $sql);
+
+  # delete synonyms
+  $sql = "
+    DELETE FROM synonym 
+    WHERE synonym_id IN (SELECT synonym_id FROM feature_synonym 
+                         WHERE feature_id=$marker_id)";
+  logSQL($dataset_name, $sql);
+  $sth = doQuery($dbh, $sql);
+
+  # delete feature_cvterm (marker type)
+  $sql = "
+    DELETE FROM feature_cvterm WHERE feature_id=$marker_id";
+  logSQL($dataset_name, $sql);
+  $sth = doQuery($dbh, $sql);
+
+  # delete featureprops
+  $sql = "
+    DELETE FROM featureprop WHERE feature_id=$marker_id";
+  logSQL($dataset_name, $sql);
+  $sth = doQuery($dbh, $sql);
+    
+  # delete featureloc (physical position)
+  $sql = "
+    DELETE FROM featureloc WHERE feature_id=$marker_id";
+  logSQL($dataset_name, $sql);
+  $sth = doQuery($dbh, $sql);
+}#clearMarkerDependancies
+
+
+sub getExistingMarkers {
+  my $dbh = $_[0];
+  
+  my %markers;
+  my $sql = "
+    SELECT feature_id, name FROM feature 
+    WHERE type_id=(SELECT cvterm_id FROM cvterm 
+                   WHERE name='genetic_marker' AND cv_id=(SELECT cv_id FROM cv 
+                                                          WHERE name='sequence'))";
+  logSQL($dataset_name, $sql);
+  my $sth = doQuery($dbh, $sql);
+  while (my $row=$sth->fetchrow_hashref) {
+    $markers{$row->{'name'}} = $row->{'feature_id'};
+  }
+  
+  return %markers;
+}#getExistingMarkers
+
+
+sub linkPubFeature {
+  my ($dbh, $marker_id, $marker_citation) = @_;
+  
+  $sql = "
+  INSERT INTO chado.feature_pub 
+    (feature_id, pub_id)
+  VALUES
+    ($marker_id,
+    (SELECT pub_id FROM chado.pub WHERE uniquename = '$marker_citation'))";
+  logSQL($dataset_name, $sql);
+  doQuery($dbh, $sql);
+}#linkPubFeature
+
+
 sub loadPrimers {
   my ($dbh, $marker_id, $marker_name, $species, $fields) = @_;
   my ($sequence, $seqlen, $msg, $row, $sth, $sql);
   
-  loadPrimer($dbh, $marker_id, $marker_name, $species, 'forward_primer', 
-             $msi{'forward_primer_seq_fld'}, $msi{'forward_primer_name_fld'}, 
-             $fields);
-  loadPrimer($dbh, $marker_id, $marker_name, $species, 'reverse_primer', 
-             $msi{'reverse_primer_seq_fld'}, $msi{'reverse_primer_name_fld'}, 
-             $fields);
+  my $primer_num = 1;
+  while ($fields->{"primer$primer_num" . "_name"} || $fields->{"primer$primer_num" . "_seq"}) {
+    my $primer_name_fld = "primer$primer_num" . "_name";
+    my $primer_seq_fld = "primer$primer_num" . "_seq";
+    loadPrimer($dbh, $marker_id, $marker_name, $species, 'primer', $primer_num,
+               $primer_seq_fld, $primer_name_fld, $fields);
+    $primer_num++;
+  }#each primer
 }#loadPrimers
 
 
 sub loadPrimer {
-  my ($dbh, $marker_id, $marker_name, $species, $primer_type, 
+  my ($dbh, $marker_id, $marker_name, $species, $primer_type, $primer_num,
       $seq_field, $name_field, $fields) = @_;
   
   my $organism_id = getOrganismID($dbh, $species, $line_count);
@@ -328,13 +387,12 @@ sub loadPrimer {
     my $sequence = $fields->{$seq_field};
     my $seqlen = length($sequence);
     
-    my $primer_name;
-    if (isFieldSet($fields, $name_field)) {
-      $primer_name = $fields->{$name_field};
-    }
-    else {
-      my $primer_suffix = ($primer_type eq 'forward_primer') ? 'fprimer' : 'rprimer';
-      $primer_name = "$marker_name.$primer_suffix";
+    my $primer_name = (isFieldSet($fields, $name_field)) 
+        ? $fields->{$name_field}
+        : $fields->{$mki{'pub_marker_name_fld'}};
+    if (lc($fields->{$name_field}) eq lc($marker_name)
+          || lc($fields->{$name_field}) eq lc($fields->{$mki{'pub_marker_name_fld'}})) {
+      $primer_name = "$primer_name.p$primer_num";
     }
     my $unique_primer_name = makeMarkerName($species, $primer_name);
     
@@ -364,25 +422,11 @@ sub loadPrimer {
     my $subject_id = $row->{'feature_id'};
         
     #linking the marker with its related features
-    setFeatureRelationship($dbh, $marker_id, $subject_id, $primer_type); 
+    setFeatureRelationship($dbh, $marker_id, $subject_id, 'relationship'); 
   }#primer provided in worksheet
 }#loadPrimer
 
-sub setFeatureRelationship {
-  my ($dbh, $object_id, $subject_id, $primer_type) = @_;
-  $sql = "
-        INSERT INTO feature_relationship
-           (subject_id, object_id, type_id)
-        VALUES
-           ($subject_id, $object_id,
-           (SELECT cvterm_id FROM cvterm
-              WHERE name = '$primer_type'
-              AND cv_id = (SELECT cv_id FROM cv WHERE name = 'sequence'))
-           )";
-  logSQL($dataset_name, $sql);
-  doQuery($dbh, $sql);
-}# setFeatureRelationship
-    
+
 sub primerExists {
   my ($organism_id, $uniquename, $type) = @_;
   my ($sql, $sth, $row);
@@ -405,30 +449,53 @@ sub primerExists {
   $sth->finish;
 }#primerExists
 
+
+# TODO: should be in GP lib
+sub setFeatureRelationship {
+  my ($dbh, $object_id, $subject_id, $relationship_type) = @_;
+  $sql = "
+        INSERT INTO feature_relationship
+           (subject_id, object_id, type_id)
+        VALUES
+           ($subject_id, $object_id,
+           (SELECT cvterm_id FROM cvterm
+              WHERE name = '$relationship_type'
+              AND cv_id = (SELECT cv_id FROM cv WHERE name = 'relationship'))
+           )";
+  logSQL($dataset_name, $sql);
+  doQuery($dbh, $sql);
+}# setFeatureRelationship
+    
+    
 sub setMarkerRec {
   my ($dbh, $marker_id, $fields) = @_;
   my ($sql, $sth, $row);
   
+  # TODO: The official data dictionary splits this into genus/species
   my $species = $fields->{$mki{'species_fld'}};
-  my $marker_name = $fields->{$mki{'marker_name_fld'}};
+  
+  my $marker_name = $fields->{$mki{'marker_identifier_fld'}};
   my $unique_marker_name = makeMarkerName($species, $marker_name);
+  
+  my $sequence = $fields->{$mki{'sequence_fld'}};
+  my $seqlen = length($sequence);
 
   my $organism_id = getOrganismID($dbh, $fields->{$mki{'species_fld'}}, $line_count);
   
-  if ($existing_markers{$marker_name}) {
-    #my $dbxref_clause = ($primary_dbxref_id) ? "dbxref_id = $primary_dbxref_id," : '';
+  if ($marker_id) {
     $sql = "
       UPDATE chado.feature SET
         organism_id=$organism_id,
         name='$marker_name',
-        uniquename='$unique_marker_name'
+        uniquename='$unique_marker_name',
+        residues='$sequence',
+        seqlen=$seqlen
       WHERE feature_id=$marker_id";
   }
   else {
-    #my $dbxref = ($primary_dbxref_id) ? $primary_dbxref_id : 'NULL';
     $sql = "
       INSERT INTO chado.feature
-        (organism_id, name, uniquename, type_id)
+        (organism_id, name, uniquename, type_id, residues, seqlen)
       VALUES
         ($organism_id, 
          '$marker_name', 
@@ -436,6 +503,8 @@ sub setMarkerRec {
          (SELECT cvterm_id FROM chado.cvterm 
           WHERE name='genetic_marker'
             AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='sequence'))
+         '$sequence',
+         $seqlen
         )
        RETURNING feature_id";
   }
@@ -447,38 +516,40 @@ sub setMarkerRec {
     $marker_id = $row->{'feature_id'};
   }
   $sth->finish;
+
   return $marker_id;
 }#setMarkerRec
 
-sub linkPubFeature {
-      my ($dbh, $marker_id, $marker_citation) = @_;
-      
-      $sql = "
-      INSERT INTO chado.feature_pub (feature_id, pub_id)
-      VALUES
-      ($marker_id,
-      (SELECT pub_id FROM chado.pub WHERE uniquename = '$marker_citation'))";
-      logSQL($dataset_name, $sql);
-      doQuery($dbh, $sql);
-}#linkPubFeature
 
-sub setMarkerSequence {
-  my ($dbh, $marker_id, $fields) = @_;
-  my ($sql, $sth);
-
-  if (isFieldSet($fields, $msi{'marker_sequence_fld'})) {
-    my $sequence = $fields->{$msi{'marker_sequence_fld'}};
-    my $seqlen = length($sequence);
-   
-    $sql = "
-      UPDATE chado.feature SET
-        residues='$sequence',
-        seqlen=$seqlen
-      WHERE feature_id=$marker_id";
-    logSQL($dataset_name, $sql);
-    doQuery($dbh, $sql);
+sub setMarkerType {
+  my ($dbh, $marker_id, $marker_type, $marker_citation) = @_;
+  
+  # Look for marker type in SO or 'local' ontology.
+  my $sql = "
+    SELECT cvterm_id FROM cvterm 
+    WHERE name='$marker_type' 
+          AND cv_id in (SELECT cv_id FROM cv WHERE name IN ('sequence', 'local'))";
+  my $sth = doQuery($dbh, $sql);
+  my $marker_type_id;
+  if (my $row=$sth->fetchrow_hashref) {
+    $marker_type_id = $row->{'cvterm_id'};
   }
-}#setMarkerSequence
+  else {
+    print "ERROR: unable to find marker type $marker_type in the SO\n";
+    return 0;
+  }
+  
+  # Attach as feature_cvterm record
+  $sql = "
+    INSERT INTO feature_cvterm
+      (feature_id, cvterm_id, pub_id)
+    VALUES
+      ($marker_id, $marker_type_id,
+       (SELECT pub_id FROM chado.pub WHERE uniquename = '$marker_citation'))";
+  $sth = doQuery($dbh, $sql);
+  
+  return 1;
+}#setMarkerType
 
 
 sub setPhysicalPosition {
@@ -521,51 +592,4 @@ exit;
   }#physical position information provided
 
 }#setPhysicalPosition
-
-
-sub setPrimaryDbxref {
-  my ($dbh, $fields, $dbname) = @_;
-  my ($sql, $sth, $row);
-  
-  my $primary_dbxref_id = 0;
-  if (isFieldSet($fields, $mki{'Genbank_acc_fld'})) {
-    my $acc = $fields->{$mki{'Genbank_acc_fld'}};
-    # Only load if not already in db
-    if (!($primary_dbxref_id = dbxrefExists($dbh, $dbname, $acc))) {
-      $sql = "
-        INSERT INTO chado.dbxref
-          (db_id, accession)
-        VALUES
-          ((SELECT db_id FROM chado.db 
-            WHERE name='$fields->{'sequence_source'}'),
-           '$fields->{'sequence_id'}')
-        RETURNING dbxref_id";
-      logSQL($dataset_name, $sql);
-      $sth = doQuery($dbh, $sql);
-      $row = $sth->fetchrow_hashref;
-      $primary_dbxref_id = $row->{'dbxref_id'};
-      $sth->finish;
-    }#dbxref doesn't already exist
-  }#primary source fields are set
-  
-  return $primary_dbxref_id;
-}#setPrimaryDbxref
-
-
-sub setSequence {
-  my ($dbh, $marker_id, $fieldname, $dbname, $fields) = @_;
-  
-  my $sequence = 'NULL';
-  my $seqlen  = 'NULL';
-  if (isFieldSet($fields, $mki{'sequence_fld'})) {
-    $sequence = qw($fields->{$mki{'sequence_fld'}});
-    $seqlen = length($sequence);
-  }
-  
-  $sql = "
-    UPDATE chado.feature SET
-      residues=$sequence
-      seqlen=$seqlen
-    WHERE feature_id=$marker_id";
-}#setSequence
 
