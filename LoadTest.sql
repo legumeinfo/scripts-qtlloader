@@ -224,17 +224,23 @@ WHERE f.type_id=(SELECT cvterm_id FROM cvterm WHERE name='genetic_marker')
 ;
 
 -- Find a marker by name:
-CREATE TABLE marker_search
+DROP TABLE IF EXISTS marker_search;
+CREATE TABLE marker_search AS
 SELECT * FROM
 (
-  SELECT cmarker, cmarker_id, nid, ARRAY_AGG(marker) AS markers, 
-         ARRAY_AGG(marker_id) AS marker_ids, ARRAY_AGG(synonym) AS synonyms
+  SELECT organism, organism_nid, cmarker, cmarker_id, cmarker_nid, 
+         ARRAY_TO_STRING(ARRAY_AGG(marker), ',') AS markers, 
+         ARRAY_TO_STRING(ARRAY_AGG(marker_id), ',') AS marker_ids, 
+         ARRAY_TO_STRING(ARRAY_AGG(synonym), ',') AS synonyms
   FROM (
-    SELECT f.name AS cmarker, f.feature_id AS cmarker_id, cf.nid,
+    SELECT o.genus || ' ' || o.species as organism, co.nid AS organism_nid, 
+           f.name AS cmarker, f.feature_id AS cmarker_id, cf.nid AS cmarker_nid,
            m.name AS marker, m.feature_id AS marker_id, s.name AS synonym 
-     FROM feature f
+    FROM feature f
       INNER JOIN public.chado_feature cf ON cf.feature_id=f.feature_id
-      LEFT OUTER JOIN featureprop fp ON fp.feature_id=f.feature_id
+      INNER JOIN featureprop fp ON fp.feature_id=f.feature_id
+      INNER JOIN organism o ON o.organism_id=f.organism_id
+      INNER JOIN public.chado_organism co ON co.organism_id=o.organism_id
       LEFT OUTER JOIN feature_relationship fr 
         ON fr.object_id=f.feature_id 
           AND fr.type_id=(SELECT cvterm_id FROM cvterm 
@@ -249,15 +255,19 @@ SELECT * FROM
                      WHERE name='genetic_marker'
                            AND cv_id=(SELECT cv_id FROM cv WHERE name='sequence'))
           AND fp.type_id=(SELECT cvterm_id FROM cvterm WHERE name='Canonical Marker')
-    GROUP BY f.name, f.feature_id, cf.nid, m.name, m.feature_id, s.name
     ) a
-  GROUP BY cmarker, cmarker_id, nid
+  GROUP BY organism, organism_nid, cmarker, cmarker_id, cmarker_nid
 
   UNION
 
-  SELECT f.name AS cmarker, f.feature_id AS cmarker_id, '{}' AS markers, 
-         '{}' AS marker_ids, ARRAY_AGG(s.name) AS synonyms 
+  SELECT  o.genus || ' ' || o.species as organism, co.nid AS organism_nid,
+          f.name AS cmarker, f.feature_id AS cmarker_id, cf.nid AS cmarker_nid, 
+         '' AS markers, '' AS marker_ids, 
+         ARRAY_TO_STRING(ARRAY_AGG(s.name), ',') AS synonyms 
   FROM feature f
+    INNER JOIN public.chado_feature cf ON cf.feature_id=f.feature_id
+    INNER JOIN organism o ON o.organism_id=f.organism_id
+    INNER JOIN public.chado_organism co ON co.organism_id=o.organism_id
     LEFT OUTER JOIN feature_relationship fr ON fr.subject_id=f.feature_id
     LEFT OUTER JOIN featureprop fp 
       ON fp.feature_id=f.feature_id 
@@ -267,11 +277,13 @@ SELECT * FROM
   WHERE f.type_id=(SELECT cvterm_id FROM cvterm WHERE name='genetic_marker')
         AND fr.subject_id IS NULL
         AND fp.feature_id IS NULL
-  GROUP BY f.name, f.feature_id
+  GROUP BY o.genus, o.species, co.nid, f.name, f.feature_id, cf.nid
 ) mrkrs
+
+
 WHERE cmarker='pPGSseq11F12' 
-      OR 'pPGSseq11F12' = ANY(markers)
-      OR 'pPGSseq11F12' = ANY(synonyms)
+      OR markers LIKE '%pPGSseq11F12%'
+      OR synonyms LIKE '%pPGSseq11F12%'
 ;
 
 --Get all maps associated with any marker
