@@ -136,13 +136,13 @@ sub getSSInfo {
   elsif ($ss eq 'MARKERS') {
     return (
       'worksheet'                 => 'MARKER',
-      'marker_identifier_fld'     => 'marker_name',
+      'marker_identifier_fld'     => 'marker_identifier',
       'marker_type_fld'           => 'marker_type',
       'alias_fld'                 => 'alias',              # not in our data
       'pub_marker_name_fld'       => 'source_publication_marker_name',
-      'pub_fld'                   => 'marker_citation',
+      'pub_fld'                   => 'publication_identifier',
       'species_fld'               => 'specieslink_abv',    # may be separated into genus/species
-      'src_descr_fld'             => 'marker_stock',
+      'src_descr_fld'             => 'source_description',
       'src_marker_fld'            => 'source_marker',
       'repeat_motif_fld'          => 'SSR_repeat_motif',
       'db_accession_fld'          => 'accession',
@@ -1096,6 +1096,7 @@ sub setFeatureDbxref {
 sub setFeatureprop {
   my ($dbh, $feature_id, $fieldname, $typename, $rank, $fields) = @_;
   my ($sql, $sth, $row);
+print "Set $typename for $fieldname: [" . $fields->{$fieldname} . "]\n";
   if (isFieldSet($fields, $fieldname)) {
     my $value = $dbh->quote($fields->{$fieldname});
     

@@ -188,6 +188,7 @@ print "\n$line_count: handle marker $marker_name as described by $marker_citatio
     #   max_length, min_length, PCR_condition, sequence_name, marker_source, 
     #   SNP_alleles, SNP_five_prime_flanking_sequence, 
     #   SNP_three_prime_flanking_sequence, comment
+#TODO: marker_stock needs to be species
     setFeatureprop($dbh, $marker_id, $mki{'src_descr_fld'},             'Source Description', 1, $fields);
     setFeatureprop($dbh, $marker_id, $mki{'repeat_motif_fld'},          'Repeat Motif', 1, $fields);
     setFeatureprop($dbh, $marker_id, $mki{'sequence_name_fld'},         'Sequence Name', 1, $fields);
@@ -478,7 +479,7 @@ sub setMarkerRec {
   my $unique_marker_name = makeMarkerName($species, $marker_name);
   
   my $sequence = $fields->{$mki{'sequence_fld'}};
-  my $seqlen = length($sequence);
+  my $seqlen = ($sequence && lc($sequence) ne 'null') ? length($sequence) : 0;
 
   my $organism_id = getOrganismID($dbh, $fields->{$mki{'species_fld'}}, $line_count);
   
@@ -502,7 +503,7 @@ sub setMarkerRec {
          '$unique_marker_name',
          (SELECT cvterm_id FROM chado.cvterm 
           WHERE name='genetic_marker'
-            AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='sequence'))
+            AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='sequence')),
          '$sequence',
          $seqlen
         )
