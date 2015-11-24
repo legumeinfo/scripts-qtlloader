@@ -1,18 +1,21 @@
 # file: setCanonicaMarkers.pl
 #
-# purpose: given a file of marker names, set one to be canonical and link the 
+# purpose: given a file of marker names or ids, set one to be canonical and link the 
 #          others to it via a 'instance_of' relationship.
 #          
 #          file format:
 #          canonical-name{tab}alt-name[{tab}alt_name]*
+#          or
+#          canonical-id{tab}alt-id[{tab}alt_id]*
 #
 # history:
 #  09/09/15  eksc  created
 
   use strict;
   use DBI;
-  use Data::Dumper;
+  use Getopt::Std;
   use Encode;
+  use Getopt::Std;
 
   # load local util library
   use File::Spec::Functions qw(rel2abs);
@@ -22,10 +25,17 @@
   
   my $warn = <<EOS
     Usage:
-      
-    $0 marker-list
+      $0 [opts] data-dir
+        -n = use names [default]
+        -i = use ids
 EOS
 ;
+      
+  my $use_names = 1;
+  my %cmd_opts = ();
+  getopts("ni", \%cmd_opts);
+  if (defined($cmd_opts{'i'})) {$use_names = 0;}
+
   if ($#ARGV < 0) {
     die $warn;
   }
@@ -34,7 +44,12 @@ EOS
   my $dbh = connectToDB;
 
   eval {
-    setCanonicalMarkers($dbh);
+    if ($use_names) {
+      setCanonicalMarkersByName($dbh);
+    }
+    else {
+      setCanonicalMarkersByID($dbh);
+    }
   
     $dbh->commit;   # commit the changes if we get this far
   };
@@ -52,7 +67,7 @@ EOS
   
 ###############################################################################
 
-sub setCanonicalMarkers {
+sub setCanonicalMarkersByName {
   my $dbh = $_[0];
   
   my $markerlistfile = @ARGV[0];
@@ -74,7 +89,29 @@ print $markers[$i] . " is not canonical\n";
     }
   }#each row in marker list
   close IN;
-}
+}#setCanonicalMarkersByName
+
+
+sub setCanonicalMarkersByID {
+  my $dbh = $_[0];
+  
+  my $markerlistfile = @ARGV[0];
+  open IN, "<$markerlistfile" or die "\n\nunable to open $markerlistfile: $!\n\n";
+  while (<IN>) {
+    chomp;chomp;
+    my @markers = split "\t";
+
+    my $canonical_marker_id = $markers[0];
+print "\n Canonical marker $canonical_marker_id\n";
+    setCanonical($dbh, $canonical_marker_id);
+    for (my $i=1; $i<=$#markers; $i++) {
+print $markers[$i] . " is not canonical\n";
+      unsetCanonical($dbh, $markers[$i]);
+      linkToCanonicalMarker($dbh, $canonical_marker_id, $markers[$i]);
+    }#each linked marker
+  }#each row in marker list
+  close IN;
+}#setCanonicalMarkersByID
 
 
 sub getMarkerID {
@@ -112,9 +149,12 @@ sub linkToCanonicalMarker {
                              AND cv_id=(SELECT cv_id FROM cv 
                                         WHERE name='relationship'))";
   logSQL('', $sql);
+#print "$sql\n";
   my $sth = doQuery($dbh, $sql);
   if (my $row=$sth->fetchrow_hashref) {
+    print "$marker_id an instance_of with " . $row->{'object_id'} . "\n";
     if ($row->{'object_id'} == $canonical_marker_id) {
+      print "$marker_id is already an instance_of $canonical_marker_id\n";
       # nothing to do
       return;
     }
@@ -140,6 +180,7 @@ sub linkToCanonicalMarker {
         WHERE name='instance_of' 
               AND cv_id=(SELECT cv_id FROM cv 
                          WHERE name='relationship')))";
+  logSQL('', $sql);
   $sth = doQuery($dbh, $sql);
 }#linkToCanonicalMarker
 
