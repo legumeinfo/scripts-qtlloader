@@ -28,8 +28,8 @@
 
   use strict;
   use DBI;
-  use Data::Dumper;
   use Encode;
+  use Data::Dumper;
 
   # load local util library
   use File::Spec::Functions qw(rel2abs);
@@ -102,7 +102,7 @@ sub loadMarkers {
   my $dbh = $_[0];
   
   my ($fields, $sql, $sth, $row, $msg);
-  my ($skip, $skip_all, $update, $update_all);
+  my ($change_all, $skip, $skip_all, $update, $update_all);
 
   $table_file = "$input_dir/MARKER.txt";
   print "Loading/verifying $table_file...\n";
@@ -143,8 +143,9 @@ print "\n$line_count: handle marker $marker_name as described by $marker_citatio
       }
     }#already loaded from spreadsheet
     
-    elsif ($marker_id=$existing_markers{$unique_marker_name}) {
-      
+    elsif ($marker_id=$existing_markers{"$unique_marker_name:$species"}) {
+print"found $unique_marker_name:$species - $marker_id\n";
+  
       if ($skip_all) {
         next;
       }
@@ -155,7 +156,7 @@ print "\n$line_count: handle marker $marker_name as described by $marker_citatio
           next;
         }
       }
-      
+            
       clearMarkerDependancies($dbh, $marker_id);
     }#marker already exists
 
@@ -203,7 +204,7 @@ print "\n$line_count: handle marker $marker_name as described by $marker_citatio
     setFeatureprop($dbh, $marker_id, $mki{'comment_fld'},               'comment', 1, $fields);
     
     # assembly_name, phys_chr, phys_start: featureloc
-    setPhysicalPosition($dbh, $marker_id, $fields);    
+    setPhysicalPosition($dbh, $marker_id, $fields);  
   }#each record
   
   print "\n\nLoaded $line_count markers.\n\n";
@@ -335,14 +336,20 @@ sub getExistingMarkers {
   
   my %markers;
   my $sql = "
-    SELECT feature_id, name FROM feature 
-    WHERE type_id=(SELECT cvterm_id FROM cvterm 
+    SELECT feature_id, name, d.accession AS mnemonic
+    FROM feature f
+      INNER JOIN organism o ON o.organism_id=f.organism_id 
+      INNER JOIN chado.organism_dbxref od ON od.organism_id=o.organism_id 
+      INNER JOIN chado.dbxref d on d.dbxref_id=od.dbxref_id 
+    WHERE f.type_id=(SELECT cvterm_id FROM cvterm 
                    WHERE name='genetic_marker' AND cv_id=(SELECT cv_id FROM cv 
-                                                          WHERE name='sequence'))";
+                                                          WHERE name='sequence'))
+          AND d.db_id=(SELECT db_id FROM db WHERE name='uniprot:species')";
   logSQL($dataset_name, $sql);
   my $sth = doQuery($dbh, $sql);
   while (my $row=$sth->fetchrow_hashref) {
-    $markers{$row->{'name'}} = $row->{'feature_id'};
+    my $key = $row->{'name'} . ":" . $row->{'mnemonic'};
+    $markers{$key} = $row->{'feature_id'};
   }
   
   return %markers;
@@ -372,7 +379,7 @@ sub loadPrimers {
     my $primer_name_fld = "primer$primer_num" . "_name";
     my $primer_seq_fld = "primer$primer_num" . "_seq";
     loadPrimer($dbh, $marker_id, $marker_name, $species, 'primer', $primer_num,
-               $primer_seq_fld, $primer_name_fld, $fields);
+               $primer_name_fld, $primer_seq_fld, $fields);
     $primer_num++;
   }#each primer
 }#loadPrimers
@@ -380,7 +387,7 @@ sub loadPrimers {
 
 sub loadPrimer {
   my ($dbh, $marker_id, $marker_name, $species, $primer_type, $primer_num,
-      $seq_field, $name_field, $fields) = @_;
+      $name_field, $seq_field, $fields) = @_;
   
   my $organism_id = getOrganismID($dbh, $species, $line_count);
   
@@ -389,14 +396,13 @@ sub loadPrimer {
     my $seqlen = length($sequence);
     
     my $primer_name = (isFieldSet($fields, $name_field)) 
-        ? $fields->{$name_field}
-        : $fields->{$mki{'pub_marker_name_fld'}};
-    if (lc($fields->{$name_field}) eq lc($marker_name)
-          || lc($fields->{$name_field}) eq lc($fields->{$mki{'pub_marker_name_fld'}})) {
+        ? $fields->{$name_field} : $marker_name;
+    if (lc($marker_name) eq lc($fields->{$mki{'marker_identifier_fld'}})
+          || lc($marker_name) eq lc($fields->{$mki{'pub_marker_name_fld'}})) {
       $primer_name = "$primer_name.p$primer_num";
     }
     my $unique_primer_name = makeMarkerName($species, $primer_name);
-    
+print "primer name is $primer_name ($unique_primer_name)\n";
     if (primerExists($organism_id, $unique_primer_name, $primer_type)) {
 # TODO: if primer sequence needs to be changed, this will need to do an update
       print "The primer $primer_name has already been loaded. Skipping. \n";
@@ -562,33 +568,60 @@ sub setPhysicalPosition {
   
   if (isFieldSet($fields, $mki{'phys_ver_fld'})) {
     my $assembly_id = getAssemblyID($dbh, $fields->{$mki{'phys_ver_fld'}});
-print "Setting marker physical position is not yet implemented";
-exit;
-
+print "assembly id is $assembly_id\n";
     if (!$assembly_id) {
       return;
     }
     
-    my $start = $fields->{$mki{'phys_start'}};
-    my $end   = $fields->{$mki{'phys_start'}}; 
+    my $start = $fields->{$mki{'phys_start_fld'}};
+    my $end   = $fields->{$mki{'phys_end_fld'}}; 
     my $chr   = $fields->{$mki{'phys_chr_fld'}};
-    my $ver   = $fields->{$mki{'assembly_ver'}};
+    my $ver   = $fields->{$mki{'phys_ver_fld'}};
     my $chr_feature_id = getChromosomeID($dbh, $chr, $ver);
+
     if ($chr_feature_id == 0) {
-      $chr_feature_id = getScaffoldID($dbh, $chr,  $ver);
+      $chr_feature_id = getScaffoldID($dbh, $chr, $ver);
       if ($chr_feature_id == 0) {
         $msg = "ERROR: Unable to find chromosome/scaffold feature $chr";
         $msg = "for assembly version $ver.";
+        print "$msg\n";
         reportError($line_count, $msg);
       }
-# TODO: featureloc record may already exist and neet updating
+    }
+
+    if ($chr_feature_id > 0) {
       $sql = "
-        INSERT INTO chado.featureloc
-          (feature_id, srcfeature_id, fmin, fmax)
-        VALUES
-          ($marker_id, $chr_feature_id, $start, $end)";
-      logSQL($dataset_name, $sql);
-      doQuery($dbh, $sql);
+        SELECT featureloc_id FROM chado.featureloc
+        WHERE feature_id=$marker_id AND srcfeature_id=$chr_feature_id";
+print "$sql\n";
+      logSQL('', $sql);
+      $sth = doQuery($dbh, $sql);
+##print "sth: $sth\n";
+#print "found " . $sth->rows . " rows\n";
+#print "errors: " . $sth->errstr . "\n";
+#$row=$sth->fetchrow_hashref;
+#print "returns: " . Dumper($row);
+#exit;
+      if ($row=$sth->fetchrow_hashref) {
+print "found existing record\n";
+        my $featureloc_id = $row->{'featureloc_id'};
+        $sql = "
+          UPDATE chado.featureloc
+          SET fmin=$start, fmax=$end
+          WHERE featureloc_id=$featureloc_id";
+        logSQL($dataset_name, $sql);
+        doQuery($dbh, $sql);
+      }
+      else {
+print "create new record\n";
+        $sql = "
+          INSERT INTO chado.featureloc
+            (feature_id, srcfeature_id, fmin, fmax)
+          VALUES
+            ($marker_id, $chr_feature_id, $start, $end)";
+        logSQL($dataset_name, $sql);
+        doQuery($dbh, $sql);
+      }
     }#physical chromosome found
   }#physical position information provided
 

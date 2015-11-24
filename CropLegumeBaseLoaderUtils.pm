@@ -14,6 +14,7 @@ our @EXPORT      = (
                     qw(doQuery), 
                     qw(experimentExists),
                     qw(getAnalysisID),
+                    qw(getAssemblyID),
                     qw(getChromosomeID),
                     qw(getCvtermID), 
                     qw(getFeatureID),
@@ -164,7 +165,7 @@ sub getSSInfo {
       'image_fld'                 => 'image_identifier',   # not in our data
       'contact_fld'               => 'contact_identifier', # not in our data
       'stock_fld'                 => 'stock_identifier',
-      'assembly_name_fld'         => 'assembly_name',
+      'phys_ver_fld'              => 'assembly_name',
       'phys_chr_fld'              => 'phys_chr',
       'phys_start_fld'            => 'phys_start',
       'phys_end_fld'              => 'phys_end',
@@ -423,9 +424,10 @@ sub getAssemblyID {
   $sql = "
     SELECT analysis_id FROM analysis
     WHERE name='$assembly'";
+  logSQL('', $sql);
   $sth = doQuery($dbh, $sql);
-  if ($row=$sth->fetchrow_hashrec) {
-    return $row-{'analysis_id'};
+  if ($row=$sth->fetchrow_hashref) {
+    return $row->{'analysis_id'};
   }
   
   return 0;
@@ -443,19 +445,16 @@ sub getChromosomeID {
   
   $sql = "
     SELECT F.feature_id
-    FROM chado.feature F
-      INNER JOIN chado.featureprop FP
-        ON FP.feature_id=F.feature_id
-          AND FP.type_id = (SELECT cvterm_id FROM chado.cvterm 
-                            WHERE name = 'assembly version'
-                              AND cv_id=(SELECT cv_id FROM chado.cv 
-                                         WHERE name='local'))
+    FROM chado.feature f
+      INNER JOIN chado.analysisfeature af
+        ON af.feature_id=f.feature_id
+      INNER JOIN chado.analysis a ON a.analysis_id=af.analysis_id
     WHERE F.type_id = (SELECT cvterm_id FROM chado.cvterm 
                        WHERE name='chromosome' 
                          AND cv_id = (SELECT cv_id FROM chado.cv 
                                        WHERE name='sequence')
                        )
-      AND F.name='$chromosome' AND FP.value='$version'";
+      AND F.name='$chromosome' AND a.name='$version'";
   logSQL('lib', $sql);
   $sth = doQuery($dbh, $sql);
   if ($row=$sth->fetchrow_hashref) {
@@ -600,22 +599,22 @@ sub getOrganismID {
 
 
 sub getOrganismMnemonic {
-  my ($dbh, $mnemonic, $line_count) = @_;
+  my ($dbh, $organism_id, $line_count) = @_;
   my ($sql, $sth, $row);
   
   $sql = "
-    SELECT O.organism_id 
-    FROM chado.organism O 
-      INNER JOIN chado.organism_dbxref OD ON OD.organism_id=O.organism_id 
-      INNER JOIN chado.dbxref D on D.dbxref_id=OD.dbxref_id 
-    WHERE D.accession='$mnemonic'";
+    SELECT d.accession AS mnemonic 
+    FROM chado.organism o 
+      INNER JOIN chado.organism_dbxref od ON od.organism_id=o.organism_id 
+      INNER JOIN chado.dbxref d on d.dbxref_id=od.dbxref_id 
+    WHERE o.organism_id=$organism_id";
   logSQL('', "$sql");
   $sth = doQuery($dbh, $sql);
   if ($row=$sth->fetchrow_hashref) {
     return $row->{'organism_id'};
   }
   else {
-    reportError($line_count, "unknown organism: [$mnemonic]");
+    reportError($line_count, "unknown organism: [$organism_id]");
     return 0;
   }
 }#getOrganismMnemonic
