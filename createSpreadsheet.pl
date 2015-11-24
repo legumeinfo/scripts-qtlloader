@@ -243,13 +243,13 @@ sub getMapCollectionData {
              pub.uniquename AS publink_citation, u.name AS unit, 
              '$mnemonic' AS specieslink_abv
       FROM featuremap m
-        INNER JOIN cvterm u ON u.cvterm_id=m.unittype_id
-        
         INNER JOIN featuremap_pub fp ON fp.featuremap_id=m.featuremap_id
         INNER JOIN pub ON pub.pub_id = fp.pub_id
         
         INNER JOIN featuremap_stock fs ON fs.featuremap_id=m.featuremap_id
         INNER JOIN stock s ON s.stock_id=fs.stock_id
+        
+        LEFT JOIN cvterm u ON u.cvterm_id=m.unittype_id
         
         LEFT JOIN stock_relationship sr1 
           ON sr1.object_id=s.stock_id
@@ -538,43 +538,44 @@ sub getQTLExperimentData {
          d.value AS description, g.description AS geolocation,
          m.value AS map_name, c.value as comment, '$mnemonic' AS specieslink_abv
   FROM project p
-    INNER JOIN  projectprop d 
+    INNER JOIN project_pub pp on pp.project_id=p.project_id
+    INNER JOIN pub on pub.pub_id=pp.pub_id
+    
+    LEFT OUTER JOIN  projectprop d 
       ON d.project_id=p.project_id
          AND d.type_id = (SELECT cvterm_id FROM cvterm  
                           WHERE name='Project Description'
                                 AND cv_id=(SELECT cv_id FROM cv 
                                            WHERE name='project_property'))
     
-    INNER JOIN projectprop m
+    LEFT OUTER JOIN projectprop m
       ON m.project_id=p.project_id
          AND m.type_id=(SELECT cvterm_id FROM cvterm
                         WHERE name='Project Map Collection'
                               AND cv_id = (SELECT cv_id FROM cv 
                                            WHERE name='project_property'))
     
-    inner join projectprop c
+    LEFT OUTER JOIN projectprop c
       on c.project_id=p.project_id
          and c.type_id=(select cvterm_id from cvterm
                         where name='Project Comment'
                               and cv_id = (select cv_id FROM cv 
                                            where name='project_property'))
     
-    inner join nd_experiment_project ep on ep.project_id=p.project_id
-    inner join nd_experiment e on e.nd_experiment_id=ep.nd_experiment_id
-    inner join nd_geolocation g on g.nd_geolocation_id=e.nd_geolocation_id
+    LEFT OUTER JOIN nd_experiment_project ep on ep.project_id=p.project_id
+    LEFT OUTER JOIN nd_experiment e on e.nd_experiment_id=ep.nd_experiment_id
+    LEFT OUTER JOIN nd_geolocation g on g.nd_geolocation_id=e.nd_geolocation_id";
     
-    inner join project_pub pp on pp.project_id=p.project_id
-    inner join pub on pub.pub_id=pp.pub_id";
   if ($dataset =~ /^\d+$/) {
     $sql .= "
-       where pub.pub_id=$dataset";
+    WHERE pub.pub_id=$dataset";
   }
   else {
     $sql .= "
-       where pub.uniquename='$dataset'";
+    WHERE pub.uniquename='$dataset'";
   }
   $sql .= "
-  order by name";
+  ORDER BY name";
 #print "$sql\n";
 
   logSQL('', $sql);
