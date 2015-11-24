@@ -46,7 +46,8 @@ VALUES
    'Uniprot species mnemonics',
    'http://www.uniprot.org/docs/speclist',
    ''),
-  
+
+--are these still needed?  
   ('download:map',
    'Download location for genetic maps',
    '/files/maps',
@@ -111,7 +112,8 @@ VALUES
   ((SELECT db_id FROM db WHERE name='internal'), 'SNP_five_prime_flanking_sequence'),
   ((SELECT db_id FROM db WHERE name='internal'), 'SNP_three_prime_flanking_sequence'),
   
-  ((SELECT db_id FROM db WHERE name='internal'), 'canonical_marker')
+  ((SELECT db_id FROM db WHERE name='internal'), 'canonical_marker'),
+  ((SELECT db_id FROM db WHERE name='internal'), 'browser_track_name')
 ;
 
 INSERT INTO chado.cvterm
@@ -181,7 +183,10 @@ VALUES
 
   ((SELECT cv_id FROM cv WHERE name='local'),
    'Canonical Marker', 'Official marker (determined by curator)', 
-   (SELECT dbxref_id FROM dbxref WHERE accession='canonical_marker'))
+   (SELECT dbxref_id FROM dbxref WHERE accession='canonical_marker')),
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'Browser Track Name', 'Official marker (determined by curator)', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='browser_track_name'))
 ;
 
 
@@ -478,7 +483,8 @@ VALUES
 INSERT INTO chado.dbxref
   (db_id, accession)
 VALUES
-  ((SELECT db_id FROM db WHERE name='tripal'), 'publication_species')
+  ((SELECT db_id FROM db WHERE name='tripal'), 'publication_species'),
+  ((SELECT db_id FROM db WHERE name='tripal'), 'unpublished_dataset')
 ;
 
 INSERT INTO chado.cvterm
@@ -486,7 +492,10 @@ INSERT INTO chado.cvterm
 VALUES
   ((SELECT cv_id FROM cv WHERE name='tripal_pub'),
    'Publication Species', '', 
-   (SELECT dbxref_id FROM dbxref WHERE accession='publication_species'))
+   (SELECT dbxref_id FROM dbxref WHERE accession='publication_species')),
+  ((SELECT cv_id FROM cv WHERE name='tripal_pub'),
+   'Unpublished Dataset', '', 
+   (SELECT dbxref_id FROM dbxref WHERE accession='unpublished_dataset'))
    
 ;
 
