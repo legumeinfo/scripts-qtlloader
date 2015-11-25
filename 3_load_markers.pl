@@ -568,7 +568,7 @@ sub setPhysicalPosition {
   
   if (isFieldSet($fields, $mki{'phys_ver_fld'})) {
     my $assembly_id = getAssemblyID($dbh, $fields->{$mki{'phys_ver_fld'}});
-print "assembly id is $assembly_id\n";
+print "Assembly analysis id is $assembly_id\n";
     if (!$assembly_id) {
       return;
     }
@@ -583,11 +583,13 @@ print "assembly id is $assembly_id\n";
       $chr_feature_id = getScaffoldID($dbh, $chr, $ver);
       if ($chr_feature_id == 0) {
         $msg = "ERROR: Unable to find chromosome/scaffold feature $chr";
-        $msg = "for assembly version $ver.";
+        $msg .= "for assembly version $ver.";
         print "$msg\n";
         reportError($line_count, $msg);
+        return;
       }
     }
+print "Chromosome feature id is $chr_feature_id\n";
 
     if ($chr_feature_id > 0) {
       $sql = "
