@@ -1053,41 +1053,51 @@ sub setFeatureDbxref {
   
   if (isFieldSet($fields, $fieldname)) {
     my $acc = $fields->{$fieldname};
-    my $dbxref_id = dbxrefExists($dbh, $dbname, $acc);
-    if (!$dbxref_id) {
-      $sql = "
-        INSERT INTO chado.dbxref
-          (db_id, accession)
-        VALUES
-          ((SELECT db_id FROM chado.db 
-            WHERE name='$dbname'),
-           '$acc') 
-        RETURNING dbxref_id";
-      logSQL('', $sql);
-      $sth = doQuery($dbh, $sql);
-      $row = $sth->fetchrow_hashref;
-      $dbxref_id = $row->{'dbxref_id'};
-      $sth->finish;
-    }
     
-    # Return if feature_dbxref record already exists
-    $sql = "
-      SELECT feature_dbxref_id FROM chado.feature_dbxref
-      WHERE feature_id=$feature_id AND dbxref_id =$dbxref_id";
+    $sql = "SELECT db_id FROM db WHERE name='$dbname'";
     logSQL('', $sql);
     $sth = doQuery($dbh, $sql);
-    if ($row=$sth->fetchrow_hashref) {
-      return;
-    }
+    $row = $sth->fetchrow_hashref;
+    my $db_id = ($row) ? $row->{'db_id'} : 0;
     
-    # connect dbxref record to feature record
-    $sql = "
-      INSERT INTO chado.feature_dbxref
-        (feature_id, dbxref_id)
-      VALUES
-        ($feature_id, $dbxref_id)";
-    logSQL('', $sql);
-    doQuery($dbh, $sql);
+    if ($db_id) {
+      my $dbxref_id = dbxrefExists($dbh, $dbname, $acc);
+      
+      if (!$dbxref_id) {
+        $sql = "
+          INSERT INTO chado.dbxref
+            (db_id, accession)
+          VALUES
+            ((SELECT db_id FROM chado.db 
+              WHERE name='$dbname'),
+             '$acc') 
+          RETURNING dbxref_id";
+        logSQL('', $sql);
+        $sth = doQuery($dbh, $sql);
+        $row = $sth->fetchrow_hashref;
+        $dbxref_id = $row->{'dbxref_id'};
+        $sth->finish;
+      }
+    
+      # Return if feature_dbxref record already exists
+      $sql = "
+        SELECT feature_dbxref_id FROM chado.feature_dbxref
+        WHERE feature_id=$feature_id AND dbxref_id =$dbxref_id";
+      logSQL('', $sql);
+      $sth = doQuery($dbh, $sql);
+      if ($row=$sth->fetchrow_hashref) {
+        return;
+      }
+    
+      # connect dbxref record to feature record
+      $sql = "
+        INSERT INTO chado.feature_dbxref
+          (feature_id, dbxref_id)
+        VALUES
+          ($feature_id, $dbxref_id)";
+      logSQL('', $sql);
+      doQuery($dbh, $sql);
+    }#valid db given
   }#secondary source fields are set
 }#setFeatureDbxref
 
