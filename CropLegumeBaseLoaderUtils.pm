@@ -146,7 +146,7 @@ sub getSSInfo {
       'src_descr_fld'             => 'source_description',
       'src_marker_fld'            => 'source_marker',
       'repeat_motif_fld'          => 'SSR_repeat_motif',
-      'db_accession_fld'          => 'accession',
+      'db_accession_fld'          => 'database_accession',
       'database_fld'              => 'accession_source',
       'sequence_name_fld'         => 'sequence_name',
       'sequence_fld'              => 'marker_sequence',
