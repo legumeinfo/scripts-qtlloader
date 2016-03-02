@@ -144,7 +144,7 @@ print "\n$line_count: handle marker $marker_name as described by $marker_citatio
     }#already loaded from spreadsheet
     
     elsif ($marker_id=$existing_markers{"$unique_marker_name:$species"}) {
-print"found $unique_marker_name:$species - $marker_id\n";
+#print"found $unique_marker_name:$species - $marker_id\n";
   
       if ($skip_all) {
         next;
@@ -223,11 +223,12 @@ sub attachSynonyms {
   if (isFieldSet($fields, $fieldname)) {
     my @synonyms = split /,/, $fields->{$fieldname};
     foreach my $syn (@synonyms) {
+      # get/create synonym
       my $synonym_id;
       if ($synonym_id=getSynonym($dbh, $syn, 'Marker Synonym')) {
         # this synonym already exists; see what it's attached to
         $sql = "
-          SELECT name, feature_id FROM feature f
+          SELECT f.name, f.feature_id FROM feature f
             INNER JOIN feature_synonym fs ON fs.feature_id=f.feature_id
             INNER JOIN synonym s ON s.synonym_id=fs.synonym_id
           WHERE s.synonym_id = $synonym_id
@@ -248,32 +249,42 @@ sub attachSynonyms {
         #   attached to a feature, ignore; the same synonym can exist if
         #   different types.
         
-      }#duplicate synonym found
+      }#synonym exists
       
-      $sql = "
-        INSERT INTO synonym
-          (name, type_id, synonym_sgml)
-        VALUES
-          ('$syn', 
-           (SELECT cvterm_id FROM cvterm 
-            WHERE name='Marker Synonym' 
-                 AND cv_id=(SELECT cv_id FROM cv WHERE name='synonym_type')),
-           '$syn')
-        RETURNING synonym_id";
-       logSQL($dataset_name, $sql);
-       $sth = doQuery($dbh, $sql);
-       $row = $sth->fetchrow_hashref;
-       $synonym_id = $row->{'synonym_id'};
+      else {
+        $sql = "
+          INSERT INTO synonym
+            (name, type_id, synonym_sgml)
+          VALUES
+            ('$syn', 
+             (SELECT cvterm_id FROM cvterm 
+              WHERE name='Marker Synonym' 
+                   AND cv_id=(SELECT cv_id FROM cv WHERE name='synonym_type')),
+             '$syn')
+          RETURNING synonym_id";
+         logSQL($dataset_name, $sql);
+         $sth = doQuery($dbh, $sql);
+         $row = $sth->fetchrow_hashref;
+         $synonym_id = $row->{'synonym_id'};
+       }#make synonym
        
        $sql = "
-         INSERT INTO feature_synonym
-           (synonym_id, feature_id, pub_id)
-         VALUES
-           ($synonym_id, $marker_id,
-            (SELECT pub_id FROM pub WHERE uniquename='$marker_citation'))";
-       logSQL($dataset_name, $sql);
-       doQuery($dbh, $sql);
-       $sth->finish;
+         SELECT * FROM feature_synonym
+         WHERE synonym_id=$synonym_id AND feature_id=$marker_id
+               AND pub_id=(SELECT pub_id FROM pub 
+                           WHERE uniquename='$marker_citation')";
+       $sth = doQuery($dbh, $sql);
+       if (!($row = $sth->fetchrow_hashref)) {
+         $sql = "
+           INSERT INTO feature_synonym
+             (synonym_id, feature_id, pub_id)
+           VALUES
+             ($synonym_id, $marker_id,
+              (SELECT pub_id FROM pub WHERE uniquename='$marker_citation'))";
+         logSQL($dataset_name, $sql);
+         doQuery($dbh, $sql);
+         $sth->finish;
+       }#attach synonym to feature
     }#each synonym
   }#synonym given
 }#attachSynonyms
@@ -402,7 +413,7 @@ sub loadPrimer {
       $primer_name = "$primer_name.p$primer_num";
     }
     my $unique_primer_name = makeMarkerName($species, $primer_name);
-print "primer name is $primer_name ($unique_primer_name)\n";
+#print "primer name is $primer_name ($unique_primer_name)\n";
     if (primerExists($organism_id, $unique_primer_name, $primer_type)) {
 # TODO: if primer sequence needs to be changed, this will need to do an update
       print "The primer $primer_name has already been loaded. Skipping. \n";
