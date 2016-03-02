@@ -44,6 +44,7 @@ EOS
   my %mci = getSSInfo('MAP_COLLECTIONS');
   my %mi  = getSSInfo('MAPS');
   my %mpi = getSSInfo('MARKER_POSITION');
+
   
   # Used all over
   my ($table_file, $sql, $sth, $row, $count, @records, @fields, $cmd, $rv);
@@ -60,6 +61,11 @@ EOS
   # Holds LIS map set links (for CMap)
   my %lis_map_sets;
 
+  # check for worksheets (script will exit on user request)
+  my $load_map_collection  = checkWorksheet($mci{'worksheet'});
+  my $load_linkage_maps    = checkWorksheet($mi{'worksheet'});
+  my $load_marker_position = checkWorksheet($mpi{'worksheet'});
+
   # Get connected
   my $dbh = connectToDB;
 
@@ -70,9 +76,9 @@ EOS
 
   # Use a transaction so that it can be rolled back if there are any errors
   eval {
-    loadMapCollection($dbh, $mci{'worksheet'});
-    loadLinkageMaps($dbh, $mi{'worksheet'});
-    loadMarkerPositions($dbh, $mpi{'worksheet'});
+    if ($load_map_collection)  { loadMapCollection($dbh, $mci{'worksheet'});   }
+    if ($load_linkage_maps)    { loadLinkageMaps($dbh, $mi{'worksheet'});      }
+    if ($load_marker_position) { loadMarkerPositions($dbh, $mpi{'worksheet'}); }
 
 #keep this commented-out until sure the script is working.    
     $dbh->commit;   # commit the changes if we get this far
@@ -328,13 +334,13 @@ sub loadMarkerPositions {
     my $species = $fields->{$mpi{'species_fld'}};
     my $marker_name = $fields->{'marker_name'};
     my $species_list = getMarkerSpecies($dbh, $marker_name);
-print "\nspecies list for $marker_name:\n" . Dumper($species_list);
-    if ($species_list && scalar (keys $species_list)
+#print "\nspecies list for $marker_name:\n" . Dumper($species_list);
+    if ($species_list && scalar (keys %$species_list)
           && !$species_list->{$species} && !$change_all && !$add_all) {
       next if ($skip_all);
       if (!$change_all && !$add_all) {
         my $prompt = "$line_count: the marker $marker_name already exists ";
-        $prompt .= "but is attached to " . join(', ', (keys $species_list));
+        $prompt .= "but is attached to " . join(', ', (keys %$species_list));
         $prompt .= " instead of $species. Choose an action: (skipall, changeall, addall, quit)";
         print "$prompt\n";
         my $userinput =  <STDIN>;
@@ -367,7 +373,8 @@ print "\nspecies list for $marker_name:\n" . Dumper($species_list);
       # add a record for this marker, if necessary
       $marker_id = updateMarker($dbh, $marker_name, $fields->{$mpi{'species_fld'}});
     }
-    
+
+print "set marker position for $marker_name\n";
     # Place on linkage group
     placeMarkerOnLG($dbh, $marker_id, $fields);
     
@@ -381,7 +388,6 @@ print "\nspecies list for $marker_name:\n" . Dumper($species_list);
     # map position comments are ranked 3 (which does limit a map postition 
     #    comment to 1 even though there maybe multiple positions for a marker)
     setFeatureprop($dbh, $marker_id, $mpi{'comment_fld'}, 'comment', 3, $fields);
-    
   }#each record
 }#loadMarkerPositions
   
@@ -419,6 +425,31 @@ sub changeLGcoord {
     doQuery($dbh, $sql);
   }
 }#changeLGcoord
+
+
+sub checkWorksheet {
+  my $worksheet = $_[0];
+  
+  my $load_worksheet;
+  my $filename = "$input_dir/$worksheet.txt";
+  
+  if (-e $filename) {
+    $load_worksheet = 1;
+  }
+  else {
+    print "The worksheet $worksheet doesn't exist. Skip? (y/n) ";
+    my $userinput =  <STDIN>;
+    chomp ($userinput);
+    if (lc($userinput) eq 'y') {
+      $load_worksheet = 0;
+    }
+    else {
+      exit;
+    }
+  }
+  
+  return $load_worksheet;
+}#checkWorksheet
 
 
 sub clearMapSetDependencies {
@@ -821,7 +852,7 @@ sub placeMarkerOnLG {
       VALUES
         ($map_set_id, $marker_id, $lg_id, " . $fields->{$mpi{'position_fld'}} . ")";
   }
-  
+print "$sql\n\n";  
   logSQL($dataset_name, $sql);
   doQuery($dbh, $sql);
 }#placeMarkerOnLG
@@ -1118,7 +1149,6 @@ sub updateLinkageGroups {
     
     # Set coordinates
     my $mapset_id = getMapSetID($dbh, $mapset);
-#print "  updateLinkageGroups(): mapset_id for $mapset is $mapset_id\n";
     setLgCoord($dbh, $mapset_id, $lg_id, $lg_name, 'start', $lgs{$lg}{'map_start'});
     setLgCoord($dbh, $mapset_id, $lg_id, $lg_name, 'stop', $lgs{$lg}{'map_end'});
   }#each lg
@@ -1130,7 +1160,7 @@ sub updateLinkageGroups {
 sub updateMarker {
   my ($dbh, $marker_name, $species, $changespecies) = @_;
   my ($sql, $sth, $row);
-print "Update marker $marker_name, which is in species, $species.\n";
+print "Check marker $marker_name, which is in species, $species. Will update species assignment if needed.\n";
   
   # Does this marker exist for the given species?
   my $marker_id = markerExists($dbh, $marker_name, $species);
