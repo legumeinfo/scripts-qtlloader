@@ -147,7 +147,7 @@ sub getSSInfo {
       'src_descr_fld'             => 'source_description',
       'src_marker_fld'            => 'source_marker',
       'repeat_motif_fld'          => 'SSR_repeat_motif',
-      'db_accession_fld'          => 'database_accession',
+      'db_accession_fld'          => 'accession',
       'database_fld'              => 'accession_source',
       'sequence_name_fld'         => 'sequence_name',
       'sequence_fld'              => 'marker_sequence',
@@ -1080,7 +1080,7 @@ sub reportError {
 sub setFeatureDbxref {
   my ($dbh, $feature_id, $fieldname, $dbname, $fields) = @_;
   my ($sql, $sth, $row);
-  
+
   if (isFieldSet($fields, $fieldname)) {
     my $acc = $fields->{$fieldname};
     
