@@ -86,7 +86,6 @@ EOS
 
 
   # ALL DONE
-  $dbh->disconnect();
   print "\n\nScript completed\n\n";
 
 
@@ -146,11 +145,11 @@ print "  trait ID: $trait_id\n";
     
     # trait_name 
     setTermRelationship($dbh, $trait_id, $fields->{$ti{'trait_name_fld'}}, 
-                        'Has Trait Name', $fields);
+                        'Has Trait Name', 'contains', $fields);
     
     # trait_class and trait_unit: cvterm_relationship
     setTermRelationship($dbh, $trait_id, $fields->{$ti{'trait_class_fld'}}, 
-                        'Has Trait Class', $fields);
+                        'Has Trait Class', 'is_a', $fields);
 
     # OBO term
     setOBOTerm($dbh, $trait_id, $fields);
@@ -369,7 +368,7 @@ sub setOBOTerm {
 
 
 sub setTermRelationship {
-  my ($dbh, $trait_id, $term, $relationship, $fields) = @_;
+  my ($dbh, $trait_id, $term, $relationship, $path_type, $fields) = @_;
   my ($sql, $sth, $row);
 
   if ($term && $term ne '' && lc($term) ne 'null') {
@@ -396,21 +395,63 @@ sub setTermRelationship {
       logSQL($dataset_name, "$line_count: $sql");
       $sth = doQuery($dbh, $sql);
       $row = $sth->fetchrow_hashref;
-    }
+    }#insert cvterm
     my $object_id = $row->{'cvterm_id'};
     
     # Indicate relationship between term and trait
     $sql = "
-      INSERT INTO chado.cvterm_relationship
-        (subject_id, type_id, object_id)
-      VALUES
-        ($trait_id,
-         (SELECT cvterm_id FROM chado.cvterm 
-          WHERE name='$relationship'
-            AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='local')),
-         $object_id)";
+      SELECT cvterm_relationship_id FROM chado.cvterm_relationship
+      WHERE subject_id=$trait_id
+            AND type_id=(SELECT cvterm_id FROM chado.cvterm 
+                         WHERE name='$relationship'
+                               AND cv_id = (SELECT cv_id FROM chado.cv 
+                                            WHERE name='local'))
+            AND object_id=$object_id";
     logSQL($dataset_name, "$line_count: $sql");
-    doQuery($dbh, $sql);
+    my $cr_sth = doQuery($dbh, $sql);
+    if (!(my $cr_row=$cr_sth->fetchrow_hashref)) {
+        $sql = "
+        INSERT INTO chado.cvterm_relationship
+          (subject_id, type_id, object_id)
+        VALUES
+          ($trait_id,
+           (SELECT cvterm_id FROM chado.cvterm
+            WHERE name='$relationship'
+              AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='local')),
+           $object_id)";
+      logSQL($dataset_name, "$line_count: $sql");
+      doQuery($dbh, $sql);
+    }#insert cvterm_relationship
+    
+    # Indicate path between terms
+    $sql = "
+      SELECT cvtermpath_id FROM chado.cvtermpath
+      WHERE type_id=(SELECT cvterm_id FROM chado.cvterm 
+                     WHERE name='$path_type' 
+                           AND cv_id=(SELECT cv_id FROM cv 
+                                      WHERE name='relationship'))
+             AND subject_id=$trait_id
+             AND object_id=$object_id
+             AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='LegumeInfo:traits')";
+    logSQL($dataset_name, "$line_count: $sql");
+    my $cp_sth = doQuery($dbh, $sql);
+    if (!(my $cp_row=$cp_sth->fetchrow_hashref)) {
+      $sql = "
+        INSERT INTO chado.cvtermpath
+          (type_id, subject_id, object_id, cv_id, pathdistance)
+        VALUES
+          ((SELECT cvterm_id FROM chado.cvterm 
+            WHERE name='$path_type' 
+                  AND cv_id=(SELECT cv_id FROM cv 
+                             WHERE name='relationship')),
+           $trait_id,
+           $object_id,
+           (SELECT cv_id FROM chado.cv WHERE name='LegumeInfo:traits'),
+           1)";
+      logSQL($dataset_name, "$line_count: $sql");
+      doQuery($dbh, $sql);
+    }#insert cvtermpath
+     
   }#value for property exists
 }#setTermRelationship
 
