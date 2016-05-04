@@ -58,9 +58,6 @@ EOS
 
   my $dataset_name = 'traits';
   
-  # Holds traits that are already in db
-  my %existing_traits;
-
   # Get connected
   my $dbh = connectToDB;
 
@@ -69,11 +66,16 @@ EOS
   $sth = $dbh->prepare($sql);
   $sth->execute();
 
+  # Holds traits that are already in db
+  my %existing_traits = getExistingTraits($dbh);
+#foreach my $key (keys %existing_traits) {
+#  print "$key = " . $existing_traits{$key} . "\n";
+#}
+#exit;
+
   # Use a transaction so that it can be rolled back if there are any errors
   eval {
     loadTraits($dbh);
-#not yet properly mapped to chado schema
-#    loadParentTraits($dbh);
 
     $dbh->commit;   # commit the changes if we get this far
   };
@@ -84,6 +86,18 @@ EOS
     eval { $dbh->rollback };
   }
 
+  # Check for traits in db but not in spread sheet
+  print "\n\nChecking for orphaned traits...\n";
+  my $orphaned_traits = 0;
+  foreach my $trait (keys %existing_traits) {
+    if ($existing_traits{$trait} ne 'found') {
+      print "ORPHANED: " . $existing_traits{$trait} . " $trait\n";
+      $orphaned_traits++;
+    }
+  }#each existing trait in db
+  if ($orphaned_traits == 0) {
+    print "None found.\n\n";
+  }
 
   # ALL DONE
   print "\n\nScript completed\n\n";
@@ -115,12 +129,16 @@ print "\nQTL symbol: $qtl_symbol\n";
 
     my $trait_id;
     if ($trait_id = getTraitRecord($dbh, $qtl_symbol)) {
-print "  exists\n";
+
       # trait exists
       next if ($skip_all);
       
       if ($update_all) {
-          cleanDependants($trait_id);
+        # mark this one as found in spreadsheet
+        $existing_traits{$qtl_symbol} = 'found';
+        
+        # Get set to update
+        cleanDependants($trait_id);
       }
       else {
         my $prompt = "$line_count: QTL symbol ($qtl_symbol} = $trait_id) ";
@@ -129,7 +147,8 @@ print "  exists\n";
         next if ($skip || $skip_all);
         
         if ($update || $update_all) {
-          $existing_traits{$qtl_symbol} = $trait_id;
+          # mark this one as found in spreadsheet
+          $existing_traits{$qtl_symbol} = 'found';
           
           # remove dependent records; they will be re-inserted
           cleanDependants($trait_id);
@@ -141,7 +160,7 @@ print "  exists\n";
     $trait_id = setTraitRecord($dbh, $trait_id, 
                                $fields->{$ti{'qtl_symbol_fld'}}, 
                                $fields->{$ti{'description_fld'}});
-print "  trait ID: $trait_id\n";
+#print "  trait ID: $trait_id\n";
     
     # trait_name 
     setTermRelationship($dbh, $trait_id, $fields->{$ti{'trait_name_fld'}}, 
@@ -152,39 +171,12 @@ print "  trait ID: $trait_id\n";
                         'Has Trait Class', 'is_a', $fields);
 
     # OBO term
-    setOBOTerm($dbh, $trait_id, $fields);
+    setOBOTerms($dbh, $trait_id, $fields);
   }#each record
 
   print "Loaded $line_count obs. trait records\n\n";
 }#loadTraits
   
-  
-=cut #(not yet correctly mapped to chado schema)
-sub loadParentTraits {
-  my ($fields, $sql, $sth) = @_;
-
-  $table_file = "$input_dir/PARENT_TRAITS.txt";
-  print "Loading/verifying $table_file...\n";
-  
-  @records = readFile($table_file);
-  $line_count = 0;
-  foreach $fields (@records) {
-    $line_count++;
-    
-#   4b. load parent traits
-#     4b.i trait name (cvterm)
-#     4b.ii publication, comment (cvtermprop)
-      # see 4a.ii
-#     4b.iii parent (stock + stock_cvterm)
-#     4b.iv verify that name links to a QTL symbol?
-      # see 4a.iii
-#     4b.v alt names (cvtermsynonym)
-      # see 4a.v
-   }#each record
-
-  print "Loaded $line_count parent trait records\n\n";
-}#loadParentTraits
-=cut
 
 
 ################################################################################
@@ -238,13 +230,22 @@ sub getDbxref {
     if ($term =~ /(\w+)\:(\d+)/) {
       my $cv = $1;
       my $acc = $2;
+      
+      # verify that ontology exists
+      $sql = "SELECT db_id FROM db WHERE name='$cv'";
+      logSQL('', "$line_count: $sql");
+      $sth = doQuery($dbh, $sql);
+      if (!($row = $sth->fetchrow_hashref)) {
+        print "\nERROR: no ontology loaded for $cv. Quitting.\n\n";
+        exit;
+      }
       $sql = "
         SELECT dbxref_id FROM chado.dbxref 
-        WHERE db_id = (SELECT db_id FROM chado.db WHERE name='$cv')
-              AND accession = '$acc'
-      ";
+        WHERE db_id = " . $row->{'db_id'} . "
+              AND accession = '$acc'";
     }
     else {
+      # Assume this is a LegumeInfo trait
       $sql = "
         SELECT dbxref_id FROM chado.dbxref 
         WHERE db_id = (SELECT db_id FROM chado.db WHERE name='LegumeInfo:traits')
@@ -260,7 +261,36 @@ sub getDbxref {
   return 0;
 }#getDbxref
   
+
+sub getExistingTraits {
+  my $dbh = $_[0];
+  my ($sql, $sth, $row);
   
+  my %traits;
+  $sql = "
+    SELECT t.name, cvterm_id FROM cvterm t
+      INNER JOIN dbxref dx ON dx.dbxref_id=t.dbxref_id
+      INNER JOIN db d ON d.db_id=dx.db_id
+    WHERE d.name='LegumeInfo:traits'
+          AND t.cvterm_id NOT IN (
+            SELECT t.cvterm_id 
+            FROM cvterm t
+              INNER JOIN dbxref dx ON dx.dbxref_id=t.dbxref_id
+              INNER JOIN db d ON d.db_id=dx.db_id
+              LEFT JOIN cvterm_relationship cr 
+                ON cr.subject_id=t.cvterm_id
+              LEFT JOIN cvterm ty on ty.cvterm_id=cr.type_id
+            WHERE d.name='LegumeInfo:traits'
+                  AND ty.name='Has Trait Name')";
+  $sth = doQuery($dbh, $sql);
+  while ($row=$sth->fetchrow_hashref) {
+    $traits{$row->{'name'}} = $row->{'cvterm_id'};
+  }
+  
+  return %traits;
+}#getExistingTraits
+
+
 sub getTraitRecord {
   my ($dbh, $trait_name) = @_;
   my ($sql, $sth, $row);
@@ -341,30 +371,35 @@ sub setDbxref {
 }#setDbxref
 
 
-sub setOBOTerm {
+sub setOBOTerms {
   my ($dbh, $trait_id, $fields) = @_;
+  # wait on this one: 'IBP_Accession_GN'
+  my @OBO_cols = ('Soybase_Accession', 'TO_Accession');
   
-  my $term = $fields->{$ti{'onto_id_fld'}};
+  foreach my $OBO_col (@OBO_cols) {
+    my $term = $fields->{$OBO_col};
   
-  return if (!$term || $term eq '' || lc($term) eq 'null');
+    return if (!$term || $term eq '' || lc($term) eq 'null');
   
-  $term =~ /.*?:(\d+)/;
-  my $acc = $1;
-  my $name = $fields->{$ti{'onto_name_fld'}};
-#print "set term $term: accession: $acc, name=$name\n";
+    $term =~ /(.*?):(\d+)/;
+    my $dbname = $1;
+    my $acc = $2;
+print "set term $term: accession: $acc, db: $dbname\n";
 
-  # check for existence
-  my $dbxref_id = getDbxref($dbh, $term);
-  if ($dbxref_id) {
-    $sql = "
-      INSERT INTO chado.cvterm_dbxref
-        (cvterm_id, dbxref_id)
-      VALUES
-        ($trait_id, $dbxref_id)";
-    logSQL($dataset_name, "$line_count: $sql");
-    $sth = doQuery($dbh, $sql);
-  }
-}#setOBOTerm
+    # check for existence
+    my $dbxref_id = getDbxref($dbh, $term);
+    if ($dbxref_id) {
+      # OBO term exists, attach it to this trait
+      $sql = "
+        INSERT INTO chado.cvterm_dbxref
+          (cvterm_id, dbxref_id)
+        VALUES
+          ($trait_id, $dbxref_id)";
+      logSQL($dataset_name, "$line_count: $sql");
+      $sth = doQuery($dbh, $sql);
+    }
+  }#each OBO column
+}#setOBOTerms
 
 
 sub setTermRelationship {
