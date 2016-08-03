@@ -609,13 +609,15 @@ sub getOBOTermID {
 sub getOrganismID {
   my ($dbh, $mnemonic, $line_count) = @_;
   my ($sql, $sth, $row);
-  
-  $sql = "
-    SELECT O.organism_id 
-    FROM chado.organism O 
-      INNER JOIN chado.organism_dbxref OD ON OD.organism_id=O.organism_id 
-      INNER JOIN chado.dbxref D on D.dbxref_id=OD.dbxref_id 
-    WHERE D.accession='$mnemonic'";
+
+# mnemonic is now in stock.abreviation  
+#  $sql = "
+#    SELECT O.organism_id 
+#    FROM chado.organism O 
+#      INNER JOIN chado.organism_dbxref OD ON OD.organism_id=O.organism_id 
+#      INNER JOIN chado.dbxref D on D.dbxref_id=OD.dbxref_id 
+#    WHERE D.accession='$mnemonic'";
+  $sql = "SELECT organism_id FROM chado.organism WHERE abbreviation='$mnemonic'";
   logSQL('', "$sql");
   $sth = doQuery($dbh, $sql);
   if ($row=$sth->fetchrow_hashref) {
@@ -741,7 +743,7 @@ sub getStockID {
   
   $sql = "
     SELECT stock_id FROM chado.stock WHERE uniquename=?";
-  logSQL('', "$sql\WITH\n'$uniquename'");
+  logSQL('', "$sql\nWITH\n'$uniquename'");
   $sth = doQuery($dbh, $sql, ($uniquename));
   if ($row=$sth->fetchrow_hashref) {
     return $row->{'stock_id'};
