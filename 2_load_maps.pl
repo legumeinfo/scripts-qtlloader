@@ -77,8 +77,8 @@ EOS
   # Use a transaction so that it can be rolled back if there are any errors
   eval {
     if ($load_map_collection)  { loadMapCollection($dbh, $mci{'worksheet'});   }
-    if ($load_linkage_maps)    { loadLinkageMaps($dbh, $mi{'worksheet'});      }
-    if ($load_marker_position) { loadMarkerPositions($dbh, $mpi{'worksheet'}); }
+#    if ($load_linkage_maps)    { loadLinkageMaps($dbh, $mi{'worksheet'});      }
+#    if ($load_marker_position) { loadMarkerPositions($dbh, $mpi{'worksheet'}); }
 
 #keep this commented-out until sure the script is working.    
     $dbh->commit;   # commit the changes if we get this far
@@ -158,15 +158,19 @@ sub loadMapCollection {
       if ($fields->{$mci{'parent1_fld'}} 
           && $fields->{$mci{'parent1_fld'}} ne '' 
           && $fields->{$mci{'parent1_fld'}} ne 'NULL') {
+#         confirmStockRecord($dbh, $fields->{$mci{'parent1_fld'}}, 
+#                            'Cultivar', $fields);
          confirmStockRecord($dbh, $fields->{$mci{'parent1_fld'}}, 
-                            'Cultivar', $fields);
+                            'accession', $fields);
          connectParent($dbh, $fields->{$mci{'parent1_fld'}}, 'Parent1', $fields);
       }
       if ($fields->{$mci{'parent2_fld'}} 
           && $fields->{$mci{'parent2_fld'}} ne '' 
           && $fields->{$mci{'parent2_fld'}} ne 'NULL') {
+#        confirmStockRecord($dbh, $fields->{$mci{'parent2_fld'}}, 
+#                           'Cultivar', $fields);
         confirmStockRecord($dbh, $fields->{$mci{'parent2_fld'}}, 
-                           'Cultivar', $fields);
+                           'accession', $fields);
         connectParent($dbh, $fields->{$mci{'parent2_fld'}}, 'Parent2', $fields);
       }
     
@@ -457,28 +461,32 @@ sub clearMapSetDependencies {
   my ($sql, $sth, $row);
   # $map_set_id is a featuremap_id
   
-  # delete mapping population record
-  my $stockname = $fields->{$mi{'map_name_fld'}};
-
-  $sql = "DELETE FROM chado.stock_pub 
-          WHERE stock_id IN (SELECT stock_id FROM stock
-                             WHERE uniquename='$stockname')";
+  # Delete stock links to this map
+  $sql = "
+    DELETE FROM chado.featuremap_stock WHERE featuremap_id = $map_set_id";
   logSQL('', $sql);
-  doQuery($dbh, $sql); 
+  doQuery($dbh, $sql);
 
-  # this will also delete dependancies, including featuremap_stock and 
-  #    stock_relationship
-  $sql = "DELETE FROM chado.stock WHERE uniquename='$stockname'";
-  logSQL('', $sql);
-  doQuery($dbh, $sql); 
+  # Get mapping population
+  # NOTE: a mapping population is unique to a study
+  my $map_pop_name = $fields->{$mi{'map_name_fld'}};
+  if (my $map_pop_stock_id = getStockID($dbh, $map_pop_name)) {
+    # This will also delete all dependencies for this mapping population
+    $sql = "
+      DELETE FROM chado.stock WHERE stock_id=$map_pop_stock_id";
+    logSQL('', $sql);
+    doQuery($dbh, $sql);
+  }
   
   # clear featuremap properties
-  $sql = "DELETE FROM chado.featuremapprop WHERE featuremap_id = $map_set_id";
+  $sql = "
+    DELETE FROM chado.featuremapprop WHERE featuremap_id = $map_set_id";
   logSQL('', $sql);
   doQuery($dbh, $sql);
   
   # clear featuremap pub
-  $sql = "DELETE FROM chado.featuremap_pub WHERE featuremap_id = $map_set_id";
+  $sql = "
+    DELETE FROM chado.featuremap_pub WHERE featuremap_id = $map_set_id";
   logSQL('', $sql);
   doQuery($dbh, $sql);
 
@@ -530,6 +538,7 @@ sub confirmStockRecord {
   
   my $stock_id = getStockID($dbh, $stockname);
   if (!$stock_id) {
+print "Did not find stock record for [$stockname], will create it.\n";
     my $organism_id = getOrganismID($dbh, $fields->{$mci{'species_fld'}}, $line_count);
     $sql = "
       INSERT INTO chado.stock 
@@ -600,7 +609,7 @@ sub connectParent {
   my ($sql, $sth, $row);
 
   my $mapping_stock = $fields->{$mci{'map_name_fld'}};
-#print "\n$parent_type: Got mapping stock: $mapping_stock\n";
+print "\n$parent_type: Got mapping stock: $mapping_stock\n";
 
   $sql = "
     SELECT * FROM chado.stock_relationship
@@ -614,7 +623,7 @@ sub connectParent {
   if (!$sth || !($row = $sth->fetchrow_hashref)) {
     my $subj_stockname = $parent_stock;
     my $obj_stockname = $mapping_stock;
-#print "subject: $subj_stockname, object: $obj_stockname\n";
+print "subject: $subj_stockname, object: $obj_stockname\n";
     $sql = "
          INSERT INTO chado.stock_relationship
            (subject_id, object_id, type_id, rank)
