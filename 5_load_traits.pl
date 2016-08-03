@@ -163,11 +163,12 @@ print "\nQTL symbol: $qtl_symbol\n";
 #print "  trait ID: $trait_id\n";
     
     # trait_name 
-    setTermRelationship($dbh, $trait_id, $fields->{$ti{'trait_name_fld'}}, 
+    # subject, object, relationship, pathtype (for cvtermpath)
+    setTermRelationship($dbh, $fields->{$ti{'trait_class_fld'}}, $fields->{$ti{'qtl_symbol_fld'}}, 
                         'Has Trait Name', 'contains', $fields);
     
     # trait_class and trait_unit: cvterm_relationship
-    setTermRelationship($dbh, $trait_id, $fields->{$ti{'trait_class_fld'}}, 
+    setTermRelationship($dbh, $fields->{$ti{'qtl_symbol_fld'}}, $fields->{$ti{'trait_class_fld'}}, 
                         'Has Trait Class', 'is_a', $fields);
 
     # OBO term
@@ -205,6 +206,10 @@ sub cleanDependants {
   doQuery($dbh, $sql);
   
   my $sql = "DELETE FROM chado.cvterm_relationship WHERE subject_id=$trait_id";
+  logSQL('', $sql);
+  doQuery($dbh, $sql);
+  
+  my $sql = "DELETE FROM chado.cvterm_relationship WHERE object_id=$trait_id";
   logSQL('', $sql);
   doQuery($dbh, $sql);
   
@@ -403,40 +408,102 @@ print "set term $term: accession: $acc, db: $dbname\n";
 
 
 sub setTermRelationship {
-  my ($dbh, $trait_id, $term, $relationship, $path_type, $fields) = @_;
+  my ($dbh, $subject, $object, $relationship, $path_type, $fields) = @_;
   my ($sql, $sth, $row);
-
-  if ($term && $term ne '' && lc($term) ne 'null') {
-    # Does this related term exist?
-    $sql = "
-      SELECT cvterm_id FROM chado.cvterm 
-      WHERE name='$term' 
-            AND cv_id = (SELECT cv_id FROM chado.cv 
+  
+  if (!$subject || $subject eq '' || lc($subject) eq 'null'
+        || !$object || $object eq '' || lc($object) eq 'null') {
+    # Nothing to do
+    print "Warning: missing subject or object: [$subject], [$object]\n";
+    return;
+  }
+  
+  # Get subject term id
+print "Get id for subject $subject\n";
+  my $subject_id;
+  $sql = "
+    SELECT cvterm_id FROM chado.cvterm
+    WHERE name='$subject'
+          AND cv_id = (SELECT cv_id FROM chado.cv 
                          WHERE name='LegumeInfo:traits')";
-    logSQL($dataset_name, "$line_count: $sql");
-    $sth = doQuery($dbh, $sql);
-    
-    if (!($row=$sth->fetchrow_hashref)) {
-      # Term doesn't exist, create it
-      my $dbxref_id = setDbxref($dbh, $term);
+  logSQL($dataset_name, "$line_count: $sql");
+  $sth = doQuery($dbh, $sql);
+  if ($row=$sth->fetchrow_hashref) {
+print "row: $row\n";
+    $subject_id = $row->{'cvterm_id'};
+  }
+  else {
+print "no term record for $subject\n";
+    if ($path_type eq 'contains') {
+      # this is a missing trait class; add it
+      my $dbxref_id = setDbxref($dbh, $subject);
+print "Got dbxref $dbxref_id\n";
+      if (!$dbxref_id) {
+        print "\nERROR: unable to find or make dbxref record for $subject\n\n";
+        exit;
+      }
+      
       $sql = "
         INSERT INTO chado.cvterm
           (cv_id, name, dbxref_id)
         VALUES
           ((SELECT cv_id FROM chado.cv WHERE name='LegumeInfo:traits'),
-           '$term',
+           '$subject',
            $dbxref_id)
         RETURNING cvterm_id";
       logSQL($dataset_name, "$line_count: $sql");
       $sth = doQuery($dbh, $sql);
       $row = $sth->fetchrow_hashref;
-    }#insert cvterm
-    my $object_id = $row->{'cvterm_id'};
-    
-    # Indicate relationship between term and trait
+      $subject_id = $row->{'cvterm_id'};
+print "term record inserted\n";
+    }
+    else {
+      print "\nERROR: missing subject term: $subject. Unable to continue.\n\n";
+      exit;
+    }
+  }#get subject id
+  
+  # Get object term id
+  my $object_id;
+  if ($object && $object ne '' && lc($object) ne 'null') {
+    # Does this related term exist?
+    $sql = "
+      SELECT cvterm_id FROM chado.cvterm 
+      WHERE name='$object' 
+            AND cv_id = (SELECT cv_id FROM chado.cv 
+                         WHERE name='LegumeInfo:traits')";
+    logSQL($dataset_name, "$line_count: $sql");
+    $sth = doQuery($dbh, $sql);
+    if ($row=$sth->fetchrow_hashref) {
+      $object_id = $row->{'cvterm_id'};
+    }
+    else {
+      if ($path_type eq 'is_a') {
+        # Term doesn't exist, create it (this should be a trait class)
+        my $dbxref_id = setDbxref($dbh, $object);
+        $sql = "
+          INSERT INTO chado.cvterm
+            (cv_id, name, dbxref_id)
+          VALUES
+            ((SELECT cv_id FROM chado.cv WHERE name='LegumeInfo:traits'),
+             '$object',
+             $dbxref_id)
+          RETURNING cvterm_id";
+        logSQL($dataset_name, "$line_count: $sql");
+        $sth = doQuery($dbh, $sql);
+        $row = $sth->fetchrow_hashref;
+        $object_id = $row->{'cvterm_id'};
+      }
+      else {
+        print "\nERROR: missing subject term: $subject. Unable to continue.\n\n";
+        exit;
+      }
+    }#get object id
+     
+    # Indicate relationship between subject and object
     $sql = "
       SELECT cvterm_relationship_id FROM chado.cvterm_relationship
-      WHERE subject_id=$trait_id
+      WHERE subject_id=$subject_id
             AND type_id=(SELECT cvterm_id FROM chado.cvterm 
                          WHERE name='$relationship'
                                AND cv_id = (SELECT cv_id FROM chado.cv 
@@ -449,7 +516,7 @@ sub setTermRelationship {
         INSERT INTO chado.cvterm_relationship
           (subject_id, type_id, object_id)
         VALUES
-          ($trait_id,
+          ($subject_id,
            (SELECT cvterm_id FROM chado.cvterm
             WHERE name='$relationship'
               AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='local')),
@@ -465,7 +532,7 @@ sub setTermRelationship {
                      WHERE name='$path_type' 
                            AND cv_id=(SELECT cv_id FROM cv 
                                       WHERE name='relationship'))
-             AND subject_id=$trait_id
+             AND subject_id=$subject_id
              AND object_id=$object_id
              AND cv_id = (SELECT cv_id FROM chado.cv WHERE name='LegumeInfo:traits')";
     logSQL($dataset_name, "$line_count: $sql");
@@ -479,7 +546,7 @@ sub setTermRelationship {
             WHERE name='$path_type' 
                   AND cv_id=(SELECT cv_id FROM cv 
                              WHERE name='relationship')),
-           $trait_id,
+           $subject_id,
            $object_id,
            (SELECT cv_id FROM chado.cv WHERE name='LegumeInfo:traits'),
            1)";
