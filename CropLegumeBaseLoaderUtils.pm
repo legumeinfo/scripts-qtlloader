@@ -140,6 +140,7 @@ sub getSSInfo {
       'worksheet'                 => 'MARKER',
       'marker_identifier_fld'     => 'marker_identifier',
       'marker_type_fld'           => 'marker_type',
+      'dev_species_fld'           => 'species_developed_in',
       'alias_fld'                 => 'alias',              # not in our data
       'pub_marker_name_fld'       => 'source_publication_marker_name',
       'pub_fld'                   => 'publication_identifier',

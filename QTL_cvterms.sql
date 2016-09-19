@@ -100,6 +100,7 @@ VALUES
   ((SELECT db_id FROM db WHERE name='internal'), 'has_obo_term'),
   
   ((SELECT db_id FROM db WHERE name='internal'), 'source_description'),
+  ((SELECT db_id FROM db WHERE name='internal'), 'species_developed_in'),
   ((SELECT db_id FROM db WHERE name='internal'), 'source_marker'),
   ((SELECT db_id FROM db WHERE name='internal'), 'repeat_motif'),
   ((SELECT db_id FROM db WHERE name='internal'), 'restriction_enzyme'),
@@ -143,10 +144,13 @@ VALUES
    'Has OBO Term', 'Indicates that a formal OBO term is associated with this class', 
    (SELECT dbxref_id FROM dbxref WHERE accession='has_obo_term')),
    
-
   ((SELECT cv_id FROM cv WHERE name='local'),
    'Source Description', 'Description of the marker source.', 
    (SELECT dbxref_id FROM dbxref WHERE accession='source_description')),
+  ((SELECT cv_id FROM cv WHERE name='local'),
+   'Species Developed In', 'Species used to develop the marker.',
+   (SELECT dbxref_id FROM dbxref WHERE accession='species_developed_in')),
+
   ((SELECT cv_id FROM cv WHERE name='local'),
    'Source Marker', 'Name of marker this marker was developed from (e.g. an aflp)', 
    (SELECT dbxref_id FROM dbxref WHERE accession='source_marker')),

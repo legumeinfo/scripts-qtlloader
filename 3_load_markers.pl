@@ -128,7 +128,7 @@ sub loadMarkers {
     my $marker_name = $fields->{$mki{'marker_identifier_fld'}};
     my $unique_marker_name = makeMarkerName($species, $marker_name);
     my $marker_citation = $fields->{$mki{'pub_fld'}};
-print "\n$line_count: handle marker $marker_name as described by $marker_citation\n";
+    print "\n$line_count: handle marker $marker_name as described by $marker_citation\n";
     
     if ($markers_in_ws{$marker_name}) {
       print "$line_count: The marker $marker_name has already been "
@@ -185,12 +185,12 @@ print "\n$line_count: handle marker $marker_name as described by $marker_citatio
     # primer*_name, primer*_seq
     loadPrimers($dbh, $marker_id, $marker_name, $species, $fields);
 
-    # SSR_repeat_motif, source_description, restriction_enzyme, product_length, 
-    #   max_length, min_length, PCR_condition, sequence_name, marker_source, 
+    # SSR_repeat_motif, source_description, species_developed_in, restriction_enzyme, 
+    #   product_length, max_length, min_length, PCR_condition, sequence_name, marker_source, 
     #   SNP_alleles, SNP_five_prime_flanking_sequence, 
     #   SNP_three_prime_flanking_sequence, comment
-#TODO: marker_stock needs to be species
     setFeatureprop($dbh, $marker_id, $mki{'src_descr_fld'},             'Source Description', 1, $fields);
+    setFeatureprop($dbh, $marker_id, $mki{'dev_species_fld'},           'Species Developed In', 1, $fields);
     setFeatureprop($dbh, $marker_id, $mki{'repeat_motif_fld'},          'Repeat Motif', 1, $fields);
     setFeatureprop($dbh, $marker_id, $mki{'sequence_name_fld'},         'Sequence Name', 1, $fields);
     setFeatureprop($dbh, $marker_id, $mki{'restriction_enzyme_fld'},    'Restriction Enzyme', 1, $fields);
