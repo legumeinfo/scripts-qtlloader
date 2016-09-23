@@ -180,7 +180,7 @@ sub loadMarkers {
     }
     
     # marker_type
-    setMarkerType($dbh, $marker_id, $fields->{$mki{'marker_type_fld'}}, $marker_citation);
+    setMarkerType($dbh, $marker_id, $fields->{$mki{'marker_type_fld'}}, $marker_citation, $fields);
     
     # primer*_name, primer*_seq
     loadPrimers($dbh, $marker_id, $marker_name, $species, $fields);
@@ -540,13 +540,14 @@ sub setMarkerRec {
 
 
 sub setMarkerType {
-  my ($dbh, $marker_id, $marker_type, $marker_citation) = @_;
+  my ($dbh, $marker_id, $marker_type, $marker_citation, $fields) = @_;
   
   # Look for marker type in SO or 'local' ontology.
   my $sql = "
-    SELECT cvterm_id FROM cvterm 
-    WHERE name='$marker_type' 
-          AND cv_id in (SELECT cv_id FROM cv WHERE name IN ('sequence', 'local'))";
+    SELECT t.cvterm_id FROM cvterm t 
+      INNER JOIN cvtermsynonym ts ON ts.cvterm_id=t.cvterm_id 
+    WHERE (t.name='$marker_type' OR ts.synonym='$marker_type')
+          AND t.cv_id in (SELECT cv_id FROM cv WHERE name IN ('sequence', 'local'))";
   my $sth = doQuery($dbh, $sql);
   my $marker_type_id;
   if (my $row=$sth->fetchrow_hashref) {
@@ -565,7 +566,11 @@ sub setMarkerType {
       ($marker_id, $marker_type_id,
        (SELECT pub_id FROM chado.pub WHERE uniquename = '$marker_citation'))";
   $sth = doQuery($dbh, $sql);
-  
+ 
+  # Here's (an often more accurate) marker type as a property
+print "Set marker type: field name is " . $mki{'src_marker_fld'} . "\n";
+  setFeatureprop($dbh, $marker_id, $mki{'src_marker_fld'}, 'Marker Type', 1, $fields);
+ 
   return 1;
 }#setMarkerType
 
