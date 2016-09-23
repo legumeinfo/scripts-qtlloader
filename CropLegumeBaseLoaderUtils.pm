@@ -146,7 +146,7 @@ sub getSSInfo {
       'pub_fld'                   => 'publication_identifier',
       'species_fld'               => 'specieslink_abv',    # may be separated into genus/species
       'src_descr_fld'             => 'source_description',
-      'src_marker_fld'            => 'source_marker',
+      'src_marker_fld'            => 'source_marker_type',
       'repeat_motif_fld'          => 'SSR_repeat_motif',
       'db_accession_fld'          => 'accession',
       'database_fld'              => 'accession_source',
@@ -1139,7 +1139,7 @@ sub setFeatureprop {
   my ($dbh, $feature_id, $fieldname, $typename, $rank, $fields) = @_;
   my ($sql, $sth, $row);
   if (isFieldSet($fields, $fieldname)) {
-#print "Set $typename for $feature_id: [" . $fields->{$fieldname} . "]\n";
+#print "Set '$typename' for $feature_id: [" . $fields->{$fieldname} . "]\n";
     my $value = $dbh->quote($fields->{$fieldname});
     
     # Check if this featureprop type already exists
