@@ -4,6 +4,19 @@
 -- copy of SQL statements.
 
 
+--------------
+-- 09/21/16 --
+--------------
+
+-- Add a pub record for "unpublished"
+INSERT INTO pub 
+  (title, uniquename, type_id)
+VALUES
+  ('unpublished', 'unpublished',
+   (SELECT cvterm_id FROM cvterm WHERE name='Unpublished Works')
+  )
+;
+
 ---------------------
 ----- 03/24/15 ------
 ---------------------
