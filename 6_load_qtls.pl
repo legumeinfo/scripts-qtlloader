@@ -249,12 +249,12 @@ print "\n$line_count: $qtl_name\n";
     }
 
 
-    # QTL_peak
+    # publication_lg
     loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'pub_lg_fld'}}, 
                     'Publication Linkage Group', 'feature_property', $fields);
 
 #print "  attach pub lg\n";
-    # publication_lg
+    # QTL_peak
     loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'QTL_peak_fld'}}, 
                     'QTL Peak', 'feature_property', $fields);
     
@@ -574,6 +574,7 @@ sub insertGeneticCoordinates {
   
   my $left_end  = $fields->{$mpi{'left_end_fld'}};
   my $right_end = $fields->{$mpi{'right_end_fld'}};
+print "name: $qtl_name, mapset: $mapset, lg: $lg_mapname, from $left_end to $right_end\n";
   return if (isNull($mapset) || isNull($lg_mapname) 
               || (!$left_end && !($right_end)));
   
