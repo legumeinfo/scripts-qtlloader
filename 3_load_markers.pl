@@ -53,13 +53,19 @@ EOS
   
   # get worksheet contants
   my %mki  = getSSInfo('MARKERS');
+  my %mgpi = getSSInfo('MARKER_GENOMIC_POSITION');
 
   # Used all over
   my ($table_file, $sql, $sth, $row, $count, @records, @fields, $cmd, $rv);
   my ($has_errors, $line_count);
+  my ($add_all, $skip, $skip_all, $update, $update_all);
 
   my $dataset_name = 'markers';
     
+  # check for worksheets (script will exit on user request)
+  my $load_markers                  = checkWorksheet($input_dir, $mki{'worksheet'});
+  my $load_marker_genomic_positions = checkWorksheet($input_dir, $mgpi{'worksheet'});
+
   # Get connected
   my $dbh = connectToDB;
 
@@ -72,12 +78,20 @@ EOS
   #   any of these appear in the worksheet.
   my %existing_markers = getExistingMarkers($dbh);
   
+  # Holds marker physical positions already in database
+  my %marker_phys_pos = getExistingPhysicalMarkerPositions($dbh);
+#print "Existing marker postions:\n" . Dumper(%marker_phys_pos);
+#exit;
+  
   # keeps track of markers already seen in worksheet.
   my %markers_in_ws;
 
   # Use a transaction so that it can be rolled back if there are any errors
   eval {
-    loadMarkers($dbh);
+    if ($load_markers)                  { loadMarkers($dbh); }
+    if ($load_marker_genomic_positions) { loadMarkerGenomicPositions($dbh); }
+    
+    # SEE 2_load_maps.pl FOR MAKER POSITIONS
   
     $dbh->commit;   # commit the changes if we get this far
   };
@@ -102,7 +116,6 @@ sub loadMarkers {
   my $dbh = $_[0];
   
   my ($fields, $sql, $sth, $row, $msg);
-  my ($change_all, $skip, $skip_all, $update, $update_all);
 
   $table_file = "$input_dir/MARKER.txt";
   print "Loading/verifying $table_file...\n";
@@ -118,7 +131,8 @@ sub loadMarkers {
     my $line = join ' ', $fields;
     if (lc($line) =~ /qtl/) {
       # guess that this is a QTL, not a marker
-      $msg = "warning: This record appears to be a QTL, not a marker. It will not be loaded.";
+      $msg = "$line_count: warning: This record appears to be a QTL, not a marker. ";
+      $msg .= "It will not be loaded.";
       reportError($line_count, $msg);
       next;
     }
@@ -202,13 +216,42 @@ sub loadMarkers {
     setFeatureprop($dbh, $marker_id, $mki{'SNP_5_prime_flank_seq_fld'}, 'SNP 5-prime Flanking Sequence', 1, $fields);
     setFeatureprop($dbh, $marker_id, $mki{'SNP_3_prime_flank_seq_fld'}, 'SNP 3-prime Flanking Sequence', 1, $fields);
     setFeatureprop($dbh, $marker_id, $mki{'comment_fld'},               'comment', 1, $fields);
-    
-    # assembly_name, phys_chr, phys_start: featureloc
-    setPhysicalPosition($dbh, $marker_id, $fields);  
   }#each record
   
   print "\n\nLoaded $line_count markers.\n\n";
 }#loadMarkers
+
+
+sub loadMarkerGenomicPositions {
+  my $dbh = $_[0];
+  
+  my ($fields, $sql, $sth, $row, $msg);
+
+  $table_file = "$input_dir/MARKER_GENOMIC_POSITION.txt";
+  print "Loading/verifying $table_file...\n";
+  
+  @records = readFile($table_file);
+  print "\nLoading " . (scalar @records) . " marker genomic positions...\n";
+  
+  $line_count = 0;
+  foreach $fields (@records) {
+    $line_count++;
+    print ">>>>>>> $line_count: " . $fields->{$mgpi{'marker_name_fld'}} . "\n"; # . Dumper($fields);
+
+    my $marker_id = getMarkerID($dbh, $fields->{$mgpi{'marker_name_fld'}});
+    if (!$marker_id) {
+      print "warning: unable to find a marker record for " . $fields->{$mgpi{'marker_name_fld'}} . '. ';
+      print "This record will be skipped.\n";
+      next;
+    }
+    
+    # Set physical position
+    setPhysicalPosition($dbh, $marker_id, $fields);
+#last if ($line_count > 150);    
+  }#each record
+  
+  print "\n\nLoaded $line_count marker genomic positions.\n\n";
+}#loadMarkerGenomicPositions
 
 
 ################################################################################
@@ -291,6 +334,7 @@ sub attachSynonyms {
 
 
 sub clearMarkerDependancies {
+=cut eksc- don't do this; messes up updates
   my ($dbh, $marker_id) = @_;
   
   my ($sql, $sth);
@@ -339,6 +383,7 @@ sub clearMarkerDependancies {
     DELETE FROM featureloc WHERE feature_id=$marker_id";
   logSQL($dataset_name, $sql);
   $sth = doQuery($dbh, $sql);
+=cut
 }#clearMarkerDependancies
 
 
@@ -367,17 +412,90 @@ sub getExistingMarkers {
 }#getExistingMarkers
 
 
+sub getExistingPhysicalMarkerPositions {
+  my ($dbh) = @_;
+  
+  my %marker_phys_positions;
+  
+  my $sql = "
+    SELECT fl.featureloc_id, m.feature_id AS marker_id, m.name AS marker, 
+           c.feature_id AS chr_id, c.name AS chr, fl.fmin, fl.fmax, fl.rank 
+    FROM featureloc fl
+      INNER JOIN feature m ON m.feature_id=fl.feature_id
+      INNER JOIN feature c ON c.feature_id=fl.srcfeature_id
+      LEFT JOIN analysisfeature af ON af.feature_id=m.feature_id
+      LEFT JOIN analysis a ON a.analysis_id=af.analysis_id
+    WHERE fl.feature_id IN (SELECT feature_id FROM feature 
+                            WHERE type_id=(SELECT cvterm_id FROM cvterm 
+                                           WHERE name='genetic_marker' 
+                                              AND cv_id=(SELECT cv_id FROM cv 
+                                                         WHERE name='sequence')))";
+  logSQL('', $sql);
+  my $sth = doQuery($dbh, $sql);
+  while (my $row=$sth->fetchrow_hashref) {
+    my %value = (
+      'featureloc_id' => $row->{'featureloc_id'},
+      'marker'        => $row->{'marker'},
+#      'ver'           => 
+      'chr'           => $row->{'chr'},
+      'fmin'          => $row->{'fmin'},
+      'fmax'          => $row->{'fmax'},
+      'rank'          => $row->{'rank'}
+    );
+    
+    if (!$marker_phys_positions{$row->{'marker_id'}}) {
+      $marker_phys_positions{$row->{'marker_id'}} = {};
+    }
+    if (!$marker_phys_positions{$row->{'marker_id'}}{$row->{'chr_id'}}) {
+      $marker_phys_positions{$row->{'marker_id'}}{$row->{'chr_id'}} = [];
+    }
+    push @{$marker_phys_positions{$row->{'marker_id'}}{$row->{'chr_id'}}}, \%value;
+  }
+  
+  return %marker_phys_positions;
+}#getExistingPhysicalMarkerPositions
+
+
+sub getMaxPositionRank {
+  my ($marker_id) = @_;
+  
+  my $rank = -1;
+  foreach my $chr_id (keys %{$marker_phys_pos{$marker_id}}) {
+    foreach my $p (@{$marker_phys_pos{$marker_id}{$chr_id}}) {
+      if ($p->{'rank'} > $rank) { $rank = $p->{'rank'} };
+    }
+  }#each chr position for this marker
+  
+  return $rank;
+}#getMaxPositionRank
+
+
 sub linkPubFeature {
   my ($dbh, $marker_id, $marker_citation) = @_;
+
+  return if (!$marker_citation || $marker_citation eq 'NULL');
   
+  my $feature_pub_id = 0;
   $sql = "
-  INSERT INTO chado.feature_pub 
-    (feature_id, pub_id)
-  VALUES
-    ($marker_id,
-    (SELECT pub_id FROM chado.pub WHERE uniquename = '$marker_citation'))";
+    SELECT feature_pub_id FROM feature_pub
+    WHERE feature_id=$marker_id
+          AND pub_id=(SELECT pub_id FROM chado.pub 
+                      WHERE uniquename = '$marker_citation')";
   logSQL($dataset_name, $sql);
-  doQuery($dbh, $sql);
+  if (($sth=doQuery($dbh, $sql)) && ($row=$sth->fetchrow_hashref)) {
+    $feature_pub_id = $row->{'feature_pub_id'};
+  }
+  
+  if (!$feature_pub_id) {
+    $sql = "
+    INSERT INTO chado.feature_pub 
+      (feature_id, pub_id)
+    VALUES
+      ($marker_id,
+      (SELECT pub_id FROM chado.pub WHERE uniquename = '$marker_citation'))";
+    logSQL($dataset_name, $sql);
+    doQuery($dbh, $sql);
+  }
 }#linkPubFeature
 
 
@@ -408,15 +526,20 @@ sub loadPrimer {
     
     my $primer_name = (isFieldSet($fields, $name_field)) 
         ? $fields->{$name_field} : $marker_name;
-    if (lc($marker_name) eq lc($fields->{$mki{'marker_identifier_fld'}})
-          || lc($marker_name) eq lc($fields->{$mki{'pub_marker_name_fld'}})) {
+    # Append primer number if primer name is built from marker name
+    if (lc($primer_name) eq lc($fields->{$mki{'marker_identifier_fld'}})
+          || lc($primer_name) eq lc($fields->{$mki{'pub_marker_name_fld'}})) {
       $primer_name = "$primer_name.p$primer_num";
     }
     my $unique_primer_name = makeMarkerName($species, $primer_name);
-#print "primer name is $primer_name ($unique_primer_name)\n";
-    if (primerExists($organism_id, $unique_primer_name, $primer_type)) {
-# TODO: if primer sequence needs to be changed, this will need to do an update
-      print "The primer $primer_name has already been loaded. Skipping. \n";
+print "primer name is $primer_name ($unique_primer_name)\n";
+    if ((my $primer_id=primerExists($organism_id, $unique_primer_name, $primer_type))) {
+      $sql = "
+        UPDATE feature
+          SET residues = '$sequence'
+        WHERE feature_id=$primer_id";
+      logSQL($dataset_name, $sql);
+      $sth = doQuery($dbh, $sql);
       return;
     }
     
@@ -438,11 +561,92 @@ sub loadPrimer {
     $sth = doQuery($dbh, $sql);
     $row = $sth->fetchrow_hashref;
     my $subject_id = $row->{'feature_id'};
+print "Primer $primer_name has feature $subject_id\n";
         
     #linking the marker with its related features
     setFeatureRelationship($dbh, $marker_id, $subject_id, 'relationship'); 
   }#primer provided in worksheet
 }#loadPrimer
+
+
+sub markerHasPosition {
+  my ($marker_id) = @_;
+#print "check exiting position for marker id $marker_id:\n" . Dumper($marker_phys_pos{$marker_id});
+  if ($marker_phys_pos{$marker_id} && defined($marker_phys_pos{$marker_id})) {
+    return 1;
+  }
+  
+  return undef;
+}#markerHasPosition
+
+
+sub newPositionAction {
+  my ($marker_id, $marker, $chr_id, $chr, $start, $end) = @_;
+  
+  if ($add_all) { return 'add' };
+  if ($update_all) { return 'update' }
+  if ($skip_all) { return 'skip' }
+  
+#print "newPositionAction($marker_id, $marker, $chr_id, $chr, $start, $end)\n";
+#print "Existing marker information:\n" . Dumper($marker_phys_pos{$marker_id});
+
+  print "\nThe marker '$marker' already has one or more positions in the database.\n";
+  print "Existing positions:\n";
+  my %pos = %{$marker_phys_pos{$marker_id}};
+#print "What is this???\n" . Dumper(%pos);
+  foreach my $c (keys %pos) {
+    foreach my $p (@{$marker_phys_pos{$marker_id}->{$c}}) {
+      print '   ' . $p->{'chr'} . ': ' . $p->{'fmin'} . '-' . $p->{'fmax'} . "\n";
+    }
+  }
+  print "New position:\n   $chr: $start - $end\n";
+  print "Action: [u]pdate, [u]pdate [all], [a]add, [a]dd [all], [s]kip, [s]kip [all], [q]uit: ";
+  my $userinput =  <STDIN>;
+  chomp ($userinput);
+  if ($userinput eq 'a') {
+    return 'add';
+  }
+  elsif ($userinput eq 'aall') {
+    $add_all = 1;
+    return 'add';
+  }
+  elsif ($userinput eq 'u') {
+    return 'update';
+  }
+  elsif ($userinput eq 'uall') {
+    $update_all = 1;
+    return 'update';
+  }
+  elsif  ($userinput eq 'sall') {
+    $skip_all = 1;
+    return 'skip';
+  }
+  else {
+    exit;
+  }
+}#newPositionAction
+
+
+sub positionLoaded {
+  my ($marker_id, $ver, $chr_feature_id, $start, $end) = @_;
+#print "positionLoaded(): version is $ver\n";
+#exit;
+
+  if (!$marker_phys_pos{$marker_id} || !$marker_phys_pos{$marker_id}{$chr_feature_id}) {
+    return undef;
+  }
+  
+  my $mkr_positions = $marker_phys_pos{$marker_id}{$chr_feature_id};
+#print "marker $marker_id has these positions on $chr_feature_id:\n" . Dumper($mkr_positions);
+  foreach my $p (@$mkr_positions) {
+#print "one position:\n" . Dumper($p);
+    if ($p->{'fmin'} == $start && $p->{'fmax'} == $end) {
+      return 1;
+    }
+  } 
+  
+  return undef;
+}#positionLoaded
 
 
 sub primerExists {
@@ -485,6 +689,88 @@ sub setFeatureRelationship {
 }# setFeatureRelationship
     
     
+sub setPhysicalPosition {
+  my ($dbh, $marker_id, $fields) = @_;
+  my ($msg, $row, $sql, $sth);
+
+  if (isFieldSet($fields, $mgpi{'phys_ver_fld'})) {
+    my $assembly_id = getAssemblyID($dbh, $fields->{$mgpi{'phys_ver_fld'}});
+#print "Assembly analysis id for '" . $fields->{$mgpi{'phys_ver_fld'}} . "' is $assembly_id\n";
+    if (!$assembly_id) {
+      print "warning: unable to find analysis id for '" . $fields->{$mgpi{'phys_ver_fld'}} . "'\n";
+      return;
+    }
+    
+    my $marker = $fields->{$mgpi{'marker_name_fld'}};
+    my $start  = $fields->{$mgpi{'phys_start_fld'}};
+    my $end    = $fields->{$mgpi{'phys_end_fld'}}; 
+    my $chr    = $fields->{$mgpi{'phys_chr_fld'}};
+    my $ver    = $fields->{$mgpi{'phys_ver_fld'}};
+    my $chr_feature_id = getChromosomeID($dbh, $chr, $ver);
+
+    if ($chr_feature_id == 0) {
+      $chr_feature_id = getScaffoldID($dbh, $chr, $ver);
+      if ($chr_feature_id == 0) {
+        $msg = "ERROR: Unable to find chromosome/scaffold feature $chr ";
+        $msg .= "for assembly version $ver.";
+        print "$msg\n";
+        reportError($line_count, $msg);
+exit;
+        return;
+      }
+    }
+#print "Chromosome feature id for $marker_id is $chr_feature_id\n";
+
+    # decide what to do with this record; default is add
+    my $action = 'add';
+    
+    # Is this position already loaded?
+    if (positionLoaded($marker_id, $ver, $chr_feature_id, $start, $end)) {
+print "This position is already in the database: $marker_id, $chr_feature_id, $start, $end\n";
+      $action = 'skip';
+    }
+    elsif (markerHasPosition($marker_id)) {
+      my $action = newPositionAction($marker_id, $marker, $chr_feature_id, $chr, $start, $end);
+    }
+
+    if ($action eq 'add') {
+      my $rank = getMaxPositionRank($marker_id) + 1;
+print "Add position for marker: ($marker_id, $chr_feature_id, $start, $end, $rank)\n";
+      $sql = "
+        INSERT INTO chado.featureloc
+          (feature_id, srcfeature_id, fmin, fmax, rank)
+        VALUES
+          ($marker_id, $chr_feature_id, $start, $end, $rank)";
+      logSQL($dataset_name, $sql);
+      doQuery($dbh, $sql);
+      
+      # Add this position 
+      if (!$marker_phys_pos{$marker_id}) {
+        $marker_phys_pos{$marker_id} = {};
+      }
+      if (!$marker_phys_pos{$marker_id}{$chr_feature_id}) {
+        $marker_phys_pos{$marker_id}{$chr_feature_id} = [];
+      }
+      my %value = (
+        'featureloc_id' => 0,
+        'marker'        => $marker,
+#        'ver'           => $ver,
+        'chr'           => $chr,
+        'fmin'          => $start,
+        'fmax'          => $end,
+        'rank'          => $rank
+      );
+      push @{$marker_phys_pos{$marker_id}{$chr_feature_id}}, \%value;
+    }
+    elsif ($action eq 'update') {
+print "\n\nupdate not implemented.\n\n";
+exit;
+    }
+  }#physical position information provided
+
+}#setPhysicalPosition
+
+
 sub setMarkerRec {
   my ($dbh, $marker_id, $fields) = @_;
   my ($sql, $sth, $row);
@@ -554,94 +840,33 @@ sub setMarkerType {
     $marker_type_id = $row->{'cvterm_id'};
   }
   else {
-    print "ERROR: unable to find marker type $marker_type in the SO\n";
+    print "warning: unable to find marker type $marker_type in the SO\n";
     return 0;
   }
   
   # Attach as feature_cvterm record
+  my $feature_cvterm_id = 0;
   $sql = "
-    INSERT INTO feature_cvterm
-      (feature_id, cvterm_id, pub_id)
-    VALUES
-      ($marker_id, $marker_type_id,
-       (SELECT pub_id FROM chado.pub WHERE uniquename = '$marker_citation'))";
-  $sth = doQuery($dbh, $sql);
- 
+    SELECT feature_cvterm_id FROM feature_cvterm
+    WHERE feature_id=$marker_id AND cvterm_id=$marker_type_id
+          AND pub_id=(SELECT pub_id FROM chado.pub WHERE uniquename = '$marker_citation')";
+  if (($sth=doQuery($dbh, $sql)) && ($row=$sth->fetchrow_hashref)) {
+    $feature_cvterm_id = $row->{'feature_cvterm_id'};
+  }
+  if (!$feature_cvterm_id) {
+    $sql = "
+      INSERT INTO feature_cvterm
+        (feature_id, cvterm_id, pub_id)
+      VALUES
+        ($marker_id, $marker_type_id,
+         (SELECT pub_id FROM chado.pub WHERE uniquename = '$marker_citation'))";
+    $sth = doQuery($dbh, $sql);
+  }
+  
   # Here's (an often more accurate) marker type as a property
 print "Set marker type: field name is " . $mki{'src_marker_fld'} . "\n";
   setFeatureprop($dbh, $marker_id, $mki{'src_marker_fld'}, 'Marker Type', 1, $fields);
  
   return 1;
 }#setMarkerType
-
-
-sub setPhysicalPosition {
-  my ($dbh, $marker_id, $fields) = @_;
-  my ($msg, $row, $sql, $sth);
-
-# TODO: Don't delete existing data if nothing is set for these fields.
-#       Warn if values change? (Better done in verify script?)
-  
-  if (isFieldSet($fields, $mki{'phys_ver_fld'})) {
-    my $assembly_id = getAssemblyID($dbh, $fields->{$mki{'phys_ver_fld'}});
-print "Assembly analysis id is $assembly_id\n";
-    if (!$assembly_id) {
-      return;
-    }
-    
-    my $start = $fields->{$mki{'phys_start_fld'}};
-    my $end   = $fields->{$mki{'phys_end_fld'}}; 
-    my $chr   = $fields->{$mki{'phys_chr_fld'}};
-    my $ver   = $fields->{$mki{'phys_ver_fld'}};
-    my $chr_feature_id = getChromosomeID($dbh, $chr, $ver);
-
-    if ($chr_feature_id == 0) {
-      $chr_feature_id = getScaffoldID($dbh, $chr, $ver);
-      if ($chr_feature_id == 0) {
-        $msg = "ERROR: Unable to find chromosome/scaffold feature $chr";
-        $msg .= "for assembly version $ver.";
-        print "$msg\n";
-        reportError($line_count, $msg);
-        return;
-      }
-    }
-print "Chromosome feature id is $chr_feature_id\n";
-
-    if ($chr_feature_id > 0) {
-      $sql = "
-        SELECT featureloc_id FROM chado.featureloc
-        WHERE feature_id=$marker_id AND srcfeature_id=$chr_feature_id";
-print "$sql\n";
-      logSQL('', $sql);
-      $sth = doQuery($dbh, $sql);
-##print "sth: $sth\n";
-#print "found " . $sth->rows . " rows\n";
-#print "errors: " . $sth->errstr . "\n";
-#$row=$sth->fetchrow_hashref;
-#print "returns: " . Dumper($row);
-#exit;
-      if ($row=$sth->fetchrow_hashref) {
-print "found existing record\n";
-        my $featureloc_id = $row->{'featureloc_id'};
-        $sql = "
-          UPDATE chado.featureloc
-          SET fmin=$start, fmax=$end
-          WHERE featureloc_id=$featureloc_id";
-        logSQL($dataset_name, $sql);
-        doQuery($dbh, $sql);
-      }
-      else {
-print "create new record\n";
-        $sql = "
-          INSERT INTO chado.featureloc
-            (feature_id, srcfeature_id, fmin, fmax)
-          VALUES
-            ($marker_id, $chr_feature_id, $start, $end)";
-        logSQL($dataset_name, $sql);
-        doQuery($dbh, $sql);
-      }
-    }#physical chromosome found
-  }#physical position information provided
-
-}#setPhysicalPosition
 
