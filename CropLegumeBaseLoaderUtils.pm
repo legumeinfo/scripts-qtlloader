@@ -8,6 +8,7 @@ our $VERSION     = 1.00;
 our @ISA         = qw(Exporter);
 our @EXPORT      = (
                     qw(checkUpdate),
+                    qw(checkWorksheet),
                     qw(connectToDB), 
                     qw(createLinkageGroups),
                     qw(dbxrefExists),
@@ -19,6 +20,7 @@ our @EXPORT      = (
                     qw(getCvtermID), 
                     qw(getFeatureID),
                     qw(getMapSetID),
+                    qw(getMarkerID),
                     qw(getMarkerSpecies),
                     qw(getOBOName),
                     qw(getOBOTermID),
@@ -167,10 +169,6 @@ sub getSSInfo {
       'image_fld'                 => 'image_identifier',   # not in our data
       'contact_fld'               => 'contact_identifier', # not in our data
       'stock_fld'                 => 'stock_identifier',
-      'phys_ver_fld'              => 'assembly_name',
-      'phys_chr_fld'              => 'phys_chr',
-      'phys_start_fld'            => 'phys_start',
-      'phys_end_fld'              => 'phys_end',
       'comment_fld'               => 'comment',
     );
   }
@@ -178,7 +176,7 @@ sub getSSInfo {
     return(
       'worksheet'           => 'MARKER_POSITION',
       'species_fld'         => 'specieslink_abv',
-      'marker_name_fld'     => 'marker_name',
+      'marker_name_fld'     => 'marker_identifier',
       'alt_marker_name_fld' => 'alt_marker_name',
       'cmap_acc_fld'        => 'Cmap_accession',
       'map_name_fld'        => 'map_name',
@@ -187,6 +185,19 @@ sub getSSInfo {
       'comment_fld'         => 'comment',
     );
   }
+  elsif($ss eq 'MARKER_GENOMIC_POSITION'){
+    return(
+      'worksheet'           => 'MARKER_GENOMIC_POSITION',
+      'species_fld'         => 'specieslink_abv',
+      'marker_name_fld'     => 'marker_identifier',
+      'phys_ver_fld'        => 'assembly_name',
+      'phys_chr_fld'        => 'phys_chr',
+      'phys_start_fld'      => 'phys_start',
+      'phys_end_fld'        => 'phys_end',
+      'comment_fld'         => 'comment',
+    );
+  }
+  #OBSOLETE
   elsif($ss eq 'MARKER_SEQUENCE'){
     return(
         'worksheet'               =>  'MARKER_SEQUENCE',
@@ -285,7 +296,32 @@ sub checkUpdate {
   }
  
  return ($skip, $skip_all, $update, $update_all);
-}
+}#checkUpdate
+
+
+sub checkWorksheet {
+  my ($input_dir, $worksheet) = @_;
+  
+  my $load_worksheet;
+  my $filename = "$input_dir/$worksheet.txt";
+  
+  if (-e $filename) {
+    $load_worksheet = 1;
+  }
+  else {
+    print "The worksheet $worksheet doesn't exist. Skip? (y/n) ";
+    my $userinput =  <STDIN>;
+    chomp ($userinput);
+    if (lc($userinput) eq 'y') {
+      $load_worksheet = 0;
+    }
+    else {
+      exit;
+    }
+  }
+  
+  return $load_worksheet;
+}#checkWorksheet
 
 
 sub createLinkageGroups {
@@ -296,6 +332,10 @@ sub createLinkageGroups {
   my %mpi = getSSInfo('MARKER_POSITION');
   
   foreach my $r (@records) {
+#print "Look for genetic position in\n" . Dumper($r);
+    next if (!$r->{$mpi{'map_name_fld'}} 
+                || $r->{$mpi{'map_name_fld'}} eq 'NULL'); # no genetic map position
+    
     my $lg_map_name = makeLinkageMapName($r->{$mpi{'map_name_fld'}}, $r->{$mpi{'lg_fld'}});
     if (!$lgs{$lg_map_name}) {
       $lgs{$lg_map_name} = {'map_start' => 99999, 'map_end' => -99999};
@@ -451,11 +491,17 @@ sub getChromosomeID {
       INNER JOIN chado.analysisfeature af
         ON af.feature_id=f.feature_id
       INNER JOIN chado.analysis a ON a.analysis_id=af.analysis_id
-    WHERE F.type_id = (SELECT cvterm_id FROM chado.cvterm 
+    WHERE (F.type_id = (SELECT cvterm_id FROM chado.cvterm 
                        WHERE name='chromosome' 
                          AND cv_id = (SELECT cv_id FROM chado.cv 
                                        WHERE name='sequence')
                        )
+           OR F.type_id = (SELECT cvterm_id FROM chado.cvterm 
+                           WHERE name='contig' 
+                             AND cv_id = (SELECT cv_id FROM chado.cv 
+                                          WHERE name='sequence')
+                           )
+          )
       AND F.name='$chromosome' AND a.name='$version'";
   logSQL('lib', $sql);
   $sth = doQuery($dbh, $sql);
@@ -507,6 +553,25 @@ sub getMapSetID {
 }#getMapSetID
 
               
+sub getMarkerID {
+  my ($dbh, $uniquename) = @_;
+  my ($sql, $sth, $row);
+  
+  $sql = "
+    SELECT feature_id FROM chado.feature
+    WHERE uniquename='$uniquename'
+          AND type_id=(SELECT cvterm_id FROM cvterm WHERE name='genetic_marker')";
+  logSQL('', "$sql");
+  $sth = doQuery($dbh, $sql);
+  if ($row=$sth->fetchrow_hashref) {
+    return $row->{'feature_id'};
+  }
+  else {
+    return 0;
+  }
+}#getMarkerID
+
+
 sub getMarkerSpecies {
   my ($dbh, $marker_name)= @_;
   my ($sql, $sth, $row);
@@ -1193,8 +1258,7 @@ sub setFeatureprop {
               AND type_id = (SELECT cvterm_id FROM chado.cvterm 
                              WHERE name='$typename'
                                AND cv_id IN (SELECT cv_id FROM chado.cv 
-                                            WHERE name IN ('feature_property', 'local')))
-              AND value=$value";
+                                            WHERE name IN ('feature_property', 'local')))";
       logSQL('', $sql);
       $sth = doQuery($dbh, $sql);
       if ($row=$sth->fetchrow_hashref) {
