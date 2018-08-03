@@ -29,6 +29,8 @@
   use Data::Dumper;
   use Encode;
   
+  use Getopt::Std;
+  
   # load local util library
   use File::Spec::Functions qw(rel2abs);
   use File::Basename;
@@ -38,9 +40,15 @@
   my $warn = <<EOS
     Usage:
       
-    $0 data-dir
+    $0 [opts] data-dir
+    -w [optional] worksheet name
 EOS
 ;
+  my $worksheet = 'Traits';
+  my %cmd_opts = ();
+  getopts("w:", \%cmd_opts);
+  if (defined($cmd_opts{'w'})) { $worksheet = $cmd_opts{'w'}; } 
+
   if ($#ARGV < 0) {
     die $warn;
   }
@@ -75,7 +83,7 @@ EOS
 
   # Use a transaction so that it can be rolled back if there are any errors
   eval {
-    loadTraits($dbh);
+    loadTraits($dbh, $worksheet);
 
     $dbh->commit;   # commit the changes if we get this far
   };
@@ -110,10 +118,10 @@ EOS
 
 
 sub loadTraits {
-  my $dbh = $_[0];
+  my ($dbh, , $worksheet) = @_;
   my ($fields, $sql, $sth);
   
-  $table_file = "$input_dir/$ti{'worksheet'}.txt";
+  $table_file = "$input_dir/$worksheet.txt";
   print "\nLoading/verifying $table_file...\n";  
   
   my ($skip, $skip_all, $update, $update_all);
@@ -141,7 +149,7 @@ print "\nQTL symbol: $qtl_symbol\n";
         cleanDependants($trait_id);
       }
       else {
-        my $prompt = "$line_count: QTL symbol ($qtl_symbol} = $trait_id) ";
+        my $prompt = "$line_count: QTL symbol ($qtl_symbol) = $trait_id) ";
         ($skip, $skip_all, $update, $update_all) = checkUpdate($prompt);
         
         next if ($skip || $skip_all);

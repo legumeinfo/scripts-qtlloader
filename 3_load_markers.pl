@@ -736,11 +736,13 @@ print "This position is already in the database: $marker_id, $chr_feature_id, $s
     if ($action eq 'add') {
       my $rank = getMaxPositionRank($marker_id) + 1;
 print "Add position for marker: ($marker_id, $chr_feature_id, $start, $end, $rank)\n";
+      my $s = ($start<$end) ? $start : $end;
+      my $e = ($start<$end) ? $end : $start;
       $sql = "
         INSERT INTO chado.featureloc
           (feature_id, srcfeature_id, fmin, fmax, rank)
         VALUES
-          ($marker_id, $chr_feature_id, $start, $end, $rank)";
+          ($marker_id, $chr_feature_id, $s, $e, $rank)";
       logSQL($dataset_name, $sql);
       doQuery($dbh, $sql);
       
@@ -827,6 +829,7 @@ sub setMarkerRec {
 
 sub setMarkerType {
   my ($dbh, $marker_id, $marker_type, $marker_citation, $fields) = @_;
+print "Set marker type to '$marker_type'\n";
   
   # Look for marker type in SO or 'local' ontology.
   my $sql = "
@@ -834,6 +837,7 @@ sub setMarkerType {
       INNER JOIN cvtermsynonym ts ON ts.cvterm_id=t.cvterm_id 
     WHERE (t.name='$marker_type' OR ts.synonym='$marker_type')
           AND t.cv_id in (SELECT cv_id FROM cv WHERE name IN ('sequence', 'local'))";
+  logSQL($dataset_name, $sql);
   my $sth = doQuery($dbh, $sql);
   my $marker_type_id;
   if (my $row=$sth->fetchrow_hashref) {
@@ -843,6 +847,7 @@ sub setMarkerType {
     print "warning: unable to find marker type $marker_type in the SO\n";
     return 0;
   }
+print "Found marker type in the SO\n";
   
   # Attach as feature_cvterm record
   my $feature_cvterm_id = 0;
@@ -850,6 +855,7 @@ sub setMarkerType {
     SELECT feature_cvterm_id FROM feature_cvterm
     WHERE feature_id=$marker_id AND cvterm_id=$marker_type_id
           AND pub_id=(SELECT pub_id FROM chado.pub WHERE uniquename = '$marker_citation')";
+  logSQL($dataset_name, $sql);
   if (($sth=doQuery($dbh, $sql)) && ($row=$sth->fetchrow_hashref)) {
     $feature_cvterm_id = $row->{'feature_cvterm_id'};
   }
@@ -860,11 +866,12 @@ sub setMarkerType {
       VALUES
         ($marker_id, $marker_type_id,
          (SELECT pub_id FROM chado.pub WHERE uniquename = '$marker_citation'))";
+    logSQL($dataset_name, $sql);
     $sth = doQuery($dbh, $sql);
   }
   
   # Here's (an often more accurate) marker type as a property
-print "Set marker type: field name is " . $mki{'src_marker_fld'} . "\n";
+print "marker type prop set to " . $fields->{$mki{'src_marker_fld'}} . "\n";
   setFeatureprop($dbh, $marker_id, $mki{'src_marker_fld'}, 'Marker Type', 1, $fields);
  
   return 1;

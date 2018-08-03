@@ -1,3 +1,15 @@
+-- EXPERIMENTS
+-- MAPS
+-- MARKERS
+   -- Get all marker data for spreadsheet loading
+   -- Check markers linked to canonical markers
+   -- Get all markers and synonyms linked to canonical markers
+   -- Find a marker by name
+   -- Get all maps associated with any marker
+   -- Get all properties associated with any marker
+   -- Get all primers associated with any marker
+-- PUBLICATIONS
+-- QTLs
 -- TRAITS
 
 
@@ -168,6 +180,23 @@ order by lg.name;
 -- MARKERS -------------------------------------------------------------------
 ------------------------------------------------------------------------------
 
+-- Get all marker data for spreadsheet loading
+SELECT ms.cmarker, REPLACE(ms.all_names, ',,', ',') AS all_names,
+       p.uniquename AS citation, t.name AS type, f.residues,
+       c.value AS comment
+FROM chado.marker_search ms
+  INNER JOIN feature f ON f.feature_id=ms.cmarker_id
+  INNER JOIN cvterm t ON t.cvterm_id=f.type_id
+  LEFT OUTER JOIN feature_pub fp ON fp.feature_id=f.feature_id
+  LEFT OUTER JOIN pub p ON p.pub_id=fp.pub_id
+  LEFT OUTER JOIN featureprop c ON c.feature_id=f.feature_id
+    AND c.type_id=(SELECT cvterm_id FROM cvterm 
+                   WHERE name='comment' 
+                         AND cv_id=(SELECT cv_id FROM cv 
+                                    WHERE name='feature_property'))
+;
+
+
 -- Check markers linked to canonical markers:
 SELECT cmarker, array_agg(marker) AS markers
 FROM (
@@ -286,7 +315,7 @@ WHERE cmarker='pPGSseq11F12'
       OR synonyms LIKE '%pPGSseq11F12%'
 ;
 
---Get all maps associated with any marker
+-- Get all maps associated with any marker
 SELECT cmarker, ARRAY_AGG(fm.name) AS maps, ARRAY_AGG(fm.featuremap_id) AS map_ids
  FROM marker_search ms
   INNER JOIN featurepos pos 
@@ -296,7 +325,7 @@ GROUP BY cmarker
 ORDER BY cmarker
 ;
 
---Get all properties associated with any marker
+-- Get all properties associated with any marker
 SELECT cmarker, ARRAY_AGG(fp.value) AS props, ARRAY_AGG(c.name) AS prop_types
 FROM marker_search ms
   LEFT OUTER JOIN featureprop fp 
@@ -305,7 +334,7 @@ FROM marker_search ms
 GROUP BY cmarker
 ;
 
---Get all primers associated with any marker
+-- Get all primers associated with any marker
 SELECT ms.cmarker, p.name, p.residues FROM marker_search ms
   INNER JOIN feature_relationship fr 
     ON (fr.object_id=ms.cmarker_id OR fr.object_id=ANY(ms.marker_ids))
@@ -318,37 +347,6 @@ SELECT ms.cmarker, p.name, p.residues FROM marker_search ms
 
 
 
--- OLD
-select mk.name, o.genus || ' ' || o.species as species, pdbxref.accession as genbank,
-       alt.name as alt_name, mt.value as marker_type, lg.name as lg, p.mappos as pos 
-from feature mk
-  inner join organism o on o.organism_id=mk.organism_id
-  left outer join dbxref pdbxref on pdbxref.dbxref_id=mk.dbxref_id
-  left outer join feature_synonym fs on fs.feature_id=mk.feature_id
-  left outer join synonym alt on alt.synonym_id=fs.synonym_id
-  left outer join featureprop mt 
-    on mt.feature_id=mk.feature_id 
-       and mt.type_id=(select cvterm_id from cvterm 
-                       where name='Marker Type' 
-                             and cv_id=(select cv_id from cv where name='feature_property'))
-  left outer join featurepos p on p.feature_id=mk.feature_id
-  left outer join feature lg on lg.feature_id=p.map_feature_id
-where mk.type_id = (select cvterm_id from cvterm where name='genetic_marker')
-order by mk.name;
-
-
-select mk.name, mt.value as marker_type 
-from feature mk
-  inner join featureprop mt 
-    on mt.feature_id=mk.feature_id 
-       and mt.type_id=(select cvterm_id from cvterm 
-                       where name='Marker Type' 
-                             and cv_id=(select cv_id from cv where name='feature_property'))
-where mk.type_id = (select cvterm_id from cvterm where name='genetic_marker')
-;
-
-
-                                          
 ------------------------------------------------------------------------------
 -- EXPERIMENTS ----------------------------------------------------------------
 ------------------------------------------------------------------------------

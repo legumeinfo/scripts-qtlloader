@@ -404,6 +404,8 @@ sub attachFavorableAlleleSource {
     return;
   }
   
+print "\nFIX STOCK TYPE: should be 'germplasm'\n\n";
+exit;
   # Make sure there is a stock record for the favorable allele source
   my $stock_id;
   $sql = "
@@ -587,6 +589,10 @@ print "name: $qtl_name, mapset: $mapset, lg: $lg_mapname, from $left_end to $rig
   $left_end = int($left_end*100);
   $right_end = int($right_end*100);
   my $srcfeature_id = getFeatureID($dbh, $lg_mapname);
+  if (!$srcfeature_id) {
+    print "ERROR: can't find linkage group '$lg_mapname'\n";
+    exit;
+  }
   
   # increase rank if need be
   $sql = "
@@ -625,7 +631,7 @@ sub loadExtensionMeasurements {
   my ($dbh, $qtl_id, $fields) = @_;
   my ($sql, $sth, $row, $msg);
   
-  foreach my $field (keys $fields) {
+  foreach my $field (keys %{$fields}) {
     if (!$fields->{$field} 
           || $fields->{$field} eq '' 
           || $fields->{$field} eq 'NULL') {

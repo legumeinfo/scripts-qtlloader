@@ -109,21 +109,22 @@ sub getSSInfo {
   # MAP_COLLECTIONS
   elsif ($ss eq 'MAP_COLLECTIONS') {
     return (
-      'worksheet'        => 'MAP_COLLECTION',
-      'species_fld'      => 'specieslink_abv',
-      'multispecies_fld' => 'multi-species',
-      'pub_map_name_fld' => 'publication_map_name',
-      'map_name_fld'     => 'map_name',
-      'description_fld'  => 'description',
-      'parent1_fld'      => 'parent1',
-      'parent2_fld'      => 'parent2',
-      'pop_size_fld'     => 'pop_size',
-      'pop_type_fld'     => 'pop_type',
-      'a_method_fld'     => 'analysis_method',
-      'pub_fld'          => 'map_citation',
-      'unit_fld'         => 'unit',
-      'LIS_name_fld'     => 'LIS_mapset_name',
-      'comment_fld'      => 'comment',
+      'worksheet'         => 'MAP_COLLECTION',
+      'species_fld'       => 'specieslink_abv',
+      'multispecies_fld'  => 'multi-species',
+      'pub_map_name_fld'  => 'publication_map_name',
+      'map_name_fld'      => 'map_name',
+      'description_fld'   => 'description',
+      'parent1_fld'       => 'parent1',
+      'parent2_fld'       => 'parent2',
+      'pop_size_fld'      => 'pop_size',
+      'pop_type_fld'      => 'pop_type',
+      'a_method_fld'      => 'analysis_method',
+      'pub_fld'           => 'map_citation',
+      'unit_fld'          => 'unit',
+      'LIS_name_fld'      => 'LIS_mapset_name',
+      'browser_track_fld' => 'browser_track_name',
+      'comment_fld'       => 'comment',
     );
   }
   elsif ($ss eq 'MAPS') {

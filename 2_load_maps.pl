@@ -35,7 +35,7 @@ EOS
   if ($#ARGV < 0) {
     die $warn;
   }
-  
+
   my $input_dir = @ARGV[0];
   my @filepaths = <$input_dir/*.txt>;
   my %files = map { s/$input_dir\/(.*)$/$1/; $_ => 1} @filepaths;
@@ -45,7 +45,6 @@ EOS
   my %mi  = getSSInfo('MAPS');
   my %mpi = getSSInfo('MARKER_POSITION');
 
-  
   # Used all over
   my ($table_file, $sql, $sth, $row, $count, @records, @fields, $cmd, $rv);
   my ($has_errors, $line_count);
@@ -62,9 +61,9 @@ EOS
   my %lis_map_sets;
 
   # check for worksheets (script will exit on user request)
-  my $load_map_collection  = checkWorksheet($mci{'worksheet'});
-  my $load_linkage_maps    = checkWorksheet($mi{'worksheet'});
-  my $load_marker_position = checkWorksheet($mpi{'worksheet'});
+  my $load_map_collection  = checkWorksheet($input_dir, $mci{'worksheet'});
+  my $load_linkage_maps    = checkWorksheet($input_dir, $mi{'worksheet'});
+  my $load_marker_position = checkWorksheet($input_dir, $mpi{'worksheet'});
 
   # Get connected
   my $dbh = connectToDB;
@@ -77,8 +76,8 @@ EOS
   # Use a transaction so that it can be rolled back if there are any errors
   eval {
     if ($load_map_collection)  { loadMapCollection($dbh, $mci{'worksheet'});   }
-#    if ($load_linkage_maps)    { loadLinkageMaps($dbh, $mi{'worksheet'});      }
-#    if ($load_marker_position) { loadMarkerPositions($dbh, $mpi{'worksheet'}); }
+    if ($load_linkage_maps)    { loadLinkageMaps($dbh, $mi{'worksheet'});      }
+    if ($load_marker_position) { loadMarkerPositions($dbh, $mpi{'worksheet'}); }
 
 #keep this commented-out until sure the script is working.    
     $dbh->commit;   # commit the changes if we get this far
@@ -92,7 +91,6 @@ EOS
   
 
 # ALL DONE
-$dbh->disconnect();
 print "\n\nScript completed\n\n";
 
 
@@ -151,6 +149,8 @@ sub loadMapCollection {
     
     my $map_name = $fields->{$mci{'map_name_fld'}};
     if ($map_name =~ /^.*_x_.*$/i) {
+#print "\nFIX STOCK TYPE: should be 'germplasm'\n\n";
+#exit;
       # create mapping population stock record if needed
       confirmStockRecord($dbh, $map_name, 'Mapping Population', $fields);
       
@@ -158,19 +158,21 @@ sub loadMapCollection {
       if ($fields->{$mci{'parent1_fld'}} 
           && $fields->{$mci{'parent1_fld'}} ne '' 
           && $fields->{$mci{'parent1_fld'}} ne 'NULL') {
-#         confirmStockRecord($dbh, $fields->{$mci{'parent1_fld'}}, 
-#                            'Cultivar', $fields);
+#TODO: add a stock type field, or guess from name?
          confirmStockRecord($dbh, $fields->{$mci{'parent1_fld'}}, 
-                            'accession', $fields);
+                            'cultivar', $fields);
+#         confirmStockRecord($dbh, $fields->{$mci{'parent1_fld'}}, 
+#                            'accession', $fields);
          connectParent($dbh, $fields->{$mci{'parent1_fld'}}, 'Parent1', $fields);
       }
       if ($fields->{$mci{'parent2_fld'}} 
           && $fields->{$mci{'parent2_fld'}} ne '' 
           && $fields->{$mci{'parent2_fld'}} ne 'NULL') {
-#        confirmStockRecord($dbh, $fields->{$mci{'parent2_fld'}}, 
-#                           'Cultivar', $fields);
+#TODO: add a stock type field, or guess from name?
         confirmStockRecord($dbh, $fields->{$mci{'parent2_fld'}}, 
-                           'accession', $fields);
+                           'cultivar', $fields);
+#        confirmStockRecord($dbh, $fields->{$mci{'parent2_fld'}}, 
+#                           'accession', $fields);
         connectParent($dbh, $fields->{$mci{'parent2_fld'}}, 'Parent2', $fields);
       }
     
@@ -311,18 +313,24 @@ sub loadMarkerPositions {
   print "Loading/verifying $table_file...\n";
   
   @records = readFile($table_file);
+  return if ((scalar @records) == 0);
   print "\nLoading " . (scalar @records) . " markers...\n";
+#print "All marker position records:\n" . Dumper(@records);
   
   if ((scalar @records) > 0) {
     # build linkage groups from the markers and create/update lg records as needed.
     my %lgs = createLinkageGroups(@records);
-    my $mapset = $records[0]->{$mpi{'map_name_fld'}};
-    updateLinkageGroups($dbh, $mapset, %lgs);
+#print "\nMade new linkage groups:\n" . Dumper(%lgs);
+    if ((scalar keys(%lgs)) > 0) {
+      my $mapset = $records[0]->{$mpi{'map_name_fld'}};
+      updateLinkageGroups($dbh, $mapset, %lgs);
+    }
   }
   
   $line_count = 0;
   foreach $fields (@records) {
     $line_count++;
+print ">>>>>>> $line_count:\n";# . Dumper($fields);
     
     # Try to detect QTLs and skip
     my @array;
@@ -336,9 +344,10 @@ sub loadMarkerPositions {
     }
     
     my $species = $fields->{$mpi{'species_fld'}};
-    my $marker_name = $fields->{'marker_name'};
+    my $marker_name = $fields->{'marker_identifier'};
     my $species_list = getMarkerSpecies($dbh, $marker_name);
 #print "\nspecies list for $marker_name:\n" . Dumper($species_list);
+
     if ($species_list && scalar (keys %$species_list)
           && !$species_list->{$species} && !$change_all && !$add_all) {
       next if ($skip_all);
@@ -378,7 +387,6 @@ sub loadMarkerPositions {
       $marker_id = updateMarker($dbh, $marker_name, $fields->{$mpi{'species_fld'}});
     }
 
-print "set marker position for $marker_name\n";
     # Place on linkage group
     placeMarkerOnLG($dbh, $marker_id, $fields);
     
@@ -392,6 +400,7 @@ print "set marker position for $marker_name\n";
     # map position comments are ranked 3 (which does limit a map postition 
     #    comment to 1 even though there maybe multiple positions for a marker)
     setFeatureprop($dbh, $marker_id, $mpi{'comment_fld'}, 'comment', 3, $fields);
+#last if ($line_count > 1);
   }#each record
 }#loadMarkerPositions
   
@@ -429,31 +438,6 @@ sub changeLGcoord {
     doQuery($dbh, $sql);
   }
 }#changeLGcoord
-
-
-sub checkWorksheet {
-  my $worksheet = $_[0];
-  
-  my $load_worksheet;
-  my $filename = "$input_dir/$worksheet.txt";
-  
-  if (-e $filename) {
-    $load_worksheet = 1;
-  }
-  else {
-    print "The worksheet $worksheet doesn't exist. Skip? (y/n) ";
-    my $userinput =  <STDIN>;
-    chomp ($userinput);
-    if (lc($userinput) eq 'y') {
-      $load_worksheet = 0;
-    }
-    else {
-      exit;
-    }
-  }
-  
-  return $load_worksheet;
-}#checkWorksheet
 
 
 sub clearMapSetDependencies {
@@ -698,7 +682,7 @@ sub getLgCoord {
   }
 }#getLgCoord
 
-         
+      
 sub insertFeaturemapprop {
   my ($dbh, $map_id, $fieldname, $proptype, $fields) = @_;
   my ($sql, $sth);
@@ -770,28 +754,50 @@ print "map set accession: $lis_map_sets{$fields->{$mi{'map_name_fld'}}}\n";
 print "map name: $fields->{$mi{'map_name_fld'}}\n";
 print "all map set accessions:\n" . Dumper(%lis_map_sets) . "\n";
   my $accession = "?ref_map_set_acc=$lis_mapname;ref_map_accs=" . $fields->{$fieldname};
-#print "create dbxref for $accession\n";
+print "create dbxref for $accession\n";
 
+  my $dbxref_id;
   my $sql = "
-    INSERT INTO dbxref
-      (db_id, accession)
-    VALUES
-      ((SELECT db_id FROM db WHERE name='LIS:cmap'), ?)
-    RETURNING dbxref_id";
-  logSQL($dataset_name, "$sql\nWITH\n$accession");
-  $sth = doQuery($dbh, $sql, ($accession));
+    SELECT * FROM dbxref 
+    WHERE accession='$accession'
+          AND db_id=(SELECT db_id FROM db WHERE name='LIS:cmap')";
+  logSQL($dataset_name, "$sql");
+  $sth = doQuery($dbh, $sql);
   $row = $sth->fetchrow_hashref;
+  if ($row) {
+    $dbxref_id = $row->{'dbxref_id'};
+  }
+  else {
+    $sql = "
+      INSERT INTO dbxref
+        (db_id, accession)
+      VALUES
+        ((SELECT db_id FROM db WHERE name='LIS:cmap'), ?)
+      RETURNING dbxref_id";
+    logSQL($dataset_name, "$sql\nWITH\n$accession");
+    $sth = doQuery($dbh, $sql, ($accession));
+    $row = $sth->fetchrow_hashref;
   
-  my $dbxref_id = $row->{'dbxref_id'};
+    $dbxref_id = $row->{'dbxref_id'};
+  }
+print "dbxref id is $dbxref_id\n";
   
   $sql = "
-    INSERT INTO feature_dbxref
-      (feature_id, dbxref_id)
-    VALUES
-      ($map_id, $dbxref_id)";
-  logSQL($dataset_name, $sql);
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
+    SELECT * FROM feature_dbxref
+    WHERE feature_id=$map_id AND dbxref_id=$dbxref_id";
+  logSQL($dataset_name, "$sql");
+  $sth = doQuery($dbh, $sql);
+  $row = $sth->fetchrow_hashref;
+  if (!$row) {
+    $sql = "
+      INSERT INTO feature_dbxref
+        (feature_id, dbxref_id)
+      VALUES
+        ($map_id, $dbxref_id)";
+    logSQL($dataset_name, $sql);
+    $sth = $dbh->prepare($sql);
+    $sth->execute();
+  }
 }#makeLgDbxref
 
 
@@ -820,6 +826,10 @@ sub lgMapExists {
 sub placeMarkerOnLG {
   my ($dbh, $marker_id, $fields) = @_;
   my ($msg, $row, $sth, $sql);
+  
+#print "Check for map and linkage group data in this record:\n" . Dumper($fields);
+  return if (!$fields->{$mpi{'map_name_fld'}} 
+              || $fields->{$mpi{'map_name_fld'}} eq 'NULL');
   
   # Find map set record
   my $map_set_id = getMapSetID($dbh, $fields->{$mpi{'map_name_fld'}});
@@ -861,7 +871,6 @@ sub placeMarkerOnLG {
       VALUES
         ($map_set_id, $marker_id, $lg_id, " . $fields->{$mpi{'position_fld'}} . ")";
   }
-print "$sql\n\n";  
   logSQL($dataset_name, $sql);
   doQuery($dbh, $sql);
 }#placeMarkerOnLG
