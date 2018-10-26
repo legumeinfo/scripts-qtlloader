@@ -49,6 +49,7 @@ our @EXPORT      = (
                     qw(reportError),
                     qw(setFeatureDbxref),
                     qw(setFeatureprop),
+                    qw(setFeaturemapprop),
                     qw(traitExists),
                     qw(uniqueID),
                     qw(_allNULL),
@@ -123,19 +124,22 @@ sub getSSInfo {
       'pub_fld'           => 'map_citation',
       'unit_fld'          => 'unit',
       'LIS_name_fld'      => 'LIS_mapset_name',
+      'cmapjs_name_fld'   => 'cmapjs_name',
       'browser_track_fld' => 'browser_track_name',
+      'download_url_fld'  => 'download_url',
       'comment_fld'       => 'comment',
     );
   }
   elsif ($ss eq 'MAPS') {
     return (
-      'worksheet'     => 'MAP',
-      'species_fld'   => 'specieslink_abv',
-      'map_name_fld'  => 'map_name',
-      'lg_fld'        => 'lg',
-      'map_start_fld' => 'map_start',
-      'map_end_fld'   => 'map_end',
-      'LIS_lg_fld'    => 'LIS_lg_map_name',
+      'worksheet'          => 'MAP',
+      'species_fld'        => 'specieslink_abv',
+      'map_name_fld'       => 'map_name',
+      'lg_fld'             => 'lg',
+      'map_start_fld'      => 'map_start',
+      'map_end_fld'        => 'map_end',
+      'LIS_lg_fld'         => 'LIS_lg_map_name',
+      'cmapjs_lg_name_fld' => 'cmapjs_lg_name',
     );
   }
   elsif ($ss eq 'MARKERS') {
@@ -1288,6 +1292,53 @@ sub setFeatureprop {
     doQuery($dbh, $sql);
   }#value for fieldname exists
 }#setFeatureprop
+
+
+sub setFeaturemapprop {
+  my ($dbh, $featuremap_id, $fieldname, $typename, $fields) = @_;
+  my ($sql, $sth, $row);
+  
+  if (isFieldSet($fields, $fieldname)) {
+    my $value = $dbh->quote($fields->{$fieldname});
+    
+    # Check if this featureprop type already exists
+    $sql = "
+      SELECT featuremapprop_id FROM chado.featuremapprop
+      WHERE featuremap_id=$featuremap_id 
+            AND type_id = (SELECT cvterm_id FROM chado.cvterm 
+                           WHERE name='$typename'
+                             AND cv_id IN (SELECT cv_id FROM chado.cv 
+                                           WHERE name IN ('featuremap_property', 'local')))";
+    logSQL('', $sql);
+    $sth = doQuery($dbh, $sql);
+    if ($row=$sth->fetchrow_hashref) {
+      my $featuremapprop_id = $row->{'featuremapprop_id'};
+      $sql = "
+        UPDATE chado.featuremapprop
+          SET value=$value
+        WHERE featuremapprop_id=$featuremapprop_id";
+      logSQL('', $sql);
+      $sth = doQuery($dbh, $sql);
+    }
+  
+    else {
+      # Add a new featuremapprop record
+      $sql = "
+        INSERT INTO chado.featuremapprop
+          (featuremap_id, type_id, value, rank)
+        VALUES
+          ($featuremap_id,
+           (SELECT cvterm_id FROM chado.cvterm 
+            WHERE name='$typename'
+              AND cv_id IN (SELECT cv_id FROM chado.cv 
+                  WHERE name IN ('featuremap_property', 'local'))),
+           $value, 
+           1)";
+      logSQL('', $sql);
+      $sth = doQuery($dbh, $sql);
+    }#new record
+  }#there is a value for this field
+}#setFeaturemapprop
 
 
 sub traitExists {

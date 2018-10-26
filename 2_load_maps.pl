@@ -149,8 +149,7 @@ sub loadMapCollection {
     
     my $map_name = $fields->{$mci{'map_name_fld'}};
     if ($map_name =~ /^.*_x_.*$/i) {
-#print "\nFIX STOCK TYPE: should be 'germplasm'\n\n";
-#exit;
+
       # create mapping population stock record if needed
       confirmStockRecord($dbh, $map_name, 'Mapping Population', $fields);
       
@@ -160,9 +159,7 @@ sub loadMapCollection {
           && $fields->{$mci{'parent1_fld'}} ne 'NULL') {
 #TODO: add a stock type field, or guess from name?
          confirmStockRecord($dbh, $fields->{$mci{'parent1_fld'}}, 
-                            'cultivar', $fields);
-#         confirmStockRecord($dbh, $fields->{$mci{'parent1_fld'}}, 
-#                            'accession', $fields);
+                            'Cultivar', $fields);
          connectParent($dbh, $fields->{$mci{'parent1_fld'}}, 'Parent1', $fields);
       }
       if ($fields->{$mci{'parent2_fld'}} 
@@ -170,10 +167,7 @@ sub loadMapCollection {
           && $fields->{$mci{'parent2_fld'}} ne 'NULL') {
 #TODO: add a stock type field, or guess from name?
         confirmStockRecord($dbh, $fields->{$mci{'parent2_fld'}}, 
-                           'cultivar', $fields);
-#        confirmStockRecord($dbh, $fields->{$mci{'parent2_fld'}}, 
-#                           'accession', $fields);
-        connectParent($dbh, $fields->{$mci{'parent2_fld'}}, 'Parent2', $fields);
+                           'Cultivar', $fields);
       }
     
       # attach mapping population to publication
@@ -211,12 +205,13 @@ sub loadMapCollection {
     }#has mapping population
     
     # map_name, publication_map_name, pop_size, pop_type, analysis_method
-    insertFeaturemapprop($dbh, $map_id, $mi{'map_name_fld'}, 'Display Map Name', $fields);
-    insertFeaturemapprop($dbh, $map_id, $mci{'pub_map_name_fld'}, 'Publication Map Name', $fields);
-    insertFeaturemapprop($dbh, $map_id, $mci{'pop_size_fld'}, 'Population Size', $fields);
-    insertFeaturemapprop($dbh, $map_id, $mci{'pop_type_fld'}, 'Population Type', $fields);
-    insertFeaturemapprop($dbh, $map_id, $mci{'a_method_fld'}, 'Methods', $fields);
-    insertFeaturemapprop($dbh, $map_id, $mci{'comment_fld'}, 'Featuremap Comment', $fields);
+    setFeaturemapprop($dbh, $map_id, $mi{'map_name_fld'}, 'Display Map Name', $fields);
+    setFeaturemapprop($dbh, $map_id, $mci{'pub_map_name_fld'}, 'Publication Map Name', $fields);
+    setFeaturemapprop($dbh, $map_id, $mci{'pop_size_fld'}, 'Population Size', $fields);
+    setFeaturemapprop($dbh, $map_id, $mci{'pop_type_fld'}, 'Population Type', $fields);
+    setFeaturemapprop($dbh, $map_id, $mci{'a_method_fld'}, 'Methods', $fields);
+    setFeaturemapprop($dbh, $map_id, $mci{'download_url_fld'}, 'Download URL', $fields);
+    setFeaturemapprop($dbh, $map_id, $mci{'comment_fld'}, 'Featuremap Comment', $fields);
           
     # attach map collection (featuremap) to publication
     if (!isNull($fields->{$mci{'pub_fld'}})) {
@@ -232,9 +227,20 @@ sub loadMapCollection {
       }#each pub
     }#pub is given
     
-    # make a dbxref record for LIS cmap link (for full mapset)
-    makeMapsetDbxref($dbh, $map_id, $mci{'LIS_name_fld'}, $fields);
-    
+    if ($fields->{$mci{'LIS_name_fld'}} && $fields->{$mci{'LIS_name_fld'}} != 'NULL') {
+      # WARNING! THIS IS SPECIFIC TO LIS CMAP URLS!
+      # "accession" here is the completion of db URL.
+      my $accession = "?ref_map_accs=-1&ref_map_set_acc=" . $fields->{$mci{'map_name_fld'}};
+      makeFeaturemapDbxref($dbh, $map_id, $accession, 'LIS:cmap');
+      
+      # Need to keep map set name for later use
+      $lis_map_sets{$fields->{$mci{'map_name_fld'}}} = $fields->{$mci{'map_name_fld'}};
+    }
+        
+    # make dbxref for cmap-js
+    if ($fields->{$mci{'cmapjs_name_fld'}}) {
+      makeFeaturemapDbxref($dbh, $map_id, $fields->{$mci{'cmapjs_name_fld'}}, 'cmap-js');
+    }
   }#each record
   
   print "Handled $line_count map collection records\n\n";
@@ -295,8 +301,26 @@ sub loadLinkageMaps {
     setGeneticCoordinates($dbh, $map_id, $mapset, $lg_mapname, $fields);
 
     # make a dbxref record for LIS cmap link (for linkage group)
-    makeLgDbxref($dbh, $map_id, $mi{'LIS_lg_fld'}, $fields);
-
+    # WARNING! THIS IS SPECIFIC TO LIS CMAP URLS!
+    # "accession" here is the completion of db URL.
+    if ($fields->{$mi{'LIS_lg_fld'}} && $fields->{$mi{'LIS_lg_fld'}} != 'NULL') {
+print "ADD CMAP DBXREF\n";
+      my $lis_mapname = $lis_map_sets{$fields->{$mi{'map_name_fld'}}};
+print "map set accession: $lis_map_sets{$fields->{$mi{'map_name_fld'}}}\n";
+print "map name: $fields->{$mi{'map_name_fld'}}\n";
+print "all map set accessions:\n" . Dumper(%lis_map_sets) . "\n";
+      my $accession = "?ref_map_set_acc=$lis_mapname;ref_map_accs=" . $lis_mapname;
+print "create dbxref for $accession\n";
+#      makeFeatureDbxref($dbh, $map_id, $accession, 'LIS:cmap');
+    }
+    
+    # make a dbxref record for cmap-js link (for linkage group)
+    if ($fields->{$mi{'map_name_fld'}}) {
+      my $accession = $fields->{$mi{'map_name_fld'}} 
+                    . ':'
+                    . $fields->{$mi{'lg_fld'}};
+      makeFeatureDbxref($dbh, $map_id, $accession, 'cmap-js');
+    }
   }#each record
   
   print "Handled $line_count map records\n\n";
@@ -462,11 +486,11 @@ sub clearMapSetDependencies {
     doQuery($dbh, $sql);
   }
   
-  # clear featuremap properties
-  $sql = "
-    DELETE FROM chado.featuremapprop WHERE featuremap_id = $map_set_id";
-  logSQL('', $sql);
-  doQuery($dbh, $sql);
+#  # clear featuremap properties
+#  $sql = "
+#    DELETE FROM chado.featuremapprop WHERE featuremap_id = $map_set_id";
+#  logSQL('', $sql);
+#  doQuery($dbh, $sql);
   
   # clear featuremap pub
   $sql = "
@@ -682,89 +706,22 @@ sub getLgCoord {
   }
 }#getLgCoord
 
-      
-sub insertFeaturemapprop {
-  my ($dbh, $map_id, $fieldname, $proptype, $fields) = @_;
-  my ($sql, $sth);
-  
-  if ($fields->{$fieldname}
-        && $fields->{$fieldname} ne '' 
-        && $fields->{$fieldname} ne 'NULL') {
-    $sql = "
-      INSERT INTO chado.featuremapprop
-        (featuremap_id, type_id, value, rank)
-      VALUES
-        ($map_id,
-         (SELECT cvterm_id FROM chado.cvterm 
-          WHERE name='$proptype'
-            AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='featuremap_property')),
-         ?, 1)";
-     logSQL($dataset_name, "$sql\nWITH\n'$fields->{$fieldname}'");
-     $sth = doQuery($dbh, $sql, ($fields->{$fieldname}));
-   }
-}#insertFeaturemapprop
 
-
-sub makeMapsetDbxref {
-  my ($dbh, $map_id, $fieldname, $fields) = @_;
+sub makeFeaturemapDbxref {
+  my ($dbh, $map_id, $accession, $dbname) = @_;
   # $map_id is a featuremap_id
 
-  return if (!$fields->{$fieldname} || $fields->{$fieldname} eq 'NULL');
+  return if (!$accession || $accession eq 'NULL');
 
-  # WARNING! THIS IS SPECIFIC TO LIS CMAP URLS!
-  # "accession" here is the completion of db URL.
-  my $accession = "?ref_map_accs=-1&ref_map_set_acc=" . $fields->{$fieldname};
+  my ($sql, $sth, $row, $dbxref_id);
 
-  my $sql = "
-    INSERT INTO dbxref
-      (db_id, accession)
-    VALUES
-      ((SELECT db_id FROM db WHERE name='LIS:cmap'), ?)
-    RETURNING dbxref_id";
-  logSQL($dataset_name, "$sql\nWITH\n$accession");
-  $sth = doQuery($dbh, $sql, ($accession));
-  $row = $sth->fetchrow_hashref;
-  
-  my $dbxref_id = $row->{'dbxref_id'};
-  
   $sql = "
-    INSERT INTO featuremap_dbxref
-      (featuremap_id, dbxref_id)
-    VALUES
-      ($map_id, $dbxref_id)";
-  logSQL($dataset_name, $sql);
-  $sth = $dbh->prepare($sql);
-  $sth->execute();
-  
-  $lis_map_sets{$fields->{$mi{'map_name_fld'}}} = $fields->{$fieldname};
-}#makeMapsetDbxref
-
-
-sub makeLgDbxref {
-  my ($dbh, $map_id, $fieldname, $fields) = @_;
-  # $map_id is a feature_id
-
-  return if (!$fields->{$fieldname}  || $fields->{$fieldname} eq 'NULL');
-  
-  # WARNING! THIS IS SPECIFIC TO LIS CMAP URLS!
-  # "accession" here is the completion of db URL.
-  my $lis_mapname = $lis_map_sets{$fields->{$mi{'map_name_fld'}}};
-#TODO: either don't rely on map collection loading or require full link in CMap column
-print "map set accession: $lis_map_sets{$fields->{$mi{'map_name_fld'}}}\n";
-print "map name: $fields->{$mi{'map_name_fld'}}\n";
-print "all map set accessions:\n" . Dumper(%lis_map_sets) . "\n";
-  my $accession = "?ref_map_set_acc=$lis_mapname;ref_map_accs=" . $fields->{$fieldname};
-print "create dbxref for $accession\n";
-
-  my $dbxref_id;
-  my $sql = "
-    SELECT * FROM dbxref 
-    WHERE accession='$accession'
-          AND db_id=(SELECT db_id FROM db WHERE name='LIS:cmap')";
-  logSQL($dataset_name, "$sql");
-  $sth = doQuery($dbh, $sql);
-  $row = $sth->fetchrow_hashref;
-  if ($row) {
+    SELECT dbxref_id FROM chado.dbxref
+    WHERE db_id=(SELECT db_id FROM db WHERE name='$dbname')
+          AND accession=?";
+  logSQL($dataset_name, "$sql\nWITH\n$accession\n");
+  $sth = doQuery($dbh, $sql, ($accession));
+  if (($row = $sth->fetchrow_hashref)) {
     $dbxref_id = $row->{'dbxref_id'};
   }
   else {
@@ -772,33 +729,78 @@ print "create dbxref for $accession\n";
       INSERT INTO dbxref
         (db_id, accession)
       VALUES
-        ((SELECT db_id FROM db WHERE name='LIS:cmap'), ?)
+        ((SELECT db_id FROM db WHERE name='$dbname'), ?)
       RETURNING dbxref_id";
-    logSQL($dataset_name, "$sql\nWITH\n$accession");
+    logSQL($dataset_name, "$sql\nWITH\n$accession\n");
     $sth = doQuery($dbh, $sql, ($accession));
     $row = $sth->fetchrow_hashref;
-  
     $dbxref_id = $row->{'dbxref_id'};
   }
-print "dbxref id is $dbxref_id\n";
+print "dbxref_id is $dbxref_id\n";
   
   $sql = "
-    SELECT * FROM feature_dbxref
-    WHERE feature_id=$map_id AND dbxref_id=$dbxref_id";
+    SELECT featuremap_dbxref_id FROM featuremap_dbxref
+    WHERE featuremap_id=$map_id AND dbxref_id=$dbxref_id";
   logSQL($dataset_name, "$sql");
   $sth = doQuery($dbh, $sql);
-  $row = $sth->fetchrow_hashref;
-  if (!$row) {
+  if (!($row = $sth->fetchrow_hashref)) {
     $sql = "
-      INSERT INTO feature_dbxref
-        (feature_id, dbxref_id)
+      INSERT INTO featuremap_dbxref
+        (featuremap_id, dbxref_id)
       VALUES
         ($map_id, $dbxref_id)";
     logSQL($dataset_name, $sql);
     $sth = $dbh->prepare($sql);
     $sth->execute();
   }
-}#makeLgDbxref
+}#makeFeaturemapDbxref
+
+
+sub makeFeatureDbxref {
+  my ($dbh, $map_id, $accession, $dbname) = @_;
+  # $map_id is a feature_id
+
+  return if (!$accession  || $accession eq 'NULL');
+  
+  my $dbxref_id;
+  my $sql = "
+    SELECT dbxref_id FROM dbxref 
+    WHERE accession='$accession'
+          AND db_id=(SELECT db_id FROM db WHERE name='$dbname')";
+  logSQL($dataset_name, "$sql");
+  $sth = doQuery($dbh, $sql);
+  if ($row=$sth->fetchrow_hashref) {
+    $dbxref_id = $row->{'dbxref_id'};
+  }
+  else {
+    $sql = "
+      INSERT INTO dbxref
+        (db_id, accession)
+      VALUES
+        ((SELECT db_id FROM db WHERE name=?), ?)
+      RETURNING dbxref_id";
+    logSQL($dataset_name, "$sql\nWITH\n$dbname, $accession");
+    $sth = doQuery($dbh, $sql, ($dbname, $accession));
+    $row = $sth->fetchrow_hashref;
+    $dbxref_id = $row->{'dbxref_id'};
+  }
+print "dbxref id for $accession is $dbxref_id\n";
+  
+  $sql = "
+    SELECT * FROM feature_dbxref
+    WHERE feature_id=$map_id AND dbxref_id=$dbxref_id";
+  logSQL($dataset_name, "$sql");
+  $sth = doQuery($dbh, $sql);
+  if (!($row= $sth->fetchrow_hashref)) {
+    $sql = "
+      INSERT INTO feature_dbxref
+        (feature_id, dbxref_id)
+      VALUES
+        ($map_id, $dbxref_id)";
+    logSQL($dataset_name, $sql);
+    $sth = doQuery($dbh, $sql);;
+  }
+}#makeFeatureDbxref
 
 
 sub lgMapExists {
