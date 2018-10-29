@@ -156,129 +156,6 @@ sub loadPublications {
 }#loadPublications
 
 
-=cut not loading authors from separate worksheet
-sub loadAuthors {
-  my $dbh = $_[0];
-  my (%fields, $sql, $sth);
-  
-  $table_file = "$input_dir/PUB_AUTHORS.txt";
-  print "Loading $table_file...\n";
-  
-  @records = readFile($table_file);
-  my @authors;
-  my $publink_citation = '';
-  my $line_count = 0;
-  foreach my $fields (@records) {
-    if ($publink_citation ne $fields->{'publink_citation'}) {
-      # moved to new (or first) publication
-      if ($publink_citation ne '') {
-        # Also (bleech) save in a comma-separate list as a prop
-        $sql = "
-          INSERT INTO chado.pubprop
-           (pub_id, type_id, value, rank)
-          VALUES
-           ((SELECT pub_id FROM chado.pub WHERE uniquename=?),
-            (SELECT cvterm_id FROM chado.cvterm 
-             WHERE name='Authors'
-               AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub')),
-            ?, 0)";
-        logSQL($dataset_name, 
-               "$sql\nWITH:\n  uniquename: $publink_citation\n  authors: " . (join ',', @authors));
-        doQuery($dbh, $sql, ($publink_citation, (join ', ', @authors)));
-      }
-      @authors = ();
-      $publink_citation = $fields->{'publink_citation'};
-    }
-        
-    $publink_citation = $fields->{'publink_citation'};
-    $line_count++;
-    
-    # split author into last, first
-    my ($last, $first) = split ",", $fields->{'author'};
-    $sql = "
-      INSERT INTO chado.pubauthor
-        (pub_id, rank, surname, givennames)
-      VALUES
-        ((SELECT pub_id FROM chado.pub WHERE uniquename=?),
-         $fields->{'cite_order'}, ?, ?)";
-    logSQL($dataset_name, 
-           "$sql\nWITH:\n  uniquename: " . $fields->{'publink_citation'} . "\n  surname: $last\n  givennames: $first");
-    doQuery($dbh, $sql, ($fields->{'publink_citation'}, $last, $first));
-    
-    push @authors, $fields->{'author'};
-  }#each record
-  
-  print "\n\nLoaded $line_count pub author records\n\n";
-}#loadAuthors
-=cut
-
-
-=cut not loading URLs from separate worksheet
-sub loadURLs {
-  my $dbh = $_[0];
-  my (%fields, $sql, $sth);
-  
-  print "Loading PUB_URLS.txt...\n";
-  
-  $table_file = "$input_dir/PUB_URLS.txt";
-  @records = readFile($table_file);
-  my $line_count = 0;
-  foreach my $fields (@records) {
-    $line_count++;
-    
-    $sql = "
-      INSERT INTO chado.pubprop
-       (pub_id, type_id, value, rank)
-      VALUES
-       ((SELECT pub_id FROM chado.pub WHERE uniquename=?),
-        (SELECT cvterm_id FROM chado.cvterm 
-         WHERE name='URL'
-           AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub')),
-        ?, 0)";
-    logSQL($dataset_name, 
-           "$sql\nWITH:\n  uniquename: " . $fields->{'publink_citation'} . "\n  url: " . $fields->{'url'});
-    doQuery($dbh, $sql, ($fields->{'publink_citation'}, $fields->{'url'}));
-  }#each record
-  
-  print "Loaded $line_count pub URL records\n\n";
-}#loadURLs
-=cut
-
-
-=cut not loading keywords from separate spreadsheet
-sub loadKeywords {
-  my $dbh = $_[0];
-  my (%fields, $sql, $sth);
-  
-  # Likely multiple keywords per publication
-  my %keyword_count;
-  
-  $table_file = "$input_dir/PUB_KEYWORDS.txt";
-  print "Loading $table_file...\n";
-  
-  @records = readFile($table_file);
-  my $line_count = 0;
-  foreach my $fields (@records) {
-    $line_count++;
-    
-    $keyword_count{$fields->{'publink_citation'}}++;
-    $sql = "
-      INSERT INTO chado.pubprop
-       (pub_id, type_id, value, rank)
-      VALUES
-       ((SELECT pub_id FROM chado.pub WHERE uniquename=?),
-        (SELECT cvterm_id FROM chado.cvterm 
-         WHERE name='Keywords'
-           AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='tripal_pub')),
-        ?, $keyword_count{$fields->{'publink_citation'}})";
-    logSQL($dataset_name, 
-           "$sql\nWITH:\n  uniquename: " . $fields->{'publink_citation'} . "\n  value: " . $fields->{'keyword'});
-    doQuery($dbh, $sql, ($fields->{'publink_citation'}, $fields->{'keyword'}));
-  }#each record
-  
-  print "Loaded $line_count pub keyword records\n\n";
-}#loadKeywords
-=cut
 
 
 
@@ -289,7 +166,8 @@ sub loadKeywords {
 
 sub clearDependencies {
   my ($dbh, $pub_id) = @_;
-  
+
+=cut no, check if they already exist  
   # delete dbxref records and links to them.
   $sql = "SELECT dbxref_id FROM chado.pub_dbxref WHERE pub_id=$pub_id";
   logSQL('', $sql);
@@ -300,6 +178,7 @@ sub clearDependencies {
     logSQL('', $sql);
     doQuery($dbh, $sql);
   }#each dependant dbxref
+=cut
   
   # just for good measure...
   $sql = "DELETE FROM chado.pub_dbxref WHERE pub_id=$pub_id";
@@ -418,28 +297,46 @@ print "citation will be [$citation]\n";
 
 sub set_dbxref {
   my ($dbh, $name, $key, $fields) = @_;
+  my ($sql, $sth, $row, $dbxref_id);
   
-  if ($fields->{$key} && $fields->{$key} ne '' && $fields->{$key} ne 'NULL'
-        && $fields->{$key} ne 'none' && $fields->{$key} ne 'n/a') {
-    my $sql = "
-      INSERT INTO chado.dbxref
-       (db_id, accession)
-      VALUES
-       ((SELECT db_id FROM chado.db WHERE name='$name'),
-        '$fields->{$key}')";
-    logSQL($dataset_name, 
-           "$sql\nWITH:  accession: " . $fields->{$key});
-    doQuery($dbh, $sql);
+  return if (lc($fields->{$key}) eq 'null');
+  
+  $sql = "
+    SELECT dbxref_id FROM dbxref 
+    WHERE accession='$fields->{$key}'
+          AND db_id=(SELECT db_id FROM chado.db WHERE name='$name')";
+  logSQL($dataset_name, $sql);
+  $sth = doQuery($dbh, $sql);
+  if (!($row=$sth->fetchrow_hashref)) {
+    if ($fields->{$key} && $fields->{$key} ne '' && $fields->{$key} ne 'NULL'
+          && $fields->{$key} ne 'none' && $fields->{$key} ne 'n/a') {
+      my $sql = "
+        INSERT INTO chado.dbxref
+         (db_id, accession)
+        VALUES
+         ((SELECT db_id FROM chado.db WHERE name='$name'),
+          '$fields->{$key}')";
+      logSQL($dataset_name, 
+             "$sql\nWITH:  accession: " . $fields->{$key});
+      doQuery($dbh, $sql);
+    }
     
     $sql = "
-      INSERT INTO chado.pub_dbxref
-       (pub_id, dbxref_id)
-      VALUES
-       ((SELECT pub_id FROM chado.pub WHERE uniquename='$fields->{'publink_citation'}'),
-        (SELECT dbxref_id FROM chado.dbxref WHERE accession='$fields->{$key}'))";
-    logSQL($dataset_name, 
-           "$sql\nWITH:  uniquename: " . $fields->{'publink_citation'} . "\n  accession: " . $fields->{$key});
-    doQuery($dbh, $sql);
+      SELECT pub_dbxref_id FROM pub_dbxref
+      WHERE pub_id=(SELECT pub_id FROM chado.pub WHERE uniquename='$fields->{'publink_citation'}')
+            AND dbxref_id=(SELECT dbxref_id FROM chado.dbxref WHERE accession='$fields->{$key}')";
+    $sth = doQuery($dbh, $sql);
+    if (!($row=$sth->fetchrow_hashref)) {
+      $sql = "
+        INSERT INTO chado.pub_dbxref
+         (pub_id, dbxref_id)
+        VALUES
+         ((SELECT pub_id FROM chado.pub WHERE uniquename='$fields->{'publink_citation'}'),
+          (SELECT dbxref_id FROM chado.dbxref WHERE accession='$fields->{$key}'))";
+      logSQL($dataset_name, 
+             "$sql\nWITH:  uniquename: " . $fields->{'publink_citation'} . "\n  accession: " . $fields->{$key});
+      doQuery($dbh, $sql);
+    }
   }
 }#set_dbxref
 
