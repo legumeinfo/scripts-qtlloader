@@ -122,10 +122,7 @@ sub loadMapCollection {
       # map set exists
       next if ($skip_all);
       if ($update_all) {
-          $existing_map_sets{$mapname} = $map_set_id;
-          
-          # remove dependent records; they will be re-inserted
-          clearMapSetDependencies($dbh, $map_set_id, $fields);
+        $existing_map_sets{$mapname} = $map_set_id;
       }
       else {
         my $prompt = "$line_count: map ($fields->{$mi{'map_name_fld'}} = $map_set_id) ";
@@ -135,9 +132,6 @@ sub loadMapCollection {
         
         if ($update || $update_all) {
           $existing_map_sets{$mapname} = $map_set_id;
-          
-          # remove dependent records; they will be re-inserted
-          clearMapSetDependencies($dbh, $map_set_id, $fields);
         }
       }#update_all not set
     }#map set exists
@@ -168,6 +162,7 @@ sub loadMapCollection {
 #TODO: add a stock type field, or guess from name?
         confirmStockRecord($dbh, $fields->{$mci{'parent2_fld'}}, 
                            'Cultivar', $fields);
+        connectParent($dbh, $fields->{$mci{'parent2_fld'}}, 'Parent2', $fields);
       }
     
       # attach mapping population to publication
@@ -177,31 +172,14 @@ sub loadMapCollection {
           $publink_citation =~ s/\s+$//;
           my $pub_id = getPubID($dbh, $publink_citation);
           if ($pub_id) {
-            $sql = "
-              INSERT INTO chado.stock_pub
-                (stock_id, pub_id)
-              VALUES
-                ((SELECT stock_id FROM chado.stock WHERE uniquename='$mapname'),
-                 $pub_id
-                )";
-            logSQL($dataset_name, "$sql");
-            $sth = $dbh->prepare($sql);
-            $sth->execute();
+            attachStockPub($mapname, $pub_id);
           }#pub exists
         }#each pub
       }#pub is given
       
       # attach map collection (featuremap) to mapping population (stock)
       # map name = mapping population uniquename
-      $sql = "
-        INSERT INTO chado.featuremap_stock
-          (featuremap_id, stock_id)
-        VALUES
-          ($map_id,
-           (SELECT stock_id FROM chado.stock WHERE uniquename='$mapname'))";
-      logSQL($dataset_name, $sql);
-      $sth = $dbh->prepare($sql);
-      $sth->execute();
+      attachMapStock($map_id, $mapname);
     }#has mapping population
     
     # map_name, publication_map_name, pop_size, pop_type, analysis_method
@@ -215,16 +193,7 @@ sub loadMapCollection {
           
     # attach map collection (featuremap) to publication
     if (!isNull($fields->{$mci{'pub_fld'}})) {
-      foreach my $publink_citation (@publink_citations) {
-        $sql = "
-          INSERT INTO chado.featuremap_pub
-            (featuremap_id, pub_id)
-          VALUES
-            ($map_id,
-             (SELECT pub_id FROM chado.pub WHERE uniquename=?))";
-        logSQL($dataset_name, "$sql\nWITH:\n$publink_citation");
-        $sth = doQuery($dbh, $sql, ($publink_citation));
-      }#each pub
+      attachMapPub($map_id, @publink_citations);
     }#pub is given
     
     if ($fields->{$mci{'LIS_name_fld'}} && $fields->{$mci{'LIS_name_fld'}} != 'NULL') {
@@ -238,8 +207,8 @@ sub loadMapCollection {
     }
         
     # make dbxref for cmap-js
-    if ($fields->{$mci{'cmapjs_name_fld'}}) {
-      makeFeaturemapDbxref($dbh, $map_id, $fields->{$mci{'cmapjs_name_fld'}}, 'cmap-js');
+    if ($fields->{$mci{'download_url_fld'}}) {
+      makeFeaturemapDbxref($dbh, $map_id, $fields->{$mci{'map_name_fld'}}, 'cmap-js');
     }
   }#each record
   
@@ -438,6 +407,101 @@ print ">>>>>>> $line_count:\n";# . Dumper($fields);
 ################################################################################
 ################################################################################
 
+
+sub attachMapPub {
+  my ($map_id, @publink_citations) = @_;
+  my ($sql, $sth, $row);
+  
+  foreach my $publink_citation (@publink_citations) {
+    $sql = "
+      SELECT featuremap_pub_id FROM featuremap_pub
+      WHERE featuremap_id=$map_id
+            AND pub_id=(SELECT pub_id FROM chado.pub WHERE uniquename=?)";
+    logSQL($dataset_name, "$sql\nWITH:\n$publink_citation");
+    $sth = doQuery($dbh, $sql, ($publink_citation));
+    if (!($row=$sth->fetchrow_hashref)) {
+      $sql = "
+        INSERT INTO chado.featuremap_pub
+          (featuremap_id, pub_id)
+        VALUES
+          ($map_id,
+           (SELECT pub_id FROM chado.pub WHERE uniquename=?))";
+      logSQL($dataset_name, "$sql\nWITH:\n$publink_citation");
+      $sth = doQuery($dbh, $sql, ($publink_citation));
+    }
+  }#each citation
+}#attachMapPub
+
+
+sub attachMapStock {
+  my ($map_id, $stockname) = @_;
+  my ($sql, $sth, $row);
+
+  $sql = "
+    SELECT featuremap_stock_id FROM chado.featuremap_stock
+    WHERE featuremap_id=$map_id
+          AND stock_id=(SELECT stock_id FROM chado.stock WHERE uniquename='$stockname')";
+  logSQL($dataset_name, $sql);
+  $sth = $dbh->prepare($sql);
+  $sth->execute();
+  if (($row=$sth->fetchrow_hashref)) {
+    return $row->{'featuremap_stock_id'};
+  }
+  else {
+    $sql = "
+      INSERT INTO chado.featuremap_stock
+        (featuremap_id, stock_id)
+      VALUES
+        ($map_id,
+         (SELECT stock_id FROM chado.stock WHERE uniquename='$stockname'))
+      RETURNING featuremap_stock_id";
+    logSQL($dataset_name, $sql);
+    $sth = $dbh->prepare($sql);
+    $sth->execute();
+    if (($row=$sth->fetchrow_hashref)) {
+      return $row->{'featuremap_stock_id'};
+    } 
+  }
+  
+  return undef;   
+}#attachMapStock
+
+
+sub attachStockPub {
+  my ($mapname, $pub_id) = @_;
+  my ($sql, $sth, $row);
+  
+  $sql = "
+    SELECT stock_pub_id FROM chado.stock_pub 
+    WHERE stock_id=(SELECT stock_id FROM chado.stock WHERE uniquename='$mapname')
+          AND pub_id=$pub_id";
+  logSQL($dataset_name, "$sql\n");
+  $sth = doQuery($dbh, $sql);
+  if (($row=$sth->fetchrow_hashref)) {
+print "stock_pub record exists: " . $row->{'stock_pub_id'} . "\n";
+    return $row->{'stock_pub_id'};
+  }
+  else {
+print "stock_pub record DOES NOT exist\n";
+    $sql = "
+      INSERT INTO chado.stock_pub
+        (stock_id, pub_id)
+      VALUES
+        ((SELECT stock_id FROM chado.stock WHERE uniquename='$mapname'),
+         $pub_id
+        )
+      RETURNING stock_pub_id";
+    logSQL($dataset_name, "$sql\n");
+    $sth = doQuery($dbh, $sql);
+    if ($row=$sth->fetchrow_hashref) {
+      return $row->{'stock_pub_id'};
+    }
+  }
+  
+  return undef;
+}#attachStockPub
+
+
 sub changeLGcoord {
   my ($dbh, $lg_id, $mappos, $coord) = @_;
   my ($sql, $sth, $row);
@@ -463,53 +527,6 @@ sub changeLGcoord {
   }
 }#changeLGcoord
 
-
-sub clearMapSetDependencies {
-  my ($dbh, $map_set_id, $fields) = @_;
-  my ($sql, $sth, $row);
-  # $map_set_id is a featuremap_id
-  
-  # Delete stock links to this map
-  $sql = "
-    DELETE FROM chado.featuremap_stock WHERE featuremap_id = $map_set_id";
-  logSQL('', $sql);
-  doQuery($dbh, $sql);
-
-  # Get mapping population
-  # NOTE: a mapping population is unique to a study
-  my $map_pop_name = $fields->{$mi{'map_name_fld'}};
-  if (my $map_pop_stock_id = getStockID($dbh, $map_pop_name)) {
-    # This will also delete all dependencies for this mapping population
-    $sql = "
-      DELETE FROM chado.stock WHERE stock_id=$map_pop_stock_id";
-    logSQL('', $sql);
-    doQuery($dbh, $sql);
-  }
-  
-#  # clear featuremap properties
-#  $sql = "
-#    DELETE FROM chado.featuremapprop WHERE featuremap_id = $map_set_id";
-#  logSQL('', $sql);
-#  doQuery($dbh, $sql);
-  
-  # clear featuremap pub
-  $sql = "
-    DELETE FROM chado.featuremap_pub WHERE featuremap_id = $map_set_id";
-  logSQL('', $sql);
-  doQuery($dbh, $sql);
-
-  # dbxrefs  
-  $sql = "
-    DELETE FROM chado.dbxref 
-    WHERE dbxref_id IN 
-      (SELECT dbxref_id FROM chado.featuremap_dbxref WHERE featuremap_id = $map_set_id)";
-  logSQL('', $sql);
-  doQuery($dbh, $sql);
-  $sql = "
-    DELETE FROM chado.featuremap_dbxref WHERE featuremap_id = $map_set_id";
-  logSQL('', $sql);
-  doQuery($dbh, $sql);
-}#clearMapSetDependencies
 
 
 sub clearMapLGDependencies {
@@ -544,10 +561,24 @@ sub confirmStockRecord {
   my ($dbh, $stockname, $stock_type, $fields) = @_;
   my ($sql, $sth, $row, $msg);
   
-  my $stock_id = getStockID($dbh, $stockname);
-  if (!$stock_id) {
+  my $organism_id = getOrganismID($dbh, $fields->{$mci{'species_fld'}}, $line_count);
+  my $stock_id    = getStockID($dbh, $stockname);
+#print "Got organism id $organism_id for " . $fields->{$mci{'species_fld'}} . "<br>";  
+#print "Got stock id: $stock_id\n";
+
+  if ($stock_id) {
+    $sql = "
+      UPDATE chado.stock SET 
+        organism_id=$organism_id,
+        type_id=(SELECT cvterm_id FROM chado.cvterm 
+                 WHERE name='$stock_type'
+                   AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='stock_type'))";
+    logSQL($dataset_name, "$sql\n");
+    $sth = doQuery($dbh, $sql);
+  }
+  
+  else {
 print "Did not find stock record for [$stockname], will create it.\n";
-    my $organism_id = getOrganismID($dbh, $fields->{$mci{'species_fld'}}, $line_count);
     $sql = "
       INSERT INTO chado.stock 
         (organism_id, name, uniquename, type_id)
@@ -736,7 +767,6 @@ sub makeFeaturemapDbxref {
     $row = $sth->fetchrow_hashref;
     $dbxref_id = $row->{'dbxref_id'};
   }
-print "dbxref_id is $dbxref_id\n";
   
   $sql = "
     SELECT featuremap_dbxref_id FROM featuremap_dbxref

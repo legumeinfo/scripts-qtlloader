@@ -123,7 +123,6 @@ sub getSSInfo {
       'a_method_fld'      => 'analysis_method',
       'pub_fld'           => 'map_citation',
       'unit_fld'          => 'unit',
-      'LIS_name_fld'      => 'LIS_mapset_name',
       'cmapjs_name_fld'   => 'cmapjs_name',
       'browser_track_fld' => 'browser_track_name',
       'download_url_fld'  => 'download_url',
@@ -138,7 +137,6 @@ sub getSSInfo {
       'lg_fld'             => 'lg',
       'map_start_fld'      => 'map_start',
       'map_end_fld'        => 'map_end',
-      'LIS_lg_fld'         => 'LIS_lg_map_name',
       'cmapjs_lg_name_fld' => 'cmapjs_lg_name',
     );
   }
@@ -813,9 +811,9 @@ sub getStockID {
   my ($sql, $sth, $row);
   
   $sql = "
-    SELECT stock_id FROM chado.stock WHERE uniquename=?";
-  logSQL('', "$sql\nWITH\n'$uniquename'");
-  $sth = doQuery($dbh, $sql, ($uniquename));
+    SELECT stock_id FROM chado.stock WHERE uniquename='$uniquename'";
+  logSQL('', "$sql");
+  $sth = doQuery($dbh, $sql);
   if ($row=$sth->fetchrow_hashref) {
     return $row->{'stock_id'};
   }
