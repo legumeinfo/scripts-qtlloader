@@ -219,13 +219,14 @@ sub getSSInfo {
     }
   elsif ($ss eq 'TRAITS') {
     return (
-      'worksheet'       => 'Traits',
-      'qtl_symbol_fld'  => 'QTL_Symbol',
-      'trait_name_fld'  => 'Trait_Name',
-      'trait_class_fld' => 'Trait_Class',
-      'onto_id_fld'     => 'Similar_Controlled_Vocab_Accessions',
-      'onto_name_fld'   => 'Similar_Controlled_Vocabulary',
-      'description_fld' => 'Description',
+      'worksheet'             => 'Traits',
+      'qtl_symbol_fld'        => 'QTL_Symbol',
+      'trait_name_fld'        => 'Trait_Name',
+      'trait_class_fld'       => 'Trait_Class',
+      'description_fld'       => 'Description',
+      'units_fld'             => 'Units',
+      'CO_337_accession_fld'  => 'CO_337_Accession',
+      'soybase_accession_fld' => 'Soybase_Accession',
     );
   }
   elsif ($ss eq 'QTL') {
