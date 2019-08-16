@@ -49,7 +49,7 @@ exit;
   my $warn = <<EOS
     Usage:
       
-    $0 [opts] data-dir
+    $0 [opts] data-dir 
     -w [optional] worksheet name
 EOS
 ;
@@ -395,8 +395,7 @@ sub setDbxref {
 
 sub setOBOTerms {
   my ($dbh, $trait_id, $fields) = @_;
-  # wait on this one: 'IBP_Accession_GN'
-  my @OBO_cols = ('Soybase_Accession', 'TO_Accession');
+  my @OBO_cols = ('CO_337_Accession', 'Soybase_Accession');
   
   foreach my $OBO_col (@OBO_cols) {
     my $term = $fields->{$OBO_col};
