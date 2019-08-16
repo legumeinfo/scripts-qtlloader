@@ -717,7 +717,7 @@ sub loadFeatureprop {
 sub loadMeasurement {
   my ($dbh, $feature_id, $measure, $analysis, $fields) = @_;
   my ($sql, $sth);
-#print "attach analysis in field '$fieldname' of type $analysis.\n" . Dumper($fields);
+#print "attach analysis value '$measure' of type $analysis.\n" . Dumper($fields);
   
   if (isNull($measure)) {
     return;
