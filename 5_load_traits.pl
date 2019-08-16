@@ -1,3 +1,9 @@
+# >>>>>>>>>>>>>>>>>>>>>>> OBSOLETE SCRIPT <<<<<<<<<<<<<<<<<<<<<<
+# This script has been replaced by the script extractTraitDataFromMaster.pl
+# in the chado_germplasm_loaders set of loading scripts. The new scripts
+# handle trait terms both as QTL symbols and as germplasm observations.
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+#
 # file: load_traits.pl
 #
 # purpose: Load spreadsheet map and QTL data into chado
@@ -37,6 +43,9 @@
   use lib dirname(rel2abs($0));
   use CropLegumeBaseLoaderUtils;
   
+print "\nTHIS SCRIPT IS OBSOLETE. Please use extractTraitDataFromMaster.pl in the chado_germplasm_loaders set of scripts.\n\n";
+exit;
+
   my $warn = <<EOS
     Usage:
       
