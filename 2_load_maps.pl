@@ -478,11 +478,9 @@ sub attachStockPub {
   logSQL($dataset_name, "$sql\n");
   $sth = doQuery($dbh, $sql);
   if (($row=$sth->fetchrow_hashref)) {
-print "stock_pub record exists: " . $row->{'stock_pub_id'} . "\n";
     return $row->{'stock_pub_id'};
   }
   else {
-print "stock_pub record DOES NOT exist\n";
     $sql = "
       INSERT INTO chado.stock_pub
         (stock_id, pub_id)
@@ -572,7 +570,8 @@ sub confirmStockRecord {
         organism_id=$organism_id,
         type_id=(SELECT cvterm_id FROM chado.cvterm 
                  WHERE name='$stock_type'
-                   AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='stock_type'))";
+                   AND cv_id=(SELECT cv_id FROM chado.cv WHERE name='stock_type'))
+      WHERE stock_id=$stock_id";
     logSQL($dataset_name, "$sql\n");
     $sth = doQuery($dbh, $sql);
   }
