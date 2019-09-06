@@ -22,7 +22,7 @@
   # Get connected
   my $dbh = connectToDB;
 
-  my (%existing_markers, @marker_names, @sorted_names);
+  my (%existing_markers, @marker_names, @sorted_names, %duplicate_names);
   
   print "Get existing markers...\n";
   %existing_markers = getExistingMarkers($dbh);
@@ -40,17 +40,10 @@
     }
     close MARKER;
   }
-#  else {
-#    # Holds markers that are already in db; assume they should be updated if
-#    #   any of these appear in the worksheet.
-#    %existing_markers = getExistingMarkers($dbh);
-#    @marker_names = keys %existing_markers;
-#  }
   
   @sorted_names = sort {lc($a) cmp lc($b)} @marker_names;
 #print Dumper(@sorted_names);
 
-  my %duplicate_names;
   my $test_name = '';
   foreach my $name (@sorted_names) {
     if (lc($name) ne lc($test_name) && !closeMatch($name, $test_name)) {
@@ -134,19 +127,26 @@ sub getExistingMarkers {
   
   my %markers;
   my $sql = "
-    SELECT f.feature_id, f.name AS marker, p.uniquename AS citation, m.name AS map 
+    SELECT f.feature_id, f.name AS marker, o.common_name, p.uniquename AS citation, m.name AS map 
     FROM feature f
       LEFT JOIN feature_pub fp ON fp.feature_id=f.feature_id
       LEFT JOIN pub p ON p.pub_id=fp.pub_id
       LEFT JOIN featurepos mp ON mp.feature_id=f.feature_id
       LEFT JOIN featuremap m ON m.featuremap_id=mp.featuremap_id
+      LEFT JOIN organism o ON o.organism_id=f.organism_id
     WHERE f.type_id=(SELECT cvterm_id FROM cvterm 
                    WHERE name='genetic_marker' AND cv_id=(SELECT cv_id FROM cv 
                                                           WHERE name='sequence'))";
   logSQL('', $sql);
   my $sth = doQuery($dbh, $sql);
   while (my $row=$sth->fetchrow_hashref) {
-    $markers{$row->{'marker'}} = $row;
+    if ($markers{$row->{'marker'}}) {
+      # already found this one
+      push @{$duplicate_names{$test_name}}, $row->{'marker'};
+    }
+    else {
+      $markers{$row->{'marker'}} = $row;
+    }
   }
   
   return %markers;
