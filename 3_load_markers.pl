@@ -158,8 +158,6 @@ sub loadMarkers {
     }#already loaded from spreadsheet
     
     elsif ($marker_id=$existing_markers{"$unique_marker_name:$species"}) {
-#print"found $unique_marker_name:$species - $marker_id\n";
-  
       if ($skip_all) {
         next;
       }
@@ -334,7 +332,7 @@ sub attachSynonyms {
 
 
 sub clearMarkerDependancies {
-=cut eksc- don't do this; messes up updates
+=cut eksc- donnot do this; messes up updates
   my ($dbh, $marker_id) = @_;
   
   my ($sql, $sth);
@@ -392,7 +390,7 @@ sub getExistingMarkers {
   
   my %markers;
   my $sql = "
-    SELECT feature_id, name, d.accession AS mnemonic
+    SELECT feature_id, f.name, d.accession AS mnemonic
     FROM feature f
       INNER JOIN organism o ON o.organism_id=f.organism_id 
       INNER JOIN chado.organism_dbxref od ON od.organism_id=o.organism_id 
@@ -532,7 +530,7 @@ sub loadPrimer {
       $primer_name = "$primer_name.p$primer_num";
     }
     my $unique_primer_name = makeMarkerName($species, $primer_name);
-print "primer name is $primer_name ($unique_primer_name)\n";
+#print "primer name is $primer_name ($unique_primer_name)\n";
     if ((my $primer_id=primerExists($organism_id, $unique_primer_name, $primer_type))) {
       $sql = "
         UPDATE feature
@@ -561,7 +559,7 @@ print "primer name is $primer_name ($unique_primer_name)\n";
     $sth = doQuery($dbh, $sql);
     $row = $sth->fetchrow_hashref;
     my $subject_id = $row->{'feature_id'};
-print "Primer $primer_name has feature $subject_id\n";
+#print "Primer $primer_name has feature $subject_id\n";
         
     #linking the marker with its related features
     setFeatureRelationship($dbh, $marker_id, $subject_id, 'relationship'); 
@@ -769,7 +767,6 @@ print "\n\nupdate not implemented.\n\n";
 exit;
     }
   }#physical position information provided
-
 }#setPhysicalPosition
 
 
@@ -777,7 +774,6 @@ sub setMarkerRec {
   my ($dbh, $marker_id, $fields) = @_;
   my ($sql, $sth, $row);
   
-  # TODO: The official data dictionary splits this into genus/species
   my $species = $fields->{$mki{'species_fld'}};
   
   my $marker_name = $fields->{$mki{'marker_identifier_fld'}};

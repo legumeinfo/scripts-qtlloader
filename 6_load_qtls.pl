@@ -233,9 +233,9 @@ sub loadQTLpos {
     
     # create parent record: feature
     #   specieslink_name, qtl_symbol, qtl_identifer
-  my $qtl_symbol     = $fields->{$qi{'qtl_symbol_fld'}};
-  my $qtl_identifier = $fields->{$qi{'qtl_identifier_fld'}};
-  my $qtl_name       = makeQTLName($qtl_symbol, $qtl_identifier);
+    my $qtl_symbol     = $fields->{$qi{'qtl_symbol_fld'}};
+    my $qtl_identifier = $fields->{$qi{'qtl_identifier_fld'}};
+    my $qtl_name       = makeQTLName($qtl_symbol, $qtl_identifier);
 print "\n$line_count: $qtl_name\n";
     
     # check if this QTL should be skipped
@@ -247,7 +247,6 @@ print "\n$line_count: $qtl_name\n";
       print "ERROR: can't find QTL record for [$qtl_name]\n\n";
       exit;
     }
-
 
     # publication_lg
     loadFeatureprop($dbh, $qtl_id, $fields->{$mpi{'pub_lg_fld'}}, 
@@ -576,7 +575,7 @@ sub insertGeneticCoordinates {
   
   my $left_end  = $fields->{$mpi{'left_end_fld'}};
   my $right_end = $fields->{$mpi{'right_end_fld'}};
-print "name: $qtl_name, mapset: $mapset, lg: $lg_mapname, from $left_end to $right_end\n";
+print "genetic positions for: $qtl_name, mapset: $mapset, lg: $lg_mapname, from $left_end to $right_end\n";
   return if (isNull($mapset) || isNull($lg_mapname) 
               || (!$left_end && !($right_end)));
   
