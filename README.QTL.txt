@@ -1,3 +1,9 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+IMPORTANT NOTE: this information only applies if setting up a new Tripal/Chado 
+resource to hold and present QTL data
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
 -------------
 INSTALLATION:
 -------------
@@ -24,7 +30,7 @@ Note: the steps below will only work if done in order. If you wish to only
 			script will need to check both the database and the contents of other
 			worksheets to ensure the data is correct.
 
-Recommended order:
+Recommended order: (if no QTL data at all has been loaded and starting from the beginning) :
   0. Load cvterms (QTL_cvterms.sql) and create tables (QTL_new_tables.sql)
        Do this by hand rather than executing the .sql files to catch any errors.
   
@@ -32,7 +38,7 @@ Recommended order:
   
   If you have new traits to load:
   2. 0_verifyWorksheet.pl -t (to check trait table)
-  3. 5_load_traits.pl
+  3. 5_load_traits.pl [OBSOLETE!]
   
   If you have markers to load:
   4. 0_verifyWorksheet.pl -m (to check marker table)
@@ -47,3 +53,5 @@ Recommended order:
   11. 4_load_qtl_experiments.pl
   12. 0_verifyWorksheet.pl -q to check QTL worksheets
   13. 6_load_qtls.pl
+
+  
