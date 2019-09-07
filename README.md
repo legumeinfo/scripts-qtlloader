@@ -42,6 +42,8 @@ of this diagram have been implemented.
   Example: <br>
       `$ perl scripts-qtlloader/2_load_maps.pl data/arahy/AlvesPereira2008` 
   <br><br>
+  Must Sync in Tripal feature map (Tripal » Chado Modules » Feature Maps) to be able to see it in map search.
+  <br><br>
 **3_load_markers.pl** - load marker data, including genomic positions, if provided, but NOT map positions. <br>
   Arguments: 1) directory-of-text-files <br> 
   Example: <br>
