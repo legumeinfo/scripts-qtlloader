@@ -48,7 +48,9 @@ of this diagram have been implemented.
   Arguments: 1) directory-of-text-files <br> 
   Example: <br>
       `$ perl scripts-qtlloader/3_load_markers.pl data/arahy/AlvesPereira2008` 
-  <br><br>      
+  <br><br>  
+  ?? Need instruction: What to do for pre-existing markers. Yes/No/Al/etc.
+  <br><br>
 **4_load_qtl_experiments.pl** - Load QTL experiment (roughly corresponds to a treatment) <br>
   Arguments: 1) directory-of-text-files <br> 
   Example: <br>
