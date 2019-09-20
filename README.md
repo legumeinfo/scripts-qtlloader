@@ -55,7 +55,9 @@ of this diagram have been implemented.
   Arguments: 1) directory-of-text-files <br> 
   Example: <br>
       `$ perl scripts-qtlloader/4_load_qtl_experiments.pl data/arahy/AlvesPereira2008` 
-  <br><br>      
+  <br><br> 
+  Sync in Tripal (Tripal » Chado Modules » Projects)
+  <br><br>
 **5_load_traits.pl** - **OBSOLETE!** Use `legumeinfo/chado_germplasm_loaders/extractTraitDataFromMaster.pl` instead. 
   <br><br>
 **6_load_qtls.pl** - Load QTL data, including map positions. <br>
