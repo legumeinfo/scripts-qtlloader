@@ -63,6 +63,9 @@ of this diagram have been implemented.
 **6_load_qtls.pl** - Load QTL data, including map positions. <br>
   Example: <br>
       `$ perl scripts-qtlloader/6_load_qtls.pl data/arahy/AlvesPereira2008` <br> 
+  Sync in Tripal (Tripal » Chado Modules » Features: Sync with feature type QTL, uppercase; urganism as appropriate; ). 
+  Then, populate MViews in Tripal (Tripal » Chado Schema » Materialized Views. Names: qtl and qtl_map_position).
+      
 **db.pl** - Contains connectToDB() function, which holds the Postres connection string. 
 
 ### Other scripts: ###
