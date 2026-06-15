@@ -1,5 +1,12 @@
 # QTL loading scripts #
 
+___
+## This repository has been archived and is no longer maintained.
+The code is provided for historical reference and may contain unpatched or unknown vulnerabilities.  
+It should not be used in production systems.  
+___
+
+
 **The corresponding Tripal module is legume_qtl**
 
 This repository contains the scripts for loading QTL, map, and/or marker data into Chado. 
